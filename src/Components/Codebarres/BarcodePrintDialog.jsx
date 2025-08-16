@@ -1,115 +1,115 @@
 
-import { useEffect, useState } from "react";
-import { Dialog, Box, Typography, Button } from "@mui/material";
-import JsBarcode from "jsbarcode";
-import axios from "../../api/axiosInstance";
+// import { useEffect, useState } from "react";
+// import { Dialog, Box, Typography, Button } from "@mui/material";
+// import JsBarcode from "jsbarcode";
+// import axios from "../../api/axiosInstance";
 
-export default function BarcodePrintDialog({
-  selectedProduit,
-  onClose,
-  onPrinted,
-}) {
-  const [svgMarkup, setSvgMarkup] = useState("");
+// export default function BarcodePrintDialog({
+//   selectedProduit,
+//   onClose,
+//   onPrinted,
+// }) {
+//   const [svgMarkup, setSvgMarkup] = useState("");
 
-  // Generate SVG barcode whenever product changes
-  useEffect(() => {
-    if (selectedProduit) {
-      const svg = document.createElement("svg");
+//   // Generate SVG barcode whenever product changes
+//   useEffect(() => {
+//     if (selectedProduit) {
+//       const svg = document.createElement("svg");
 
-      JsBarcode(svg, selectedProduit.codebarre, {
-        format: "EAN13",
-        width: 1,
-        height: 20,
-        displayValue: true,
-        fontSize: 13,
-        margin: 9, // add margin
-      });
+//       JsBarcode(svg, selectedProduit.codebarre, {
+//         format: "EAN13",
+//         width: 1,
+//         height: 20,
+//         displayValue: true,
+//         fontSize: 13,
+//         margin: 9, // add margin
+//       });
 
-      // Create final SVG markup with store + product name
-      const finalMarkup = `
-  <svg xmlns="http://www.w3.org/2000/svg" width="200" height="110">
-    <!-- Texte centré -->
-    <text x="80%" y="10" font-size="14" text-anchor="middle" font-family="Arial">Dar Lokman</text>
-    <text x="80%" y="24" font-size="12" text-anchor="middle" font-family="Arial">${selectedProduit.nom}</text>
+//       // Create final SVG markup with store + product name
+//       const finalMarkup = `
+//   <svg xmlns="http://www.w3.org/2000/svg" width="200" height="110">
+//     <!-- Texte centré -->
+//     <text x="80%" y="10" font-size="14" text-anchor="middle" font-family="Arial">Dar Lokman</text>
+//     <text x="80%" y="24" font-size="12" text-anchor="middle" font-family="Arial">${selectedProduit.nom}</text>
 
-    <!-- Code-barres avec moins d'espace -->
-    <g transform="translate(90,26)">
-      ${svg.outerHTML}
-    </g>
-  </svg>
-`;
-
-
-      setSvgMarkup(finalMarkup);
-    }
-  }, [selectedProduit]);
-
-  const handleSendToBackend = async () => {
-    if (!svgMarkup) return;
-    try {
-      await axios.post("/prod/print-barcode-server/", {
-        code: selectedProduit.codebarre,
-        product: selectedProduit.nom,
-        store: "Dar Lokman",
-        svg: svgMarkup,
-      });
-      if (onPrinted) onPrinted(selectedProduit.codebarre);
-      onClose(); // close dialog after send
-    } catch (err) {
-      console.error("Erreur envoi serveur:", err);
-      alert("Erreur lors de l'envoi au serveur.");
-    }
-  };
-
-  if (!selectedProduit) return null;
-  const handleWebPrint = () => {
-  const iframe = document.createElement("iframe");
-  iframe.style.position = "fixed";
-  iframe.style.right = "0";
-  iframe.style.bottom = "0";
-  iframe.style.width = "0";
-  iframe.style.height = "0";
-  iframe.style.border = "0";
-  document.body.appendChild(iframe);
-
-  iframe.contentDocument.write(`
-    <html>
-      <head><title>Print</title></head>
-      <body>${svgMarkup}</body>
-    </html>
-  `);
-
-  iframe.contentDocument.close();
-  iframe.contentWindow.focus();
-  iframe.contentWindow.print();
-
-  // Remove iframe after printing
-  setTimeout(() => document.body.removeChild(iframe), 1000);
-};
+//     <!-- Code-barres avec moins d'espace -->
+//     <g transform="translate(90,26)">
+//       ${svg.outerHTML}
+//     </g>
+//   </svg>
+// `;
 
 
-  return (
-    <Dialog open={!!selectedProduit} onClose={onClose}>
-      <Box sx={{ p: 1, width: "200px", textAlign: "center" }}>
+//       setSvgMarkup(finalMarkup);
+//     }
+//   }, [selectedProduit]);
+
+//   const handleSendToBackend = async () => {
+//     if (!svgMarkup) return;
+//     try {
+//       await axios.post("/prod/print-barcode-server/", {
+//         code: selectedProduit.codebarre,
+//         product: selectedProduit.nom,
+//         store: "Dar Lokman",
+//         svg: svgMarkup,
+//       });
+//       if (onPrinted) onPrinted(selectedProduit.codebarre);
+//       onClose(); // close dialog after send
+//     } catch (err) {
+//       console.error("Erreur envoi serveur:", err);
+//       alert("Erreur lors de l'envoi au serveur.");
+//     }
+//   };
+
+//   if (!selectedProduit) return null;
+//   const handleWebPrint = () => {
+//   const iframe = document.createElement("iframe");
+//   iframe.style.position = "fixed";
+//   iframe.style.right = "0";
+//   iframe.style.bottom = "0";
+//   iframe.style.width = "0";
+//   iframe.style.height = "0";
+//   iframe.style.border = "0";
+//   document.body.appendChild(iframe);
+
+//   iframe.contentDocument.write(`
+//     <html>
+//       <head><title>Print</title></head>
+//       <body>${svgMarkup}</body>
+//     </html>
+//   `);
+
+//   iframe.contentDocument.close();
+//   iframe.contentWindow.focus();
+//   iframe.contentWindow.print();
+
+//   // Remove iframe after printing
+//   setTimeout(() => document.body.removeChild(iframe), 1000);
+// };
+
+
+//   return (
+//     <Dialog open={!!selectedProduit} onClose={onClose}>
+//       <Box sx={{ p: 1, width: "200px", textAlign: "center" }}>
        
-        <Box
-          sx={{ display: "flex", justifyContent: "center", mt: 1 }}
-          dangerouslySetInnerHTML={{ __html: svgMarkup }}
-        />
+//         <Box
+//           sx={{ display: "flex", justifyContent: "center", mt: 1 }}
+//           dangerouslySetInnerHTML={{ __html: svgMarkup }}
+//         />
 
-        <Button
-          variant="contained"
-          // onClick={handleSendToBackend}
-          onClick={handleWebPrint}
-          fullWidth
-          sx={{ mt: 2 }}
-        >
-          Imprimer
-        </Button>
-      </Box>
-    </Dialog>
-  );
-}
+//         <Button
+//           variant="contained"
+//           // onClick={handleSendToBackend}
+//           onClick={handleWebPrint}
+//           fullWidth
+//           sx={{ mt: 2 }}
+//         >
+//           Imprimer
+//         </Button>
+//       </Box>
+//     </Dialog>
+//   );
+// }
 // import { useEffect, useState } from "react";
 // import { Dialog, Box, Button } from "@mui/material";
 // import JsBarcode from "jsbarcode";
@@ -233,4 +233,90 @@ export default function BarcodePrintDialog({
 //     </Dialog>
 //   );
 // }
+
+
+import { useEffect, useState } from "react";
+import { Dialog, Box, Button } from "@mui/material";
+import JsBarcode from "jsbarcode";
+
+export default function BarcodePrintDialog({ selectedProduit, onClose }) {
+  const [svgMarkup, setSvgMarkup] = useState("");
+
+  useEffect(() => {
+    if (selectedProduit) {
+      const svg = document.createElement("svg");
+
+      JsBarcode(svg, selectedProduit.codebarre, {
+        format: "EAN13",
+        width: 1.5,        // thinner bars
+        height: 40,        // shorter bars
+        displayValue: true,
+        fontSize: 10,      // smaller numbers under barcode
+        margin: 0,
+      });
+
+      const finalMarkup = `
+        <div style="width: 58mm; font-family: Arial, sans-serif;">
+          <div style="text-align:center; font-weight:bold; font-size:12px;">Dar Lokman</div>
+          <div style="text-align:center; font-size:10px;">${selectedProduit.nom}</div>
+          <div style="text-align:center; margin-top:2mm;">${svg.outerHTML}</div>
+        </div>
+      `;
+      setSvgMarkup(finalMarkup);
+    }
+  }, [selectedProduit]);
+
+  const handleWebPrint = () => {
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+
+    const printContent = `
+      <html>
+        <head>
+          <style>
+            @page {
+              size: 58mm auto;
+              margin: 0;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+              display: flex;
+              justify-content: center;
+            }
+          </style>
+        </head>
+        <body>${svgMarkup}</body>
+      </html>
+    `;
+
+    iframe.contentDocument.write(printContent);
+    iframe.contentDocument.close();
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+
+    setTimeout(() => document.body.removeChild(iframe), 1000);
+  };
+
+  if (!selectedProduit) return null;
+
+  return (
+    <Dialog open={!!selectedProduit} onClose={onClose}>
+      <Box sx={{ p: 2, width: 230 }}>
+        <Box dangerouslySetInnerHTML={{ __html: svgMarkup }} sx={{ mb: 2 }} />
+        <Button variant="contained" fullWidth onClick={handleWebPrint}>
+          Imprimer
+        </Button>
+      </Box>
+    </Dialog>
+  );
+}
+
+
 

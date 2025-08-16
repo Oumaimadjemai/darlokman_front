@@ -1,9 +1,6 @@
 import Button from "@mui/material/Button";
 import AddIcon from "@mui/icons-material/Add";
 import Stack from "@mui/material/Stack";
-import TextField from "@mui/material/TextField";
-import SearchIcon from "@mui/icons-material/Search";
-import InputAdornment from "@mui/material/InputAdornment";
 import { useState, useEffect } from "react";
 import CloseIcon from "@mui/icons-material/Close";
 import {
@@ -27,7 +24,7 @@ import ExtraCardAchat from "./ExtraCardAchat";
 import Buttom from "./Buttom";
 
 export default function AchatBoard({ setActiveComponent }) {
-  const [selectedAchat, setSelectedAchat] = useState(null);
+  
   const [fournisseurs, setFournisseurs] = useState([""]);
 
   const [filters, setFilters] = useState({

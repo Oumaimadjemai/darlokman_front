@@ -1,1 +1,2 @@
-npm install && CI=false npm run build && npx serve -s build -l $PORT
+web: npm install && CI=false npm run build && npx serve -s build -l $PORT
+

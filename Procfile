@@ -1,1 +1,1 @@
-web: npm install && npm run build && npx serve -s build -l 8080
+web: npm install && npm run build && npx serve -s build -l $PORT

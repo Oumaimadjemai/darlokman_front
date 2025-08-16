@@ -246,14 +246,15 @@ export default function BarcodePrintDialog({ selectedProduit, onClose }) {
     if (selectedProduit) {
       const svg = document.createElement("svg");
 
-      JsBarcode(svg, selectedProduit.codebarre, {
-        format: "EAN13",
-        width: 1.5,        // thinner bars
-        height: 40,        // shorter bars
-        displayValue: true,
-        fontSize: 10,      // smaller numbers under barcode
-        margin: 0,
-      });
+     JsBarcode(svg, selectedProduit.codebarre, {
+  format: "EAN13",
+  width: 1,         // thinner bars → smaller footprint
+  height: 30,       // shorter bars
+  displayValue: true,
+  fontSize: 9,      // smaller font
+  margin: 0,
+});
+
 
       const finalMarkup = `
         <div style="width: 58mm; font-family: Arial, sans-serif;">

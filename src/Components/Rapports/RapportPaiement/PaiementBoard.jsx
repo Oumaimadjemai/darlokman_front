@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Card,
@@ -16,8 +16,8 @@ import {
   FormControl,
   TableContainer,
   Paper,
+  Grid,
 } from "@mui/material";
-import Grid from "@mui/material/GridLegacy";
 import LockIcon from "@mui/icons-material/Lock";
 import axios from "../../../api/axiosInstance";
 
@@ -25,6 +25,7 @@ export default function PaymentDashboard() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("الكل");
   const [rows, setRows] = useState([]);
+  const [messages, setMessages] = useState([]); // <-- success/error messages
 
   const [selectedYear, setSelectedYear] = useState("الكل");
   const currentMonthIndex = new Date().getMonth(); // 0=Jan, 11=Dec
@@ -61,6 +62,44 @@ export default function PaymentDashboard() {
     }
   };
 
+  const fileInputRef = useRef(null);
+
+  const handleFileUploadClick = () => {
+    fileInputRef.current.click();
+  };
+
+  const handleFileChange = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await axios.post("/vente/vente/import-paiements-txt/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      setMessages([
+        { type: "success", text: "تم تحميل الملف بنجاح" },
+      ]);
+
+      // Optionnel : refresh table data ici
+    } catch (err) {
+      setMessages([
+        {
+          type: "error",
+          text: err.response?.data || err.message || "Erreur inconnue",
+        },
+      ]);
+    } finally {
+      event.target.value = null;
+    }
+  };
+
+  const isClientLocked = (clientStatus) => lockedStatus.includes(clientStatus);
+
+  // --- Fetch rows (table data) ---
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -127,7 +166,12 @@ export default function PaymentDashboard() {
 
         setRows(allRows);
       } catch (err) {
-        console.error("Erreur lors du chargement :", err);
+        setMessages([
+          {
+            type: "error",
+            text: err.response?.data || err.message || "Erreur de chargement",
+          },
+        ]);
       }
     };
 
@@ -161,12 +205,10 @@ export default function PaymentDashboard() {
   };
 
   const getCardColor = (st) => {
-    if (st === "مدفوع") return "#4caf50"; // green
-    if (st === "قيد الانتظار") return "#ff9800"; // orange
-    return "#f44336"; // red
+    if (st === "مدفوع") return "#4caf50";
+    if (st === "قيد الانتظار") return "#ff9800";
+    return "#f44336";
   };
-
-  const isClientLocked = (clientStatus) => lockedStatus.includes(clientStatus);
 
   const uniqueYears = [
     "الكل",
@@ -179,79 +221,109 @@ export default function PaymentDashboard() {
     <Box p={2}>
       <Card>
         <CardContent>
+          {/* Upload / Search Controls */}
           <Grid container spacing={2} alignItems="center" mb={2}>
-  <Grid item>
-    <TextField
-      placeholder="بحث"
-      size="small"
-      value={search}
-      onChange={(e) => setSearch(e.target.value)}
-    />
-  </Grid>
+            <Grid item>
+              <TextField
+                placeholder="بحث"
+                size="small"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </Grid>
 
-  <Grid item>
-    <FormControl size="small">
-      <Select
-        value={status}
-        onChange={(e) => setStatus(e.target.value)}
-      >
-        <MenuItem value="الكل">الكل</MenuItem>
-        <MenuItem value="مدفوع">مدفوع</MenuItem>
-        <MenuItem value="قيد الانتظار">قيد الانتظار</MenuItem>
-        <MenuItem value="غير مدفوع">غير مدفوع</MenuItem>
-      </Select>
-    </FormControl>
-  </Grid>
+            <Grid item>
+              <FormControl size="small">
+                <Select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                >
+                  <MenuItem value="الكل">الكل</MenuItem>
+                  <MenuItem value="مدفوع">مدفوع</MenuItem>
+                  <MenuItem value="قيد الانتظار">قيد الانتظار</MenuItem>
+                  <MenuItem value="غير مدفوع">غير مدفوع</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
 
-  <Grid item>
-    <FormControl size="small">
-      <Select
-        value={selectedYear}
-        onChange={(e) => setSelectedYear(e.target.value)}
-      >
-        {uniqueYears.map((y, idx) => (
-          <MenuItem key={idx} value={y}>
-            {y}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
-  </Grid>
+            <Grid item>
+              <FormControl size="small">
+                <Select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                >
+                  {uniqueYears.map((y, idx) => (
+                    <MenuItem key={idx} value={y}>
+                      {y}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
 
-  <Grid item>
-    <FormControl size="small">
-      <Select
-        value={selectedMonth}
-        onChange={(e) => setSelectedMonth(e.target.value)}
-      >
-        <MenuItem value="الكل">الكل</MenuItem>
-        {allMonths.map((m) => (
-          <MenuItem key={m} value={m}>
-            {arabicMonths[m + 1]}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
-  </Grid>
+            <Grid item>
+              <FormControl size="small">
+                <Select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                >
+                  <MenuItem value="الكل">الكل</MenuItem>
+                  {allMonths.map((m) => (
+                    <MenuItem key={m} value={m}>
+                      {arabicMonths[m + 1]}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
 
-  <Grid item>
-    <Typography variant="h5">
-      {totalAmount.toLocaleString()} دج
-    </Typography>
-  </Grid>
+            <Grid item>
+              <Typography variant="h5">{totalAmount.toLocaleString()} دج</Typography>
+            </Grid>
 
-  {/* Excel button always at the far right */}
-  <Grid item sx={{ ml: "auto" }}>
-    <Button
-      variant="contained"
-      sx={{ bgcolor: "green", color: "white" }}
-    >
-      Excel
-    </Button>
-  </Grid>
-</Grid>
+            <Grid item sx={{ ml: "auto" }}>
+              <Button variant="contained" sx={{ bgcolor: "green", color: "white" }}>
+                Excel
+              </Button>
+              <Button
+                variant="contained"
+                sx={{ color: "white", ml: 2 }}
+                onClick={handleFileUploadClick}
+              >
+                تحميل ملف البريد
+              </Button>
+              <input
+                type="file"
+                accept=".txt"
+                ref={fileInputRef}
+                style={{ display: "none" }}
+                onChange={handleFileChange}
+              />
+            </Grid>
+          </Grid>
 
-          {/* Status Totals Cards with Colors */}
+          {/* Messages Cards (success/error) */}
+          
+            {messages.map((msg, idx) => (
+              
+                <Card
+                  sx={{
+                    bgcolor: msg.type === "success" ? "#4caf50" : "#f44336",
+                    color: "white",
+                    borderRadius: 1,
+                    width:"100%"
+                  }}
+                  
+                >
+                  <CardContent>
+                    <Typography variant="body1" sx={{textAlign:"center"}}>{msg.text}</Typography>
+                  </CardContent>
+                </Card>
+             
+            ))}
+          
+
+          {/* Status Totals Cards */}
           <Grid container spacing={2} mt={2}>
             {Object.entries(statusTotals).map(([statusLabel, info]) => (
               <Grid item key={statusLabel}>
@@ -263,12 +335,7 @@ export default function PaymentDashboard() {
                     borderRadius: 1,
                   }}
                 >
-                  <CardContent
-                    sx={{
-                      py: 1, // Reduce vertical padding
-                      px: 1, // Keep some horizontal padding
-                    }}
-                  >
+                  <CardContent sx={{ py: 1, px: 1 }}>
                     <Typography variant="subtitle1" align="center">
                       {statusLabel}
                     </Typography>
@@ -284,10 +351,8 @@ export default function PaymentDashboard() {
             ))}
           </Grid>
 
-          <TableContainer
-            component={Paper}
-            sx={{ maxHeight: 500, overflowY: "auto", mt: 2 }}
-          >
+          {/* Table */}
+          <TableContainer component={Paper} sx={{ maxHeight: 500, overflowY: "auto", mt: 2 }}>
             <Table stickyHeader size="medium">
               <TableHead>
                 <TableRow>
@@ -309,9 +374,7 @@ export default function PaymentDashboard() {
                     <TableCell>{row.amount.toLocaleString()}</TableCell>
                     <TableCell>{row.montant_mois}</TableCell>
                     <TableCell align="center">
-                      {isClientLocked(row.clientStatus) && (
-                        <LockIcon sx={{ color: "red" }} />
-                      )}
+                      {isClientLocked(row.clientStatus) && <LockIcon sx={{ color: "red" }} />}
                     </TableCell>
                     <TableCell align="center">
                       <Box

@@ -16,6 +16,8 @@ export default function EditClient({
   setRows,
 }) {
   const [formData, setFormData] = useState({
+     assurance_militaire: "",
+    date_expedition: "",
     nom_famille_ar: "",
     prenom_ar: "",
     nom_famille_fr: "",
@@ -52,6 +54,8 @@ export default function EditClient({
   useEffect(() => {
     if (selectedClient) {
       setFormData({
+         assurance_militaire: selectedClient.assurance_militaire || "",
+    date_expedition: selectedClient.date_expedition || "",
         nom_famille_ar: selectedClient.nom_famille_ar || "",
         prenom_ar: selectedClient.prenom_ar || "",
         nom_famille_fr: selectedClient.nom_famille_fr || "",
@@ -91,7 +95,7 @@ export default function EditClient({
 
       // Append files
       files.forEach((file) => {
-        dataToSend.append("fichiers", file); // backend must accept 'fichiers' as field name
+        dataToSend.append("fichiers_upload", file); // backend must accept 'fichiers' as field name
       });
 
       await axios.put(`/auth/clients/${selectedClient.id}/`, dataToSend, {
@@ -125,14 +129,13 @@ export default function EditClient({
 
   return (
     <>
-      <Grid container spacing={2}>
-        <Grid item xs={7}>
+      <Grid container>
+        <Grid size={7}>
           <UserInfos userInfos={formData} setUserInfos={setFormData} />
         </Grid>
 
         <Grid
-          item
-          xs={5}
+          size={5}
           sx={{
             display: "flex",
             flexDirection: "column",
@@ -142,7 +145,24 @@ export default function EditClient({
           <PostInfos userInfos={formData} setUserInfos={setFormData} />
 
           {/* ✅ DragDrop below PostInfos */}
-          <DragDrop files={files} setFiles={setFiles} />
+         <DragDrop 
+  files={files} 
+  setFiles={setFiles} 
+  existingFiles={selectedClient?.fichiers || []}
+  onRemoveExistingFile={(file) => {
+    // appel API DELETE fichier
+    axios.delete(`auth/clients/files/${file.id}/`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` }
+    })
+    .then(() => {
+      // feedback UI
+      setFeedback({ open: true, message: "✅ تم حذف الملف", severity: "success" });
+      // enlever du state local
+      selectedClient.fichiers = selectedClient.fichiers.filter(f => f.id !== file.id);
+    });
+  }}
+/>
+
 
           <Button
             variant="contained"

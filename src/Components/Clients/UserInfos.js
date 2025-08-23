@@ -28,6 +28,50 @@ export default function UserInfos({ userInfos, setUserInfos }) {
               المعلومات الشخصية
             </Typography>
             <TextField
+              label="رقم الضمان للعسكر"
+              id="outlined-size-small"
+              size="small"
+              className="Input-field"
+              value={userInfos.assurance_militaire}
+              onChange={(e) =>
+                setUserInfos((prev) => ({
+                  ...prev,
+                  assurance_militaire: e.target.value,
+                }))
+              }
+            />
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DatePicker
+                label="تاريخ إنتهاء الصلاحية"
+                slotProps={{
+                  textField: {
+                    size: "small",
+                    InputProps: {
+                      endAdornment: null, // Remove default icon on right
+                      // Add icon on left
+                      startAdornment: (
+                        <InputAdornment position="start"></InputAdornment>
+                      ),
+                    },
+                  },
+                }}
+                className="Input-field"
+               value={
+                  userInfos.date_expedition
+                    ? new Date(userInfos.date_expedition) // ✅ Convert string -> Date
+                    : null
+                }
+                 onChange={(newValue) =>
+                  setUserInfos((prev) => ({
+                    ...prev,
+                    date_expedition: newValue
+                      ? newValue.toISOString().split("T")[0] // ✅ Store as "yyyy-MM-dd"
+                      : "",
+                  }))
+                }
+              />
+            </LocalizationProvider>
+            <TextField
               label="اللقب"
               id="outlined-size-small"
               size="small"
@@ -140,22 +184,17 @@ export default function UserInfos({ userInfos, setUserInfos }) {
                   },
                 }}
                 className="Input-field"
-                // value={userInfos.date_naissance || null}
-                // value={
-                //   userInfos.date_naissance
-                //     ? parseISO(userInfos.date_naissance)
-                //     : null
-                // }
-                value={userInfos.date_naissance}
+                value={
+                  userInfos.date_naissance
+                    ? new Date(userInfos.date_naissance) // ✅ Convert string -> Date
+                    : null
+                }
                 onChange={(newValue) =>
                   setUserInfos((prev) => ({
-                    // ...prev,
-                    // date_naissance: newValue,
-                    // date_naissance: newValue
-                    //   ? format(newValue, "yyyy-MM-dd")
-                    //   : "",
                     ...prev,
-                    date_naissance: newValue || null,
+                    date_naissance: newValue
+                      ? newValue.toISOString().split("T")[0] // ✅ Store as "yyyy-MM-dd"
+                      : "",
                   }))
                 }
               />
@@ -328,20 +367,17 @@ export default function UserInfos({ userInfos, setUserInfos }) {
                   },
                 }}
                 className="Input-field"
-                // value={
-                //   userInfos.date_emission_piece
-                //     ? parseISO(userInfos.date_emission_piece)
-                //     : null
-                // }
-                 value={userInfos.date_emission_piece}
+                 value={
+                  userInfos.date_emission_piece
+                    ? new Date(userInfos.date_emission_piece) // ✅ Convert string -> Date
+                    : null
+                }
                 onChange={(newValue) =>
                   setUserInfos((prev) => ({
-                    // ...prev,
-                    // date_emission_piece: newValue
-                    //   ? format(newValue, "yyyy-MM-dd")
-                    //   : "",
                     ...prev,
-                    date_emission_piece: newValue || null,
+                    date_emission_piece: newValue
+                      ? newValue.toISOString().split("T")[0] // ✅ Store as "yyyy-MM-dd"
+                      : "",
                   }))
                 }
               />

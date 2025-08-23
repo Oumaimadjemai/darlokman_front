@@ -23,6 +23,8 @@ export default function AddClient({ setOpenAddClientDialog, fetchClient }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const [userInfos, setUSerInfos] = useState({
+    assurance_militaire: "",
+    date_expedition: "",
     nom_famille_ar: "",
     prenom_ar: "",
     nom_famille_fr: "",
@@ -67,7 +69,6 @@ export default function AddClient({ setOpenAddClientDialog, fetchClient }) {
       "lieu_emission_piece",
       "ccp",
       "cle",
-      "code",
     ];
 
     const missingFields = requiredFields.filter(
@@ -100,6 +101,9 @@ export default function AddClient({ setOpenAddClientDialog, fetchClient }) {
         : "",
       date_emission_piece: userInfos.date_emission_piece
         ? format(userInfos.date_emission_piece, "yyyy-MM-dd")
+        : "",
+      date_expedition: userInfos.date_expedition
+        ? format(userInfos.date_expedition, "yyyy-MM-dd")
         : "",
       revenu: userInfos.revenu || "0.00",
       dette_initiale: userInfos.dette_initiale || "0.00",

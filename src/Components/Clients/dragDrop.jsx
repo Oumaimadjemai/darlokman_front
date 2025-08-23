@@ -10,8 +10,12 @@ import {
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 
-export default function DragDrop({ files, setFiles }) {
-  // const [files, setFiles] = useState([]);
+export default function DragDrop({
+  files,
+  setFiles,
+  existingFiles = [], // 🔹 fichiers déjà stockés (depuis backend)
+  onRemoveExistingFile, // 🔹 callback suppression fichier existant
+}) {
   const fileInputRef = useRef();
   const theme = useTheme();
 
@@ -67,37 +71,26 @@ export default function DragDrop({ files, setFiles }) {
         />
       </Paper>
 
-      {/* Preview List */}
-      <Box mt={2}>
-        <ImageList cols={2} gap={8}>
-          {files.map((file, index) => {
-            const isImage = file.type.startsWith("image/");
-            const fileURL = URL.createObjectURL(file);
-            return (
-              <Box key={index} position="relative">
-                {isImage ? (
-                  // <ImageListItem>
-                  //   <img
-                  //     src={fileURL}
-                  //     alt={file.name}
-                  //     style={{
-                  //       width: "100%",
-                  //       height: "100%",
-                  //       borderRadius: "8px",
-                  //       objectFit: "cover",
-                  //     }}
-                  //   />
-                  // </ImageListItem>
+      {/* ✅ Fichiers existants du client */}
+      {existingFiles.length > 0 && (
+        <Box mt={2}>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            الملفات الحالية:
+          </Typography>
+          <ImageList cols={2} gap={8}>
+            {existingFiles.map((file) => (
+              <Box key={file.id} position="relative">
+                {file.type === "image" ? (
                   <ImageListItem sx={{ width: 120, height: 120 }}>
                     <img
-                      src={fileURL}
+                      src={file.url}
                       alt={file.name}
                       style={{
                         width: "100%",
                         height: "100%",
                         borderRadius: "8px",
-                        objectFit: "contain", // 🔹 Prevents huge stretch
-                        backgroundColor: "#f0f0f0", // optional background for transparency
+                        objectFit: "contain",
+                        backgroundColor: "#f0f0f0",
                       }}
                     />
                   </ImageListItem>
@@ -111,13 +104,13 @@ export default function DragDrop({ files, setFiles }) {
                       bgcolor: theme.palette.grey[100],
                       cursor: "pointer",
                     }}
-                    onClick={() => window.open(fileURL, "_blank")}
+                    onClick={() => window.open(file.url, "_blank")}
                   >
                     {file.name}
                   </Paper>
                 )}
                 <IconButton
-                  onClick={() => removeFile(index)}
+                  onClick={() => onRemoveExistingFile(file)}
                   size="small"
                   sx={{
                     position: "absolute",
@@ -133,10 +126,74 @@ export default function DragDrop({ files, setFiles }) {
                   <DeleteIcon fontSize="small" />
                 </IconButton>
               </Box>
-            );
-          })}
-        </ImageList>
-      </Box>
+            ))}
+          </ImageList>
+        </Box>
+      )}
+
+      {/* ✅ Nouveaux fichiers ajoutés */}
+      {files.length > 0 && (
+        <Box mt={2}>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            الملفات الجديدة:
+          </Typography>
+          <ImageList cols={2} gap={8}>
+            {files.map((file, index) => {
+              const isImage = file.type.startsWith("image/");
+              const fileURL = URL.createObjectURL(file);
+              return (
+                <Box key={index} position="relative">
+                  {isImage ? (
+                    <ImageListItem sx={{ width: 120, height: 120 }}>
+                      <img
+                        src={fileURL}
+                        alt={file.name}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          borderRadius: "8px",
+                          objectFit: "contain",
+                          backgroundColor: "#f0f0f0",
+                        }}
+                      />
+                    </ImageListItem>
+                  ) : (
+                    <Paper
+                      sx={{
+                        padding: 1,
+                        borderRadius: 1,
+                        textAlign: "center",
+                        fontSize: "12px",
+                        bgcolor: theme.palette.grey[100],
+                        cursor: "pointer",
+                      }}
+                      onClick={() => window.open(fileURL, "_blank")}
+                    >
+                      {file.name}
+                    </Paper>
+                  )}
+                  <IconButton
+                    onClick={() => removeFile(index)}
+                    size="small"
+                    sx={{
+                      position: "absolute",
+                      top: 0,
+                      right: 0,
+                      bgcolor: "rgba(255,255,255,0.8)",
+                      color: theme.palette.error.main,
+                      "&:hover": {
+                        bgcolor: "rgba(255,255,255,1)",
+                      },
+                    }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              );
+            })}
+          </ImageList>
+        </Box>
+      )}
     </Box>
   );
 }

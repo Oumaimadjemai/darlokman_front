@@ -57,7 +57,7 @@ export default function VenteDetailFacilite({ clientId }) {
               }}
               elevation={1}
             >
-              <Stack direction="row" spacing={4}>
+              <Stack direction="row" spacing={3}>
                 <Typography variant="body1">
                   <strong>تاريخ البيع :</strong> {vente.date_formatee || "--"}
                 </Typography>

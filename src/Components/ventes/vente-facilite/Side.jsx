@@ -9,6 +9,9 @@ import {
   Select,
   TextField,
   Typography,
+  Card,
+  CardContent,
+  
 } from "@mui/material";
 import { useState, useEffect } from "react";
 import axios from "../../../api/axiosInstance";
@@ -34,6 +37,7 @@ export default function Side({
   const [breakdown, setBreakdown] = useState([]);
   const [montantVerse, setMontantVerse] = useState(0);
   const [montantRestant, setMontantRestant] = useState(0);
+  const [warning, setWarning] = useState(false);
 
   const MAX_ADVANCE_PERCENT = 0.5; // 50% du total autorisé en avance
 
@@ -108,9 +112,59 @@ export default function Side({
       setBreakdown([]);
     }
   }, [prelevement, mois, montantRestant]);
+//   useEffect(() => {
+//   if (selectedClient?.assurance_militaire && selectedClient?.date_expedition) {
+//     const expiration = dayjs(selectedClient.date_expedition); // date from backend
+//     if (expiration.isBefore(dayjs(), "day")) {
+//       alert(
+//         "⚠️ هذا الزبون عسكري و تأمينه منتهي الصلاحية، لا يمكنك البيع له."
+//       );
+//       // Optional: reset client selection if you want to block
+//       setSelectedClient(null);
+//       onclientChange(""); 
+//     }
+//   }
+// }, [selectedClient, onclientChange]);
+useEffect(() => {
+    if (selectedClient?.assurance_militaire && selectedClient?.date_expedition) {
+      const expiration = dayjs(selectedClient.date_expedition); // date from backend
+      if (expiration.isBefore(dayjs(), "day")) {
+        setWarning(true);
+        setSelectedClient(null);
+        onclientChange(""); 
+      } else {
+        setWarning(false);
+      }
+    }
+  }, [selectedClient, setSelectedClient, onclientChange]);
+
 
   return (
     <>
+     {warning && (
+        <Card
+          sx={{
+            backgroundColor: "#fff3cd",
+            border: "1px solid #ffecb5",
+            mb: 2,
+            borderRadius: 2
+          }}
+        >
+          <CardContent>
+            <Typography variant="body1" sx={{ color: "#664d03", fontWeight: "bold" }}>
+              ⚠️ هذا الزبون عسكري و تأمينه منتهي الصلاحية، لا يمكنك البيع له.
+            </Typography>
+            <Button
+              onClick={() => setWarning(false)}
+              variant="outlined"
+              size="small"
+              sx={{ mt: 1 }}
+            >
+              إغلاق
+            </Button>
+          </CardContent>
+        </Card>
+      )}
       <Typography variant="h5" color="primary" sx={{ textAlign: "center" }}>
         عملية بيع بالتقسيط
       </Typography>

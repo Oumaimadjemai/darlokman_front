@@ -11,11 +11,15 @@ import {
   TableRow,
   Paper,
   Typography,
+  IconButton,
 } from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
 
-export default function Buttom({rows}) {
+export default function Buttom({rows,setRows}) {
   // Sample data - replace with your actual data
-  
+    const handleDelete = (id) => {
+    setRows((prev) => prev.filter((row) => row.id !== id));
+  };
   return (
     <TableContainer
       component={Paper}
@@ -45,6 +49,9 @@ export default function Buttom({rows}) {
             <TableCell align="right">
               <Typography fontWeight="bold">المجموع</Typography>
             </TableCell>
+            <TableCell align="center">
+                          <Typography fontWeight="bold">حذف</Typography>
+                        </TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -57,6 +64,14 @@ export default function Buttom({rows}) {
               <TableCell align="right">{row.quantite}</TableCell>
                <TableCell align="right">{row.magasin_nom || row.magasin}</TableCell>
               <TableCell align="right">{row.total.toLocaleString()}</TableCell>
+               <TableCell align="center">
+                              <IconButton
+                                color="error"
+                                onClick={() => handleDelete(row.id)}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </TableCell>
             </TableRow>
           ))}
         </TableBody>

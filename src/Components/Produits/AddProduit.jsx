@@ -148,7 +148,7 @@ export default function AddProduit({ setOpenAddProductDialog, fetchProduit }) {
           <DragDrop files={uploadedFiles} setFiles={setUploadedFiles} />
           <Button
             variant="contained"
-            sx={{ width: "90%", height: "50px", mb: "20px" }}
+            sx={{ width: "90%", height: "50px", mb: "20px" ,mt:2}}
             onClick={handleSubmit}
           >
             حفظ المعلومات

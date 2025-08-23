@@ -169,7 +169,7 @@ export default function AddClient({ setOpenAddClientDialog, fetchClient }) {
           <DragDrop files={uploadedFiles} setFiles={setUploadedFiles} />
           <Button
             variant="contained"
-            sx={{ width: "90%", height: "50px" }}
+            sx={{ width: "90%", height: "50px" ,mt:2}}
             onClick={handleAddClick}
           >
             حفظ المعلومات

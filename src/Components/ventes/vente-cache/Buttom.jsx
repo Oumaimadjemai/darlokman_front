@@ -8,13 +8,21 @@ import {
   TableRow,
   Paper,
   Typography,
+  IconButton,
 } from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
 
-export default function Buttom({ rows }) {
-  // Sample data - replace with your actual data
+export default function Buttom({ rows, setRows }) {
+  // ✅ Delete row locally (UI only)
+  const handleDelete = (id) => {
+    setRows((prev) => prev.filter((row) => row.id !== id));
+  };
 
   return (
-    <TableContainer component={Paper} sx={{ width: "99%",mt:2,ml:1, height: "350px" }}>
+    <TableContainer
+      component={Paper}
+      sx={{ width: "99%", mt: 2, ml: 1, height: "350px" }}
+    >
       <Table aria-label="receipt table">
         <TableHead>
           <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
@@ -39,12 +47,14 @@ export default function Buttom({ rows }) {
             <TableCell align="right">
               <Typography fontWeight="bold">المجموع</Typography>
             </TableCell>
-            
+            <TableCell align="center">
+              <Typography fontWeight="bold">حذف</Typography>
+            </TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {rows.map((row, index) => (
-            <TableRow key={index}>
+          {rows.map((row) => (
+            <TableRow key={row.id}>
               <TableCell align="right">{row.id}</TableCell>
               <TableCell align="right">{row.reference}</TableCell>
               <TableCell align="right">{row.nom}</TableCell>
@@ -52,11 +62,16 @@ export default function Buttom({ rows }) {
                 {row.prix_vente_cache.toLocaleString()}
               </TableCell>
               <TableCell align="right">{row.quantite}</TableCell>
-              <TableCell align="right">
-                {row.magasin_nom || row.magasin}
-              </TableCell>
+              <TableCell align="right">{row.magasin_nom || row.magasin}</TableCell>
               <TableCell align="right">{row.total.toLocaleString()}</TableCell>
-             
+              <TableCell align="center">
+                <IconButton
+                  color="error"
+                  onClick={() => handleDelete(row.id)}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

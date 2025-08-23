@@ -8,10 +8,15 @@ import {
   TableRow,
   Paper,
   Typography,
+  IconButton,
 } from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
 
-export default function Buttom({ rows }) {
-  // Sample data - replace with your actual data
+export default function Buttom({ rows, setRows }) {
+  // ✅ Delete row locally (UI only)
+  const handleDelete = (id) => {
+    setRows((prev) => prev.filter((row) => row.id !== id));
+  };
 
   return (
     <TableContainer
@@ -42,11 +47,14 @@ export default function Buttom({ rows }) {
             <TableCell align="right">
               <Typography fontWeight="bold">المجموع</Typography>
             </TableCell>
+            <TableCell align="center">
+              <Typography fontWeight="bold">حذف</Typography>
+            </TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {rows.map((row, index) => (
-            <TableRow key={index}>
+          {rows.map((row) => (
+            <TableRow key={row.id}>
               <TableCell align="right">{row.id}</TableCell>
               <TableCell align="right">{row.reference}</TableCell>
               <TableCell align="right">{row.nom}</TableCell>
@@ -54,11 +62,17 @@ export default function Buttom({ rows }) {
                 {row.prix_vente_facilite?.toLocaleString() || 0}
               </TableCell>
               <TableCell align="right">{row.quantite}</TableCell>
-              <TableCell align="right">
-                {row.magasin_nom || row.magasin}
-              </TableCell>
+              <TableCell align="right">{row.magasin_nom || row.magasin}</TableCell>
               <TableCell align="right">
                 {row.total?.toLocaleString() || 0}
+              </TableCell>
+              <TableCell align="center">
+                <IconButton
+                  color="error"
+                  onClick={() => handleDelete(row.id)}
+                >
+                  <DeleteIcon />
+                </IconButton>
               </TableCell>
             </TableRow>
           ))}

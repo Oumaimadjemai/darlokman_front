@@ -141,18 +141,21 @@ export default function UserInfos({ userInfos, setUserInfos }) {
                 }}
                 className="Input-field"
                 // value={userInfos.date_naissance || null}
-                value={
-                  userInfos.date_naissance
-                    ? parseISO(userInfos.date_naissance)
-                    : null
-                }
+                // value={
+                //   userInfos.date_naissance
+                //     ? parseISO(userInfos.date_naissance)
+                //     : null
+                // }
+                value={userInfos.date_naissance}
                 onChange={(newValue) =>
                   setUserInfos((prev) => ({
-                    ...prev,
+                    // ...prev,
                     // date_naissance: newValue,
-                    date_naissance: newValue
-                      ? format(newValue, "yyyy-MM-dd")
-                      : "",
+                    // date_naissance: newValue
+                    //   ? format(newValue, "yyyy-MM-dd")
+                    //   : "",
+                    ...prev,
+                    date_naissance: newValue || null,
                   }))
                 }
               />
@@ -325,17 +328,20 @@ export default function UserInfos({ userInfos, setUserInfos }) {
                   },
                 }}
                 className="Input-field"
-                value={
-                  userInfos.date_emission_piece
-                    ? parseISO(userInfos.date_emission_piece)
-                    : null
-                }
+                // value={
+                //   userInfos.date_emission_piece
+                //     ? parseISO(userInfos.date_emission_piece)
+                //     : null
+                // }
+                 value={userInfos.date_emission_piece}
                 onChange={(newValue) =>
                   setUserInfos((prev) => ({
+                    // ...prev,
+                    // date_emission_piece: newValue
+                    //   ? format(newValue, "yyyy-MM-dd")
+                    //   : "",
                     ...prev,
-                    date_emission_piece: newValue
-                      ? format(newValue, "yyyy-MM-dd")
-                      : "",
+                    date_emission_piece: newValue || null,
                   }))
                 }
               />

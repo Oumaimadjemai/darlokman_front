@@ -79,7 +79,7 @@ export default function AddUser({ setOpenAddUSerDialog, fetchUser }) {
               size="small"
               sx={{ width: "95%", mb: "10px", height: "55px" }}
             >
-              <InputLabel id="demo-simple-select-label">الولاية</InputLabel>
+              <InputLabel id="demo-simple-select-label">الصلاحية</InputLabel>
               <Select
                 labelId="demo-simple-select-label"
                 id="demo-simple-select"

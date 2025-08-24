@@ -1,5 +1,5 @@
 import { Box, Typography, Stack, IconButton, Dialog } from "@mui/material";
-import ChatIcon from '@mui/icons-material/Chat';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useState } from "react";
 import AIChat from "../chatai/Aichat";
 
@@ -20,7 +20,7 @@ export default function Header() {
 
         {/* Chat Icon Button */}
         <IconButton color="primary" onClick={handleOpen}>
-          <ChatIcon />
+          <AutoAwesomeIcon/>
         </IconButton>
       </Stack>
 

@@ -25,7 +25,7 @@ export default function AIChat() {
       setChat([...newChat, { sender: "ai", text: res.data.reply }]);
     } catch (err) {
       console.error(err);
-      setChat([...newChat, { sender: "ai", text: "Error contacting AI" }]);
+      setChat([...newChat, { sender: "ai", text: "لا يمكنك استعمال هذه الخاصية يجب دفع الاشتراك" }]);
     }
   };
 

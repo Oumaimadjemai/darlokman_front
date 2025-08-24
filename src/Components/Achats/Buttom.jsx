@@ -1,6 +1,3 @@
-
-
-
 import React from "react";
 import {
   Table,
@@ -15,20 +12,21 @@ import {
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 
-export default function Buttom({rows,setRows}) {
-  // Sample data - replace with your actual data
-    const handleDelete = (id) => {
+export default function Buttom({ rows, setRows, showDelete = true }) {
+  const handleDelete = (id) => {
+    if (!setRows) return; // safety check
     setRows((prev) => prev.filter((row) => row.id !== id));
   };
+
   return (
     <TableContainer
       component={Paper}
-      sx={{ width: "99%",  mt: 2,ml:1,height:"350px"}}
+      sx={{ width: "99%", mt: 2, ml: 1, height: "350px" }}
     >
       <Table aria-label="receipt table">
         <TableHead>
           <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
-              <TableCell align="right">
+            <TableCell align="right">
               <Typography fontWeight="bold">الرقم</Typography>
             </TableCell>
             <TableCell align="right">
@@ -49,9 +47,11 @@ export default function Buttom({rows,setRows}) {
             <TableCell align="right">
               <Typography fontWeight="bold">المجموع</Typography>
             </TableCell>
-            <TableCell align="center">
-                          <Typography fontWeight="bold">حذف</Typography>
-                        </TableCell>
+            {showDelete && (
+              <TableCell align="center">
+                <Typography fontWeight="bold">حذف</Typography>
+              </TableCell>
+            )}
           </TableRow>
         </TableHead>
         <TableBody>
@@ -59,19 +59,25 @@ export default function Buttom({rows,setRows}) {
             <TableRow key={index}>
               <TableCell align="right">{row.id}</TableCell>
               <TableCell align="right">{row.reference}</TableCell>
-                <TableCell align="right">{row.nom}</TableCell>
-              <TableCell align="right">{row.prix_achat.toLocaleString()}</TableCell>
+              <TableCell align="right">{row.nom}</TableCell>
+              <TableCell align="right">
+                {row.prix_achat.toLocaleString()}
+              </TableCell>
               <TableCell align="right">{row.quantite}</TableCell>
-               <TableCell align="right">{row.magasin_nom || row.magasin}</TableCell>
+              <TableCell align="right">
+                {row.magasin_nom || row.magasin}
+              </TableCell>
               <TableCell align="right">{row.total.toLocaleString()}</TableCell>
-               <TableCell align="center">
-                              <IconButton
-                                color="error"
-                                onClick={() => handleDelete(row.id)}
-                              >
-                                <DeleteIcon />
-                              </IconButton>
-                            </TableCell>
+              {showDelete && setRows && (
+                <TableCell align="center">
+                  <IconButton
+                    color="error"
+                    onClick={() => handleDelete(row.id)}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>

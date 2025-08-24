@@ -24,7 +24,6 @@ import ExtraCardAchat from "./ExtraCardAchat";
 import Buttom from "./Buttom";
 
 export default function AchatBoard({ setActiveComponent }) {
-  
   const [fournisseurs, setFournisseurs] = useState([""]);
 
   const [filters, setFilters] = useState({
@@ -98,14 +97,14 @@ export default function AchatBoard({ setActiveComponent }) {
 
   // In AchatBoard.js, modify the handleEditClick function:
   const handleEditClick = (achat) => {
-  setActiveComponent({
-    name: "edit-achat",
-    props: { 
-      isEditMode: true, 
-      initialData: achat 
-    }
-  });
-};
+    setActiveComponent({
+      name: "edit-achat",
+      props: {
+        isEditMode: true,
+        initialData: achat,
+      },
+    });
+  };
 
   const handleDetailsClick = (achat) => {
     setAchatDetail(achat);
@@ -257,6 +256,7 @@ export default function AchatBoard({ setActiveComponent }) {
               magasin: item.magasin_detail?.nom,
               total: parseFloat(item.prix_achat) * item.quantite,
             }))}
+            showDelete={false} // 👈 ici
           />
         )}
       </Dialog>

@@ -102,6 +102,7 @@ export default function VenteInfos({ onAddProduct, nombreMois }) {
             ? `${option.nom} (${option.quantite} unités)`
             : ""
         }
+        value={selectedProduit}
         onChange={handleProduitSelect}
         isOptionEqualToValue={(option, value) => option.id === value.id}
         noOptionsText="لا يوجد نتائج"

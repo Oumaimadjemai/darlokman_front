@@ -386,7 +386,7 @@ export default function Dashboard() {
           ) : (
             <>
               <VersementTable userPayments={userPayments} />
-              <MonthsTable />
+              {/* <MonthsTable /> */}
               <UsersVente userPayments={userPayments} />
             </>
           )}

@@ -42,7 +42,7 @@ export default function AchatInfos({ onAddProduct }) {
     setSelectedProduit(null);
     setMagasin("");
     setPrixAchat("");
-    setQuantite("");
+    setQuantite(1);
     setSearch("");
   } else {
     alert("Veuillez sélectionner un produit et entrer une quantité.");
@@ -55,7 +55,7 @@ export default function AchatInfos({ onAddProduct }) {
       <Autocomplete
        options={Array.isArray(produits) ? produits : []} // sécurité
   getOptionLabel={(option) => option.nom || ""}
-
+value={selectedProduit}
         onChange={handleProduitSelect}
         isOptionEqualToValue={(option, value) => option.id === value.id}
         noOptionsText="لا يوجد نتائج"

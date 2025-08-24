@@ -16,6 +16,8 @@ import FilterPanel from "../../Clients/FilterPanel";
 import SearchIcon from "@mui/icons-material/Search";
 import axios from "../../../api/axiosInstance";
 import ExtraCard from "./ExtraCard";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 // const rows = [
 //   {
@@ -105,6 +107,29 @@ export default function PaymentReport() {
 
     return () => clearTimeout(delayDebounce); // cleanup
   }, [searchTerm, filters]);
+  const exportToExcel = () => {
+    // Map rows to a simpler format
+    const dataToExport = rows.map((row) => ({
+      "الاسم و اللقب": `${row.client_detail.nom_famille_fr} ${row.client_detail.prenom_fr}`,
+      "رقم الحساب": `${row.client_detail.ccp}/${row.client_detail.cle}`,
+      "القسط الشهري": row.montants_par_mois?.join(", "),
+      "بداية الدفع": row.date_debut,
+      "نهاية الدفع": row.date_fin,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Ventes");
+
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
+
+    const data = new Blob([excelBuffer], { type: "application/octet-stream" });
+    saveAs(data, "report_ventes.xlsx");
+  };
+
   return (
     <>
       <Stack
@@ -168,13 +193,11 @@ export default function PaymentReport() {
           />
         </Stack>
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" sx={{ width: "150px", height: "55px" }}>
-            تحميل ملف البريد
-          </Button>
           <Button
             variant="contained"
             color="success"
             sx={{ width: "150px", height: "55px" }}
+            onClick={exportToExcel} // ← add this
           >
             Excel
           </Button>

@@ -41,7 +41,7 @@ export default function VenteInfos({ onAddProduct }) {
       setSelectedProduit(null);
       setMagasin("");
       setPrixVente("");
-      setQuantite("");
+      setQuantite(1);
       setSearch("");
     } else {
       alert("Veuillez sélectionner un produit et entrer une quantité.");
@@ -50,7 +50,7 @@ export default function VenteInfos({ onAddProduct }) {
 
   return (
     <>
-      <Autocomplete
+      {/* <Autocomplete
         options={Array.isArray(produits) ? produits : []}
         getOptionLabel={(option) =>
           option.nom && typeof option.quantite !== "undefined"
@@ -83,7 +83,42 @@ export default function VenteInfos({ onAddProduct }) {
             onChange={(e) => setSearch(e.target.value)}
           />
         )}
-      />
+      /> */}
+<Autocomplete
+  options={Array.isArray(produits) ? produits : []}
+  getOptionLabel={(option) =>
+    option.nom && typeof option.quantite !== "undefined"
+      ? `${option.nom} (${option.quantite} unités)`
+      : ""
+  }
+  value={selectedProduit} // <-- control the value
+  onChange={handleProduitSelect}
+  isOptionEqualToValue={(option, value) => option.id === value.id}
+  noOptionsText="لا يوجد نتائج"
+  renderOption={(props, option) => (
+    <li {...props}>
+      {option.image && (
+        <img
+          src={option.image}
+          alt={option.nom}
+          width="30"
+          style={{ marginRight: 10 }}
+        />
+      )}
+      {option.nom} ({option.quantite} unités)
+    </li>
+  )}
+  renderInput={(params) => (
+    <TextField
+      {...params}
+      label="بحث"
+      size="small"
+      className="Input-field"
+      sx={{ width: "97.5%" }}
+      onChange={(e) => setSearch(e.target.value)}
+    />
+  )}
+/>
 
       <br />
 

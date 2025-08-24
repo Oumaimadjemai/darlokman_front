@@ -362,32 +362,6 @@ export default function DashboardHome() {
             </Card>
           </Grid>
           <Grid item xs={12}>
-            <Card>
-              <CardContent>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell align="right">المحل</TableCell>
-                      <TableCell align="right">آخر جرد</TableCell>
-                      <TableCell align="right">السلع الناقصة</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {missingItemsData.map((row, index) => (
-                      <TableRow key={index}>
-                        <TableCell align="right">{row.store}</TableCell>
-                        <TableCell align="right">{row.date}</TableCell>
-                        <TableCell align="right">
-                          <CheckIcon sx={{ color: "green" }} />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12}>
             <Card sx={{ height: "100%" }}>
               <CardContent>
                 <Typography
@@ -554,50 +528,6 @@ export default function DashboardHome() {
                   />
                 </LineChart>
               </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom align="center">
-                العلاوات
-              </Typography>
-              <table
-                style={{
-                  width: "100%",
-                  textAlign: "center",
-                  borderCollapse: "collapse",
-                  marginTop: "1rem",
-                }}
-              >
-                <thead>
-                  <tr>
-                    <th
-                      style={{ borderBottom: "1px solid #ccc", padding: "8px" }}
-                    ></th>
-                    <th
-                      style={{ borderBottom: "1px solid #ccc", padding: "8px" }}
-                    >
-                      موظف الاستقبال
-                    </th>
-                    <th
-                      style={{ borderBottom: "1px solid #ccc", padding: "8px" }}
-                    >
-                      مسؤول نقطة البيع
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {salaryData.map((row, index) => (
-                    <tr key={index}>
-                      <td style={{ padding: "8px" }}>{row.location}</td>
-                      <td style={{ padding: "8px" }}>{row.استقبال}</td>
-                      <td style={{ padding: "8px" }}>{row.نقطة_البيع}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </CardContent>
           </Card>
         </Grid>

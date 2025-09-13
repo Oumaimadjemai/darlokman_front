@@ -37,7 +37,7 @@ export default function UsersVente({ userPayments }) {
                 <TableCell>{m.pourcentage_benefice_total} %</TableCell>
                 <TableCell>{m.benefice_total}</TableCell>
                 <TableCell>
-                  {m.total_montant_total.toLocaleString()}
+                  {m.total_montant_total}
                 </TableCell>
               </TableRow>
             ))}

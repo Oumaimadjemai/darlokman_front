@@ -34,8 +34,8 @@ export default function MonthsTable() {
                 <TableRow key={i}>
                   <TableCell>{m.month}</TableCell>
                   <TableCell>{m.profitPct} %</TableCell>
-                  <TableCell>{m.profit.toLocaleString()}</TableCell>
-                  <TableCell>{m.sales.toLocaleString()}</TableCell>
+                  <TableCell>{m.profit}</TableCell>
+                  <TableCell>{m.sales}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

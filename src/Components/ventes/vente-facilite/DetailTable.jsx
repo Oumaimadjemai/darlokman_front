@@ -52,13 +52,13 @@ export default function DetailTable({ rows }) {
               <TableCell align="right">{row.reference}</TableCell>
               <TableCell align="right">{row.nom}</TableCell>
               <TableCell align="right">
-                {row.prix_vente_facilite.toLocaleString()}
+                {row.prix_vente_facilite}
               </TableCell>
               <TableCell align="right">{row.quantite}</TableCell>
               <TableCell align="right">
                 {row.magasin_nom || row.magasin}
               </TableCell>
-              <TableCell align="right">{row.total.toLocaleString()}</TableCell>
+              <TableCell align="right">{row.total}</TableCell>
               <TableCell align="right">
                 <Typography
                   sx={{ wordWrap: "break-word", whiteSpace: "pre-wrap" }}

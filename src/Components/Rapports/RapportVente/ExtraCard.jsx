@@ -26,20 +26,20 @@ export default function ExtraCard({ data }) {
             المبيعات كاش
           </Typography>
           <Typography variant="h3" textAlign={"center"}>
-            {(data.total_montant ?? 0).toLocaleString()}
+            {(data.total_montant ?? 0)}
           </Typography>
           <Typography variant="h4" textAlign={"center"}>
             المبيعات بالتقسيط
           </Typography>
           <Typography variant="h3" textAlign={"center"}>
-            {(data.total_montant_total ?? 0).toLocaleString()}
+            {(data.total_montant_total ?? 0)}
           </Typography>
 
           <Typography variant="h4" textAlign={"center"}>
             الدفعات النقدية
           </Typography>
           <Typography variant="h3" textAlign={"center"}>
-            {(data.total_montant_verse ?? 0).toLocaleString()}
+            {(data.total_montant_verse ?? 0)}
           </Typography>
         </CardContent>
       </Card>

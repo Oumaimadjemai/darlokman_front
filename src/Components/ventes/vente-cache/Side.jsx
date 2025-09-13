@@ -41,7 +41,7 @@ export default function Side({
       <Autocomplete
         options={clientList}
         getOptionLabel={(option) =>
-          `${option.nom_famille_ar || ""} ${option.prenom_ar || ""}`
+          `${option.nom_famille_ar || ""} ${option.prenom_ar || ""} ${option.ccp||""}`
         }
         value={clientList.find((c) => c.id === clientId) || null}
         onChange={(event, newValue) => {
@@ -52,7 +52,7 @@ export default function Side({
             {...params}
             label="الزبون"
             size="small"
-            sx={{ width: "90%", mt: 2, mb: 2 }}
+            sx={{ width: "95%", mt: 2, mb: 2 }}
           />
         )}
         isOptionEqualToValue={(option, value) => option.id === value.id}

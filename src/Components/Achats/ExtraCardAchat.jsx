@@ -40,7 +40,7 @@ export default function ExtraCardAchat({ data }) {
           المبلغ الإجمالي
         </Typography>
         <Typography variant="h5" color="secondary">
-          {data.somme_totale.toLocaleString()} د.ج
+          {data.somme_totale} د.ج
         </Typography>
       </Box>
       
@@ -57,7 +57,7 @@ export default function ExtraCardAchat({ data }) {
           المبلغ الإجمالي المدفوع
         </Typography>
         <Typography variant="h5" color="secondary">
-          {data.somme_payee.toLocaleString()} د.ج
+          {data.somme_payee} د.ج
         </Typography>
       </Box>
       
@@ -74,7 +74,7 @@ export default function ExtraCardAchat({ data }) {
           المبلغ الإجمالي المتبقي
         </Typography>
         <Typography variant="h5" color="secondary">
-          {data.somme_restante.toLocaleString()} د.ج
+          {data.somme_restante} د.ج
         </Typography>
       </Box>
     </Box>

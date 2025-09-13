@@ -26,7 +26,7 @@ export default function AnalyseTotal({data}) {
             عدد المبيعات كاش: {data.nombre_de_ventes} 
           </Typography>
           <Typography align="center">
-            مجموع الفائدة: {data.benefice_total.toLocaleString()}
+            مجموع الفائدة: {data.benefice_total}
           </Typography>
           <Box mt={1} mb={1}>
             <Typography align="center">
@@ -39,7 +39,7 @@ export default function AnalyseTotal({data}) {
             />
           </Box>
           <Typography align="center">
-            مجموع المصاريف: {data.total_montant_depense.toLocaleString()}
+            مجموع المصاريف: {data.total_montant_depense}
           </Typography>
         </CardContent>
       </Card>

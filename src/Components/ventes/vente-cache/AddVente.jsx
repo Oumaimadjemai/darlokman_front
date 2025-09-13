@@ -80,25 +80,15 @@ export default function AddVente({ isEditMode = false, initialData = null }) {
   };
 
   const handleSubmit = async () => {
-    try {
-      const token = localStorage.getItem("access_token");
+  try {
+    const token = localStorage.getItem("access_token");
 
-      const lignesCorrigees = formData.lignes.map((ligne) => ({
-        produit: parseInt(ligne.produit),
-        quantite: parseFloat(ligne.quantite),
-      }));
-
-      const payload = {
-        client: parseInt(formData.client),
-        lignes: lignesCorrigees,
-      };
-
-      console.log("Payload being sent:", payload);
-
-      if (isEditMode && initialData) {
-        const response = await axios.put(
-          `/vente/ventes-cache/${initialData.id}/`,
-          payload,
+    // 🔹 1) Update product prices if they were changed
+    for (const row of rows) {
+      if (row.produitId && row.prix_vente_cache) {
+        await axios.patch(
+          `/prod/produits/${row.produitId}/`,
+          { prix_vente_cache: row.prix_vente_cache },
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -106,50 +96,62 @@ export default function AddVente({ isEditMode = false, initialData = null }) {
             },
           }
         );
-        console.log("Update response:", response.data);
-        setFeedback({
-          open: true,
-          severity: "success",
-          message: "✅ Vente modifiée avec succès",
-        });
-      } else {
-        await axios.post("vente/ventes-cache/", payload, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        setFeedback({
-          open: true,
-          severity: "success",
-          message: "✅ Vente enregistrée avec succès",
-        });
-
-        setRows([]);
-        setFormData({
-          client: "",
-          lignes: [],
-        });
       }
-    } catch (error) {
-      console.error("Full error object:", error);
-      let message = "❌ Une erreur est survenue lors de la soumission";
+    }
 
-      if (error.response) {
-        console.error("Error response data:", error.response.data);
-        message = error.response.data.message || message;
-      } else if (error.request) {
-        console.error("Error request:", error.request);
-        message = "Pas de réponse du serveur";
-      }
+    // 🔹 2) Build vente payload
+    const lignesCorrigees = formData.lignes.map((ligne) => ({
+      produit: parseInt(ligne.produit),
+      quantite: parseFloat(ligne.quantite),
+    }));
 
+    const payload = {
+      client: parseInt(formData.client),
+      lignes: lignesCorrigees,
+    };
+
+    // 🔹 3) Create or update vente
+    if (isEditMode && initialData) {
+      await axios.put(`/vente/ventes-cache/${initialData.id}/`, payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setFeedback({
         open: true,
-        severity: "error",
-        message,
+        severity: "success",
+        message: "✅ Vente modifiée avec succès",
       });
+    } else {
+      await axios.post("/vente/ventes-cache/", payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setFeedback({
+        open: true,
+        severity: "success",
+        message: "✅ Vente enregistrée avec succès",
+      });
+      setRows([]);
+      setFormData({ client: "", lignes: [] });
     }
-  };
+  } catch (error) {
+    console.error("Full error object:", error);
+    let message = "❌ Une erreur est survenue lors de la soumission";
+
+    if (error.response) {
+      console.error("Error response data:", error.response.data);
+      message = error.response.data.message || message;
+    } else if (error.request) {
+      console.error("Error request:", error.request);
+      message = "Pas de réponse du serveur";
+    }
+
+    setFeedback({
+      open: true,
+      severity: "error",
+      message,
+    });
+  }
+};
+
 
   return (
     <>

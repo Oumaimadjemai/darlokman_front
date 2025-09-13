@@ -40,7 +40,7 @@ export default function ExtraCard({ data }) {
           المبلغ الإجمالي
         </Typography>
         <Typography variant="h5" color="secondary">
-          {data.total_montant_total.toLocaleString()} د.ج
+          {data.total_montant_total} د.ج
         </Typography>
       </Box>
        <Box
@@ -57,7 +57,7 @@ export default function ExtraCard({ data }) {
           المبلغ الإجمالي المدفوع
         </Typography>
         <Typography variant="h5" color="secondary">
-          {data.total_montant_verse.toLocaleString()} د.ج
+          {Number(data.total_montant_total-data.total_montant_restant)} د.ج
         </Typography>
       </Box>
        <Box
@@ -74,7 +74,7 @@ export default function ExtraCard({ data }) {
           المبلغ الإجمالي المتبقي
         </Typography>
         <Typography variant="h5" color="secondary">
-          {data.total_montant_restant.toLocaleString()} د.ج
+          {data.total_montant_restant} د.ج
         </Typography>
       </Box>
     </Box>

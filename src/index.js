@@ -22,17 +22,15 @@ const cacheRtl = createCache({
 const theme = createTheme({
   direction: "rtl",
   typography: {
-    fontFamily: "Cairo, sans-serif", // or any Arabic-friendly font
+    fontFamily: "Cairo, sans-serif",
+    fontSize: 16, // ⬅️ increase base size (default is 14)
   },
   palette: {
-    primary: {
-      main: "#304ffe",
-    },
-    secondary: {
-      main: "#3da4feff",
-    },
+    primary: { main: "#304ffe" },
+    secondary: { main: "#3da4feff" },
   },
 });
+
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

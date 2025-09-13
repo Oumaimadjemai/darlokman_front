@@ -81,7 +81,7 @@ export default function BestClient({ topClientsFacilite }) {
                   >
                     {c.client}
                   </TableCell>
-                  <TableCell>{c.total_montant_total.toLocaleString()}</TableCell>
+                  <TableCell>{c.total_montant_total}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

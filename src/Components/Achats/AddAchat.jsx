@@ -12,7 +12,7 @@ export default function AddAchat({ isEditMode = false, initialData = null }) {
   const [rows, setRows] = useState([]);
   const [formData, setFormData] = useState({
     fournisseur: "",
-    somme_payee: "",
+    somme_payee: 0,
     somme_restante: "",
     achats: [],
   });

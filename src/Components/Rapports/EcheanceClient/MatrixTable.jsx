@@ -185,7 +185,7 @@ export default function MatrixTable() {
   });
 
   return (
-    <Box sx={{ bgcolor: "#f0f0f0", minHeight: "100vh", p: 2 }}>
+    <Box sx={{ bgcolor: "#f0f0f0", minHeight: "100vh", p: 1 }}>
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <TextField
           size="small"
@@ -221,7 +221,7 @@ export default function MatrixTable() {
         </FormControl>
       </Grid>
 
-      <Paper>
+      <Paper sx={{ width: "100%", overflowX: "auto" }}>
         <Table size="small">
           <TableHead sx={{ bgcolor: "#ccc" }}>
             <TableRow>
@@ -230,7 +230,7 @@ export default function MatrixTable() {
               {months.map((month) => (
                 <TableCell key={month} align="center">{month}</TableCell>
               ))}
-              <TableCell>غير مدفوعة</TableCell>
+              <TableCell>غ م</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>

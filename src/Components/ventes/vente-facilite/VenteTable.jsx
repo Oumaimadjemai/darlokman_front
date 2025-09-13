@@ -223,7 +223,7 @@ export default function VenteTable({ rows, setRows, onDetailsClick }) {
                   if (selectedVente) {
                     downloadFile(
                       `/vente/ventes-facilite/${selectedVente.id}/acte/word/`,
-                      `Acte_Vente_${selectedVente.id}.docx`
+                      `Acte.docx`
                     );
                     setPrintDialogOpen(false);
                   }
@@ -240,7 +240,7 @@ export default function VenteTable({ rows, setRows, onDetailsClick }) {
                   if (selectedVente) {
                     downloadFile(
                       `/vente/ventes-facilite/${selectedVente.id}/bon/word/`,
-                      `Bon_Vente_${selectedVente.id}.docx`
+                      `Bon.docx`
                     );
                     setPrintDialogOpen(false);
                   }
@@ -257,7 +257,7 @@ export default function VenteTable({ rows, setRows, onDetailsClick }) {
                   if (selectedVente) {
                     downloadFile(
                       `/vente/ventes-facilite/${selectedVente.id}/depot/word/`,
-                      `Depot_Vente_${selectedVente.id}.docx`
+                      `Depot.docx`
                     );
                     setPrintDialogOpen(false);
                   }
@@ -288,7 +288,7 @@ export default function VenteTable({ rows, setRows, onDetailsClick }) {
                         // Télécharger directement le fichier CCP pour ce montant
                         downloadFile(
                           `/vente/ventes-facilite/${selectedVente.id}/ccp/word/?prelevement=${montant}`,
-                          `CCP_Vente_${selectedVente.id}.docx`
+                          `CCP.docx`
                         );
                         setPrintDialogOpen(false);
                       }}

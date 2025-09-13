@@ -33,7 +33,7 @@ export default function VersementTable({ userPayments }) {
             {filteredPayments.map((u, i) => (
               <TableRow key={i}>
                 <TableCell>{u.username}</TableCell>
-                <TableCell>{u.total_montant_verse.toLocaleString()}</TableCell>
+                <TableCell>{u.total_montant_verse}</TableCell>
               </TableRow>
             ))}
           </TableBody>

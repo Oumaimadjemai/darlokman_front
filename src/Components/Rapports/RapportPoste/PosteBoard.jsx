@@ -19,29 +19,7 @@ import ExtraCard from "./ExtraCard";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
-// const rows = [
-//   {
-//     name: "ABID ELHADJ",
-//     account: "419342",
-//     monthly: 4700,
-//     start: "2025-08-17",
-//     end: "2026-05-17",
-//   },
-//   {
-//     name: "BOUGUEMDIA MEBARKA",
-//     account: "15060145",
-//     monthly: 3570,
-//     start: "2025-08-17",
-//     end: "2026-05-17",
-//   },
-//   {
-//     name: "CHELIHI BARKAHOUM",
-//     account: "10146670",
-//     monthly: 4030,
-//     start: "2025-08-17",
-//     end: "2026-05-17",
-//   },
-// ];
+
 
 export default function PaymentReport() {
   const [rows, setRows] = useState([]);
@@ -107,28 +85,39 @@ export default function PaymentReport() {
 
     return () => clearTimeout(delayDebounce); // cleanup
   }, [searchTerm, filters]);
-  const exportToExcel = () => {
-    // Map rows to a simpler format
-    const dataToExport = rows.map((row) => ({
-      "الاسم و اللقب": `${row.client_detail.nom_famille_fr} ${row.client_detail.prenom_fr}`,
-      "رقم الحساب": `${row.client_detail.ccp}/${row.client_detail.cle}`,
-      "القسط الشهري": row.montants_par_mois?.join(", "),
-      "بداية الدفع": row.date_debut,
-      "نهاية الدفع": row.date_fin,
-    }));
+ const exportToExcel = () => {
+  // Expand montants_par_mois into multiple rows
+  const dataToExport = [];
 
-    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Ventes");
+  rows.forEach((row) => {
+    row.montants_par_mois
+      ?.slice()
+      .sort((a, b) => b - a) // same sorting as the table
+      .forEach((montant) => {
+        dataToExport.push({
+          "Nom et prenom": `${row.client_detail.nom_famille_fr} ${row.client_detail.prenom_fr}`,
+          "ccp": `${row.client_detail.ccp}/${row.client_detail.cle}`,
+          "prelevement": montant,
+          "date debut": row.date_debut,
+          "date fin": row.date_fin,
+        });
+      });
+  });
 
-    const excelBuffer = XLSX.write(workbook, {
-      bookType: "xlsx",
-      type: "array",
-    });
+  // Create worksheet
+  const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Ventes");
 
-    const data = new Blob([excelBuffer], { type: "application/octet-stream" });
-    saveAs(data, "report_ventes.xlsx");
-  };
+  // Generate and download
+  const excelBuffer = XLSX.write(workbook, {
+    bookType: "xlsx",
+    type: "array",
+  });
+  const data = new Blob([excelBuffer], { type: "application/octet-stream" });
+  saveAs(data, "report_ventes.xlsx");
+};
+
 
   return (
     <>
@@ -217,32 +206,30 @@ export default function PaymentReport() {
               <TableCell>نهاية الدفع</TableCell>
             </TableRow>
           </TableHead>
-          <TableBody>
-            {rows.map((row, i) => (
-              <TableRow key={i}>
-                <TableCell>
-                  {row.client_detail.nom_famille_fr +
-                    " " +
-                    row.client_detail.prenom_fr}
-                </TableCell>
-                <TableCell>
-                  {row.client_detail.ccp + "/" + row.client_detail.cle}
-                </TableCell>
-                <TableCell
-                  sx={{
-                    whiteSpace: "normal",
-                    wordBreak: "break-word",
-                    maxWidth: 200,
-                  }}
-                >
-                  {row.montants_par_mois?.join(", ")}
-                </TableCell>
+<TableBody>
+  {rows.map((row, i) =>
+    row.montants_par_mois
+      ?.slice() // copie pour ne pas modifier l'original
+      .sort((a, b) => b - a) // tri décroissant
+      .map((montant, j) => (
+        <TableRow key={`${i}-${j}`}>
+          <TableCell>
+            {row.client_detail.nom_famille_fr +
+              " " +
+              row.client_detail.prenom_fr}
+          </TableCell>
+          <TableCell>
+            {row.client_detail.ccp + "/" + row.client_detail.cle}
+          </TableCell>
+          <TableCell>{montant}</TableCell>
+          <TableCell>{row.date_debut}</TableCell>
+          <TableCell>{row.date_fin}</TableCell>
+        </TableRow>
+      ))
+  )}
+</TableBody>
 
-                <TableCell>{row.date_debut}</TableCell>
-                <TableCell>{row.date_fin}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
+
         </Table>
       </Paper>
     </>

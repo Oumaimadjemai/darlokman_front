@@ -82,16 +82,18 @@ export default function AddVenteFacilite({
     const prix = parseFloat(prix_vente_facilite) || getProductPrice(produit);
 
     const newRow = {
-      id: rows.length + 1,
-      produitId: produit.id,
-      reference: produit.reference || "",
-      nom: produit.nom || "",
-      prix_vente_facilite: prix,
-      quantite: qty,
-      magasin: magasin || produit.magasin_detail?.id || "",
-      magasin_nom: magasin_nom || produit.magasin_detail?.nom || "",
-      total: prix * qty,
-    };
+  id: rows.length + 1,
+  produit: produit, // 🔥 garder tout l’objet produit
+  produitId: produit.id, // tu gardes l’id si tu veux
+  reference: produit.reference || "",
+  nom: produit.nom || "",
+  prix_vente_facilite: prix,
+  quantite: qty,
+  magasin: magasin || produit.magasin_detail?.id || "",
+  magasin_nom: magasin_nom || produit.magasin_detail?.nom || "",
+  total: prix * qty,
+};
+
 
     setRows((prev) => [...prev, newRow]);
   };
@@ -118,81 +120,6 @@ export default function AddVenteFacilite({
     setFormData((prev) => ({ ...prev, client: value }));
   };
 
-  //   const handleSubmit = async ({ nombre_mois, date_debut }) => {
-  //     try {
-  //       const token = localStorage.getItem("access_token");
-
-  //       const lignesCorrigees = formData.lignes.map((ligne) => ({
-  //         produit: parseInt(ligne.produit),
-  //         quantite: parseFloat(ligne.quantite),
-  //       }));
-
-  //       const payload = {
-  //         client: parseInt(formData.client),
-  //         nombre_mois: parseInt(nombre_mois),
-  //         date_debut,
-  //         lignes: lignesCorrigees,
-  //       };
-
-  //       console.log("Payload being sent:", payload);
-  // const handleSubmit = async (dataFromSide) => {
-  //   try {
-  //     const token = localStorage.getItem("access_token");
-
-  //     const lignesCorrigees = formData.lignes.map((ligne) => ({
-  //       produit: parseInt(ligne.produit),
-  //       quantite: parseFloat(ligne.quantite),
-  //     }));
-
-  //     const payload = {
-  //       client: parseInt(dataFromSide.client),
-  //       date_debut: dataFromSide.date_debut,
-  //       date_fin: dataFromSide.date_fin,
-  //       nombre_mois: parseInt(dataFromSide.nombre_mois),
-  //       montant_total: parseFloat(dataFromSide.montant_total),
-  //       montant_verse: parseFloat(dataFromSide.montant_verse || 0),
-  //       montant_restant: parseFloat(dataFromSide.montant_restant || 0),
-  //       montant_mensuel: parseFloat(dataFromSide.montant_mensuel || 0),
-  //       montants_par_mois: dataFromSide.montants_par_mois || [],
-  //       lignes: lignesCorrigees,
-  //     };
-
-  //     console.log("Payload being sent:", payload);
-
-  //     if (isEditMode && initialData) {
-  //       await axios.put(`/vente/ventes-facilite/${initialData.id}/`, payload, {
-  //         headers: { Authorization: `Bearer ${token}` },
-  //       });
-  //       setFeedback({
-  //         open: true,
-  //         severity: "success",
-  //         message: "✅ Vente modifiée avec succès",
-  //       });
-  //     } else {
-  //       await axios.post("vente/ventes-facilite/", payload, {
-  //         headers: { Authorization: `Bearer ${token}` },
-  //       });
-  //       setFeedback({
-  //         open: true,
-  //         severity: "success",
-  //         message: "✅ Vente enregistrée avec succès",
-  //       });
-  //       setRows([]);
-  //       setFormData({
-  //         client: "",
-  //         lignes: [],
-  //         nombre_mois: "",
-  //         date_debut: null,
-  //       });
-  //     }
-  //   } catch (error) {
-  //     console.error("Full error object:", error);
-  //     let message = "❌ Une erreur est survenue lors de la soumission";
-  //     if (error.response) message = error.response.data.message || message;
-  //     else if (error.request) message = "Pas de réponse du serveur";
-  //     setFeedback({ open: true, severity: "error", message });
-  //   }
-  // };
   const handleSubmit = async (dataFromSide) => {
     try {
       const token = localStorage.getItem("access_token");
@@ -244,7 +171,55 @@ export default function AddVenteFacilite({
       setFeedback({ open: true, severity: "error", message });
     }
   };
+useEffect(() => {
+  if (rows.length === 0) return;
 
+  const updatedRows = rows.map((row) => {
+    const produit = row.produit; // ✅ on récupère l'objet produit
+    let prix = 0;
+
+    if (produit) {
+      switch (mois) {
+        case 3:
+          prix = Number(produit.prix_vente_3) || 0;
+          break;
+        case 5:
+          prix = Number(produit.prix_vente_5) || 0;
+          break;
+        case 6:
+          prix = Number(produit.prix_vente_6) || 0;
+          break;
+        case 8:
+          prix = Number(produit.prix_vente_8) || 0;
+          break;
+        case 9:
+          prix = Number(produit.prix_vente_9) || 0;
+          break;
+        case 10:
+          prix = Number(produit.prix_vente_10) || 0;
+          break;
+        case 12:
+          prix = Number(produit.prix_vente_12) || 0;
+          break;
+        case 15:
+          prix = Number(produit.prix_vente_15) || 0;
+          break;
+        default:
+          prix = 0;
+      }
+    }
+
+    return {
+      ...row,
+      prix_vente_facilite: prix,
+      total: prix * row.quantite,
+    };
+  });
+
+  setRows(updatedRows);
+}, [mois]);
+
+  
   return (
     <>
       <Grid container sx={{ height: "100vh" }}>

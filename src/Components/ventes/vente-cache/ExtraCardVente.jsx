@@ -40,7 +40,7 @@ export default function ExtraCardVente({ data }) {
           المبلغ الإجمالي
         </Typography>
         <Typography variant="h5" color="secondary">
-          {data.total_montant.toLocaleString()} د.ج
+          {data.total_montant} د.ج
         </Typography>
       </Box>
     </Box>

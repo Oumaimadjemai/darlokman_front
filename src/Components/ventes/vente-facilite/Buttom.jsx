@@ -58,14 +58,12 @@ export default function Buttom({ rows, setRows }) {
               <TableCell align="right">{row.id}</TableCell>
               <TableCell align="right">{row.reference}</TableCell>
               <TableCell align="right">{row.nom}</TableCell>
-              <TableCell align="right">
-                {row.prix_vente_facilite?.toLocaleString() || 0}
-              </TableCell>
+              <TableCell align="right">{Number(row.prix_vente_facilite).toFixed(0)}</TableCell>
+
               <TableCell align="right">{row.quantite}</TableCell>
               <TableCell align="right">{row.magasin_nom || row.magasin}</TableCell>
-              <TableCell align="right">
-                {row.total?.toLocaleString() || 0}
-              </TableCell>
+             <TableCell align="right">{Number(row.total).toFixed(0)}</TableCell>
+
               <TableCell align="center">
                 <IconButton
                   color="error"

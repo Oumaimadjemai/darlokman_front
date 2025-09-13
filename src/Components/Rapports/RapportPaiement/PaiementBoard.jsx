@@ -278,7 +278,7 @@ export default function PaymentDashboard() {
             </Grid>
 
             <Grid item>
-              <Typography variant="h5">{totalAmount.toLocaleString()} دج</Typography>
+              <Typography variant="h5">{totalAmount} دج</Typography>
             </Grid>
 
             <Grid item sx={{ ml: "auto" }}>
@@ -343,7 +343,7 @@ export default function PaymentDashboard() {
                       عدد: {info.count}
                     </Typography>
                     <Typography variant="body2" align="center">
-                      المجموع: {info.amount.toLocaleString()} دج
+                      المجموع: {info.amount} دج
                     </Typography>
                   </CardContent>
                 </Card>
@@ -358,7 +358,7 @@ export default function PaymentDashboard() {
                 <TableRow>
                   <TableCell>الاسم و اللقب</TableCell>
                   <TableCell>رقم الحساب</TableCell>
-                  <TableCell>التواريخ</TableCell>
+                  <TableCell>التاريخ</TableCell>
                   <TableCell>القسط الشهري</TableCell>
                   <TableCell>الأقساط</TableCell>
                   <TableCell>موقوف</TableCell>
@@ -371,7 +371,7 @@ export default function PaymentDashboard() {
                     <TableCell>{row.name}</TableCell>
                     <TableCell>{row.account}</TableCell>
                     <TableCell>{row.date}</TableCell>
-                    <TableCell>{row.amount.toLocaleString()}</TableCell>
+                    <TableCell>{row.amount}</TableCell>
                     <TableCell>{row.montant_mois}</TableCell>
                     <TableCell align="center">
                       {isClientLocked(row.clientStatus) && <LockIcon sx={{ color: "red" }} />}

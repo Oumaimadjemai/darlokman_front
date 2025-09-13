@@ -204,7 +204,7 @@ export default function VenteTable({ rows, setRows, onDetailsClick }) {
               if (selectedVente) {
                 downloadFile(
                   `/vente/ventes-cache/${selectedVente.id}/bon/word/`,
-                  `Bon_Vente_${selectedVente.id}.docx`
+                  `Bon.docx`
                 );
                 setPrintDialogOpen(false);
               }

@@ -79,7 +79,7 @@ export default function BestClientCash({ topClientsCash }) {
                   >
                     {c.client}
                   </TableCell>
-                  <TableCell>{c.total_montant.toLocaleString()}</TableCell>
+                  <TableCell>{c.total_montant}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

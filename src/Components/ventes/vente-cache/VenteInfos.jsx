@@ -50,45 +50,11 @@ export default function VenteInfos({ onAddProduct }) {
 
   return (
     <>
-      {/* <Autocomplete
-        options={Array.isArray(produits) ? produits : []}
-        getOptionLabel={(option) =>
-          option.nom && typeof option.quantite !== "undefined"
-            ? `${option.nom} (${option.quantite} unités)`
-            : ""
-        }
-        onChange={handleProduitSelect}
-        isOptionEqualToValue={(option, value) => option.id === value.id}
-        noOptionsText="لا يوجد نتائج"
-        renderOption={(props, option) => (
-          <li {...props}>
-            {option.image && (
-              <img
-                src={option.image}
-                alt={option.nom}
-                width="30"
-                style={{ marginRight: 10 }}
-              />
-            )}
-            {option.nom} ({option.quantite} unités)
-          </li>
-        )}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            label="بحث"
-            size="small"
-            className="Input-field"
-            sx={{ width: "97.5%" }}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        )}
-      /> */}
 <Autocomplete
   options={Array.isArray(produits) ? produits : []}
   getOptionLabel={(option) =>
     option.nom && typeof option.quantite !== "undefined"
-      ? `${option.nom} (${option.quantite} unités)`
+      ? `${option.nom} (${option.quantite} unités) `
       : ""
   }
   value={selectedProduit} // <-- control the value
@@ -102,10 +68,10 @@ export default function VenteInfos({ onAddProduct }) {
           src={option.image}
           alt={option.nom}
           width="30"
-          style={{ marginRight: 10 }}
+          style={{ marginRight: 5,marginLeft:5 }}
         />
       )}
-      {option.nom} ({option.quantite} unités)
+      {option.nom} ({option.quantite})
     </li>
   )}
   renderInput={(params) => (
@@ -132,12 +98,14 @@ export default function VenteInfos({ onAddProduct }) {
           disabled
         />
         <TextField
-          label="السعر"
-          value={prixVente}
-          size="small"
-          className="Input-field"
-          sx={{ width: "33%" }}
-        />
+  label="السعر"
+  value={prixVente}
+  onChange={(e) => setPrixVente(e.target.value)}   // ✅ allow editing
+  size="small"
+  className="Input-field"
+  sx={{ width: "33%" }}
+/>
+
         <TextField
           label="الكمية"
           value={quantite}

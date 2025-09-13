@@ -17,16 +17,18 @@ export default function AchatInfos({ onAddProduct }) {
       .catch((err) => console.error("Erreur lors du fetch des produits:", err));
   }, []);
 
-  const handleProduitSelect = (event, value) => {
-    setSelectedProduit(value);
-    if (value) {
-      setMagasin(value.magasin_detail?.nom || "");
-      setPrixAchat(value.prix_achat || "");
-    } else {
-      setMagasin("");
-      setPrixAchat("");
-    }
-  };
+const handleProduitSelect = (event, value) => {
+  setSelectedProduit(value);
+  if (value) {
+    setMagasin(value.magasin_detail?.nom || "");
+    // remove decimals (e.g., 19880.0 → 19880)
+    setPrixAchat(value.prix_achat ? parseInt(value.prix_achat, 10).toString() : "");
+  } else {
+    setMagasin("");
+    setPrixAchat("");
+  }
+};
+
  const handleAddClick = () => {
   if (selectedProduit && quantite) {
     onAddProduct({
@@ -95,14 +97,25 @@ value={selectedProduit}
           sx={{ width: "33%" }}
           disabled
         />
-        <TextField
-          label="السعر"
-          value={prixAchat}
-          size="small"
-          className="Input-field"
-          sx={{ width: "33%" }}
-         
-        />
+       <TextField
+  label="السعر"
+  value={prixAchat}
+  size="small"
+  className="Input-field"
+  sx={{ width: "33%" }}
+  type="number"
+  inputProps={{
+    step: "1", // 👈 only integers
+    min: "0",  // 👈 prevent negatives if needed
+    pattern: "[0-9]*", // 👈 restrict typing to digits
+  }}
+  onChange={(e) => {
+    // Only keep digits (strip commas, dots, letters)
+    const val = e.target.value.replace(/[^0-9]/g, "");
+    setPrixAchat(val);
+  }}
+/>
+
         <TextField
           label="الكمية"
           value={quantite}

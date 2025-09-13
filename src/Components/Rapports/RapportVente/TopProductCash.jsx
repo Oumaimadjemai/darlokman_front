@@ -72,7 +72,7 @@ export default function TopProductCash({ topProduitsCash }) {
                 </TableCell>
                 <TableCell>{p.quantite_vendue_produit}</TableCell>
                 <TableCell>
-                  {p.montant_total_produit.toLocaleString()}
+                  {p.montant_total_produit}
                 </TableCell>
               </TableRow>
             ))}

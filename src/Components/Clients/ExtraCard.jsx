@@ -44,7 +44,7 @@ export default function ExtraCard({ data }) {
           إجمالي الديون
         </Typography>
         <Typography variant="h5" color="error">
-          {data.totalDette.toLocaleString()} د.ج
+          {data.totalDette} د.ج
         </Typography>
       </Box>
 
@@ -64,7 +64,7 @@ export default function ExtraCard({ data }) {
           إجمالي المبالغ المدفوعة
         </Typography>
         <Typography variant="h5" color="success.main">
-          {data.totalPaye.toLocaleString()} د.ج
+          {data.totalPaye} د.ج
         </Typography>
       </Box>
     </Box>

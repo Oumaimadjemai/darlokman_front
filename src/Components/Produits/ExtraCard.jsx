@@ -36,7 +36,7 @@ export default function ExtraCard({ data }) {
           قيمة المنتجات
         </Typography>
         <Typography variant="h5" color="secondary">
-          {data.valeur_des_produits.toLocaleString()} د.ج
+          {data.valeur_des_produits} د.ج
         </Typography>
       </Box>
 
@@ -52,7 +52,7 @@ export default function ExtraCard({ data }) {
           رأس المال
         </Typography>
         <Typography variant="h5" color="secondary">
-          {data.capital.toLocaleString()} د.ج
+          {data.capital} د.ج
         </Typography>
       </Box>
     </Box>

@@ -51,37 +51,53 @@ export default function EditClient({
     severity: "success",
   });
 
-  useEffect(() => {
-    if (selectedClient) {
-      setFormData({
-         assurance_militaire: selectedClient.assurance_militaire || "",
-    date_expedition: selectedClient.date_expedition || "",
-        nom_famille_ar: selectedClient.nom_famille_ar || "",
-        prenom_ar: selectedClient.prenom_ar || "",
-        nom_famille_fr: selectedClient.nom_famille_fr || "",
-        prenom_fr: selectedClient.prenom_fr || "",
-        nom_pere: selectedClient.nom_pere || "",
-        nom_mere: selectedClient.nom_mere || "",
-        numero_national: selectedClient.numero_national || "",
-        date_naissance: selectedClient.date_naissance || null,
-        lieu_naissance: selectedClient.lieu_naissance || "",
-        adresse: selectedClient.adresse || "",
-        telephone: selectedClient.telephone || "",
-        profession: selectedClient.profession || "",
-        jour: selectedClient.jour || "",
-        revenu: selectedClient.revenu || "",
-        type_piece_identite: selectedClient.type_piece_identite || "",
-        numero_piece_identite: selectedClient.numero_piece_identite || "",
-        date_emission_piece: selectedClient.date_emission_piece || "",
-        lieu_emission_piece: selectedClient.lieu_emission_piece || "",
-        ccp: selectedClient.ccp || "",
-        cle: selectedClient.cle || "",
-        code: selectedClient.code || "",
-        dette_initiale: selectedClient.dette_initiale || 0,
-        note: selectedClient.note || "",
-      });
-    }
-  }, [selectedClient]);
+  // useEffect(() => {
+  //   if (selectedClient) {
+  //     setFormData({
+  //        assurance_militaire: selectedClient.assurance_militaire || "",
+  //   date_expedition: selectedClient.date_expedition || "",
+  //       nom_famille_ar: selectedClient.nom_famille_ar || "",
+  //       prenom_ar: selectedClient.prenom_ar || "",
+  //       nom_famille_fr: selectedClient.nom_famille_fr || "",
+  //       prenom_fr: selectedClient.prenom_fr || "",
+  //       nom_pere: selectedClient.nom_pere || "",
+  //       nom_mere: selectedClient.nom_mere || "",
+  //       numero_national: selectedClient.numero_national || "",
+  //       date_naissance: selectedClient.date_naissance || null,
+  //       lieu_naissance: selectedClient.lieu_naissance || "",
+  //       adresse: selectedClient.adresse || "",
+  //       telephone: selectedClient.telephone || "",
+  //       profession: selectedClient.profession || "",
+  //       jour: selectedClient.jour || "",
+  //       revenu: selectedClient.revenu || "",
+  //       type_piece_identite: selectedClient.type_piece_identite || "",
+  //       numero_piece_identite: selectedClient.numero_piece_identite || "",
+  //       date_emission_piece: selectedClient.date_emission_piece || "",
+  //       lieu_emission_piece: selectedClient.lieu_emission_piece || "",
+  //       ccp: selectedClient.ccp || "",
+  //       cle: selectedClient.cle || "",
+  //       code: selectedClient.code || "",
+  //       dette_initiale: selectedClient.dette_initiale || 0,
+  //       note: selectedClient.note || "",
+  //     });
+  //   }
+  // }, [selectedClient]);
+useEffect(() => {
+  if (selectedClient) {
+    setFormData({
+      ...selectedClient,
+      date_naissance: selectedClient.date_naissance
+        ? new Date(selectedClient.date_naissance)
+        : null,
+      date_emission_piece: selectedClient.date_emission_piece
+        ? new Date(selectedClient.date_emission_piece)
+        : null,
+      date_expedition: selectedClient.date_expedition
+        ? new Date(selectedClient.date_expedition)
+        : null,
+    });
+  }
+}, [selectedClient]);
 
   const handleUpdate = async () => {
     try {
@@ -89,11 +105,20 @@ export default function EditClient({
 
       // ✅ If you want to upload files, use FormData
       const dataToSend = new FormData();
-      Object.keys(formData).forEach((key) => {
-        dataToSend.append(key, formData[key] ?? "");
-      });
+      // Object.keys(formData).forEach((key) => {
+      //   dataToSend.append(key, formData[key] ?? "");
+      // });
 
       // Append files
+      Object.keys(formData).forEach((key) => {
+  const value = formData[key];
+  if (value instanceof Date) {
+    dataToSend.append(key, value.toISOString().split("T")[0]); // yyyy-MM-dd
+  } else {
+    dataToSend.append(key, value ?? "");
+  }
+});
+
       files.forEach((file) => {
         dataToSend.append("fichiers_upload", file); // backend must accept 'fichiers' as field name
       });

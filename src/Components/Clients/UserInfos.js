@@ -58,17 +58,13 @@ export default function UserInfos({ userInfos, setUserInfos }) {
                 className="Input-field"
                value={
                   userInfos.date_expedition
-                    ? new Date(userInfos.date_expedition) // ✅ Convert string -> Date
-                    : null
                 }
-                 onChange={(newValue) =>
-                  setUserInfos((prev) => ({
-                    ...prev,
-                    date_expedition: newValue
-                      ? newValue.toISOString().split("T")[0] // ✅ Store as "yyyy-MM-dd"
-                      : "",
-                  }))
-                }
+                onChange={(newValue) =>
+    setUserInfos((prev) => ({
+      ...prev,
+      date_expedition: newValue, // ✅ on garde Date ici
+    }))
+  }
               />
             </LocalizationProvider>
             <TextField
@@ -184,19 +180,26 @@ export default function UserInfos({ userInfos, setUserInfos }) {
                   },
                 }}
                 className="Input-field"
-                value={
-                  userInfos.date_naissance
-                    ? new Date(userInfos.date_naissance) // ✅ Convert string -> Date
-                    : null
-                }
+                // value={
+                //   userInfos.date_naissance
+                //     ? new Date(userInfos.date_naissance) // ✅ Convert string -> Date
+                //     : null
+                // }
+                value={userInfos.date_naissance}
+                // onChange={(newValue) =>
+                //   setUserInfos((prev) => ({
+                //     ...prev,
+                //     date_naissance: newValue
+                //       ? newValue.toISOString().split("T")[0] // ✅ Store as "yyyy-MM-dd"
+                //       : "",
+                //   }))
+                // }
                 onChange={(newValue) =>
-                  setUserInfos((prev) => ({
-                    ...prev,
-                    date_naissance: newValue
-                      ? newValue.toISOString().split("T")[0] // ✅ Store as "yyyy-MM-dd"
-                      : "",
-                  }))
-                }
+    setUserInfos((prev) => ({
+      ...prev,
+      date_naissance: newValue, // ✅ on garde Date ici
+    }))
+  }
               />
             </LocalizationProvider>
             <TextField
@@ -367,19 +370,26 @@ export default function UserInfos({ userInfos, setUserInfos }) {
                   },
                 }}
                 className="Input-field"
-                 value={
-                  userInfos.date_emission_piece
-                    ? new Date(userInfos.date_emission_piece) // ✅ Convert string -> Date
-                    : null
-                }
+                //  value={
+                //   userInfos.date_emission_piece
+                //     ? new Date(userInfos.date_emission_piece) // ✅ Convert string -> Date
+                //     : null
+                // }
+                value={userInfos.date_emission_piece}
+                // onChange={(newValue) =>
+                //   setUserInfos((prev) => ({
+                //     ...prev,
+                //     date_emission_piece: newValue
+                //       ? newValue.toISOString().split("T")[0] // ✅ Store as "yyyy-MM-dd"
+                //       : "",
+                //   }))
+                // }
                 onChange={(newValue) =>
-                  setUserInfos((prev) => ({
-                    ...prev,
-                    date_emission_piece: newValue
-                      ? newValue.toISOString().split("T")[0] // ✅ Store as "yyyy-MM-dd"
-                      : "",
-                  }))
-                }
+    setUserInfos((prev) => ({
+      ...prev,
+      date_emission_piece: newValue, // ✅ on garde Date ici
+    }))
+  }
               />
             </LocalizationProvider>{" "}
             <TextField

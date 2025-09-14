@@ -39,7 +39,7 @@ export default function AddClient({ setOpenAddClientDialog, fetchClient }) {
     profession: "",
     jour: "",
     revenu: "",
-    type_piece_identite: "",
+    type_piece_identite: "بطاقة التعريف الوطنية ",
     numero_piece_identite: "",
     date_emission_piece: "",
     lieu_emission_piece: "",

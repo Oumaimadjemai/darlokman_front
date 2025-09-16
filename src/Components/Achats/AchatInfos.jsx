@@ -53,7 +53,7 @@ const handleProduitSelect = (event, value) => {
 
 
   return (
-    <>
+    <div >
       <Autocomplete
        options={Array.isArray(produits) ? produits : []} // sécurité
   getOptionLabel={(option) => option.nom || ""}
@@ -134,6 +134,6 @@ value={selectedProduit}
       >
         +
       </Button>
-    </>
+    </div>
   );
 }

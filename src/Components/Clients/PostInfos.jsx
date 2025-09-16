@@ -23,7 +23,7 @@ export default function PostInfos({ userInfos, setUserInfos }) {
   return (
     <Container maxWidth="sm">
       <Box sx={{ minWidth: 275 }}>
-        <Card sx={{ p: 2 }}>
+        <Card sx={{ p: 2,bgcolor:'#f9f871' }}>
           <Typography
             variant="h4"
             sx={{
@@ -43,14 +43,14 @@ export default function PostInfos({ userInfos, setUserInfos }) {
           <TextField
             label="رقم الحساب"
             size="small"
-            sx={{ width: "78% !important" ,mr:3}}
+            sx={{ width: "78% !important" ,mr:2}}
             value={userInfos.ccp}
             onChange={handleCCPChange} // Auto update cle
           />
            <TextField
             label="المفتاح"
             size="small"
-            sx={{ width: "15% !important" }}
+            sx={{ width: "17% !important" }}
             value={userInfos.cle}
             onChange={(e) =>
               setUserInfos((prev) => ({

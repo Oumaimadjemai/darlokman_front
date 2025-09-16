@@ -24,6 +24,7 @@ export default function CodeBar({ ProductInfo, setProductInfo }) {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
+            bgcolor:"#f9f871"
           }}
         >
           <Typography

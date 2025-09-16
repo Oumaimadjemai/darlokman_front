@@ -72,19 +72,20 @@ export default function BestClient({ topClientsFacilite }) {
             أفضل الزبائن بالتقسيط
           </Typography>
           <Table size="small">
-            <TableBody>
-              {sortedclients.map((c, i) => (
-                <TableRow key={i}>
-                  <TableCell
-                    sx={{ color: "primary.main", cursor: "pointer" }}
-                    onClick={() => handleOpenDialog(c.id)}
-                  >
-                    {c.client}
-                  </TableCell>
-                  <TableCell>{c.total_montant_total}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
+           <TableBody>
+  {sortedclients.slice(0, 10).map((c, i) => (
+    <TableRow key={i}>
+      <TableCell
+        sx={{ color: "primary.main", cursor: "pointer" }}
+        onClick={() => handleOpenDialog(c.id)}
+      >
+        {c.client}
+      </TableCell>
+      <TableCell>{c.total_montant_total}</TableCell>
+    </TableRow>
+  ))}
+</TableBody>
+
           </Table>
         </CardContent>
       </Card>

@@ -33,6 +33,7 @@ export default function ClientBoard() {
   const [rows, setRows] = useState([]);
   const [openExcelDialog, setOpenExcelDialog] = useState(false);
   const [excelFile, setExcelFile] = useState(null);
+  const [totalClients,setTotalClients]=useState(0)
 
   // 🔹 Filter state
   const [filters, setFilters] = useState({
@@ -73,6 +74,7 @@ export default function ClientBoard() {
 
     try {
       const res = await axios.get(url, { headers });
+      setTotalClients(res.data.count);
       const clients = res.data.results;
 
       // Fetch stats for all clients in parallel
@@ -143,7 +145,7 @@ export default function ClientBoard() {
 
   // 🔹 Calculate totals using useMemo
   const totals = useMemo(() => {
-    const totalClients = rows.length;
+    // const totalClients = rows.length;
     const totalDette = rows.reduce(
       (sum, row) => sum + (Number(row.dette_actuelle_client) || 0),
       0

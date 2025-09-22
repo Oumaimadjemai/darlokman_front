@@ -26,11 +26,14 @@ export default function LoginPage() {
       const user = response.data.user;
       const role=user.role;
       const { access, refresh } = response.data;
+      const features=user.features;
 
       localStorage.setItem("access_token", access);
       localStorage.setItem("refresh_token", refresh);
       localStorage.setItem("username",username);
       localStorage.setItem("role",role)
+      localStorage.setItem("features", JSON.stringify(user.features));
+
 
       setRole(user.role);
       setPassword(""); // Immediately clear password

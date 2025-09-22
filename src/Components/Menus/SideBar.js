@@ -44,10 +44,20 @@ const drawerWidth = 200;
 
 export default function Sidebar({ onAction, selectedId }) {
   const navigate = useNavigate();
+const [features, setFeatures] = useState([]);
+const [role, setRole] = useState(null);
+useEffect(() => {
+  const storedFeatures = JSON.parse(localStorage.getItem("features")) || [];
+  const storedRole = localStorage.getItem("role");
+  setFeatures(storedFeatures);
+  setRole(storedRole);
+}, []);
 
 const handleLogout = async () => {
   const refresh = localStorage.getItem("refresh_token");
   const access = localStorage.getItem("access_token");
+
+
 
   try {
     if (refresh) {
@@ -297,6 +307,26 @@ const handleLogout = async () => {
   const handleSelect = (id) => {
     if (onAction) onAction(id);
   };
+const isAllowed = (id) => {
+  if (role === "admin") return true; // Admin sees everything
+  return features.includes(id); // User sees only their features
+};
+
+const filteredMenuItems = useMemo(() => {
+  return menuItems
+    .map((item) => {
+      if (item.children) {
+        const allowedChildren = item.children.filter((child) =>
+          isAllowed(child.id)
+        );
+        return allowedChildren.length > 0
+          ? { ...item, children: allowedChildren }
+          : null;
+      }
+      return isAllowed(item.id) ? item : null;
+    })
+    .filter(Boolean);
+}, [menuItems, role, features]);
 
   return (
     <Drawer
@@ -329,7 +359,7 @@ const handleLogout = async () => {
         }}
       >
         <List>
-          {menuItems.map((item, index) => (
+          {filteredMenuItems.map((item, index) => (
             <Box key={item.id}>
               <ListItemButton
                 onClick={() => {

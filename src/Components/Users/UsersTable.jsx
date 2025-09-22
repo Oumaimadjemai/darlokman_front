@@ -1,5 +1,5 @@
 import { DataGrid } from "@mui/x-data-grid";
-import { Box, Typography, Paper } from "@mui/material";
+import { Box, Typography, Paper, Dialog, DialogTitle, DialogContent } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import IconButton from "@mui/material/IconButton";
@@ -8,12 +8,15 @@ import { useState } from "react";
 import ConfirmationDialog from "../Cards/ConfirmationDialog";
 import LockResetIcon from "@mui/icons-material/LockReset";
 import ChangePasswordDialog from "./ChangePasswordDialog"; 
+import VerifiedIcon from '@mui/icons-material/Verified';
+import FeatureAccessBoard from "./FeatureAccessBoard"; 
 export default function UsersTable({ rows, setRows, onEditClick }) {
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 const [selectedUserId, setSelectedUserId] = useState(null);
-
+const [featureBoardOpen, setFeatureBoardOpen] = useState(false);
+  const [featureUserId, setFeatureUserId] = useState(null);
 const handleOpenPasswordDialog = (id) => {
   setSelectedUserId(id);
   setChangePasswordOpen(true);
@@ -83,6 +86,23 @@ const handleOpenPasswordDialog = (id) => {
       </IconButton>
     ),
   },
+   {
+      field: "permissions",
+      headerName: "المهام",
+      width: 70,
+      sortable: false,
+      renderCell: (params) => (
+        <IconButton
+          color="success"
+          onClick={() => {
+            setFeatureUserId(params.row.id);
+            setFeatureBoardOpen(true);
+          }}
+        >
+          <VerifiedIcon />
+        </IconButton>
+      ),
+    },
     {
       field: "delete",
       headerName: "حذف",
@@ -144,6 +164,27 @@ const handleOpenPasswordDialog = (id) => {
   userId={selectedUserId}
   fetchUser={() => setRows([...rows])}
 />
+ {/* Gestion des fonctionnalités */}
+{featureBoardOpen && (
+  <Dialog
+    open={featureBoardOpen}
+    onClose={() => setFeatureBoardOpen(false)}
+    maxWidth="md"
+    fullWidth
+  >
+    <DialogTitle sx={{ fontWeight: "bold", textAlign: "center" }}>
+      إدارة المهام
+    </DialogTitle>
+    <DialogContent dividers>
+      <FeatureAccessBoard 
+        userId={featureUserId} 
+        onClose={() => setFeatureBoardOpen(false)} // 👈 تمرير onClose
+      />
+    </DialogContent>
+  </Dialog>
+)}
+
+
 
     </>
   );

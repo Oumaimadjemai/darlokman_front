@@ -48,15 +48,26 @@ export default function AdminDashboard() {
 
   // Change activeComponent to handle both string and object
   const [activeComponent, setActiveComponent] = useState({ name: "home" });
+const [features, setFeatures] = useState([]);
+const [role, setRole] = useState("");
 
   useEffect(() => {
     const storedId = localStorage.getItem("selectedSidebarId");
     if (storedId) {
       setActiveComponent({ name: storedId });
     }
+     const storedFeatures = JSON.parse(localStorage.getItem("features")) || [];
+  setFeatures(storedFeatures);
+
+  const storedRole = localStorage.getItem("role");
+  setRole(storedRole);
   }, []);
 
   const handleAction = (actionId) => {
+    if (role !== "admin" && !features.includes(actionId)) {
+    alert("🚫 ليس لديك صلاحية للوصول إلى هذه الميزة");
+    return;
+  }
     localStorage.setItem("selectedSidebarId", actionId);
     switch (actionId) {
       case "add-client":

@@ -99,6 +99,12 @@ export default function LoginPage() {
             placeholder="كلمة السر"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleLogin();
+    }
+  }}
           />
           <label
             style={{ marginRight: "25px", color: "red", marginBottom: "20px" }}

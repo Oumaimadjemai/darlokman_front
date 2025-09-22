@@ -20,7 +20,7 @@ export default function CodebarresBoard() {
       try {
         const response = await axios.get("/param/magasins");
         setMagasins(
-          response.data.map((m) => ({
+          response.data.results.map((m) => ({
             label: m.nom,
             value: m.nom,
           }))

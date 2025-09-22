@@ -65,29 +65,31 @@ export default function ProduitBoard() {
 
   useEffect(() => {
     // 🔹 Charger les magasins
-    axios.get("param/magasins/", { headers }).then((res) => {
-      const dataArray = Array.isArray(res.data) ? res.data : [];
-      const options = dataArray.map((magasin) => ({
-        value: magasin.id,
-        label: magasin.nom,
-      }));
-      setMagasinsOptions([{ value: "", label: "الكل" }, ...options]);
-    });
+    // 🔹 Charger les magasins
+axios.get("param/magasins/", { headers }).then((res) => {
+  const dataArray = Array.isArray(res.data.results) ? res.data.results : [];
+  const options = dataArray.map((magasin) => ({
+    value: magasin.id,
+    label: magasin.nom,
+  }));
+  setMagasinsOptions([{ value: "", label: "الكل" }, ...options]);
+});
 
-    // 🔹 Charger les familles
-    axios.get("prod/produits/", { headers }).then((res) => {
-      const produits = Array.isArray(res.data) ? res.data : [];
-      const familles = Array.from(
-        new Set(produits.map((produit) => produit.famille))
-      ).filter((fam) => fam !== null);
+// 🔹 Charger les familles
+axios.get("prod/produits/", { headers }).then((res) => {
+  const produits = Array.isArray(res.data.results) ? res.data.results : [];
+  const familles = Array.from(
+    new Set(produits.map((produit) => produit.famille))
+  ).filter((fam) => fam !== null);
 
-      const options = familles.map((fam) => ({
-        value: fam,
-        label: fam,
-      }));
+  const options = familles.map((fam) => ({
+    value: fam,
+    label: fam,
+  }));
 
-      setFamillesOptions([{ value: "", label: "الكل" }, ...options]);
-    });
+  setFamillesOptions([{ value: "", label: "الكل" }, ...options]);
+});
+
 
     fetchProduit(); // Initial fetch
   }, []);

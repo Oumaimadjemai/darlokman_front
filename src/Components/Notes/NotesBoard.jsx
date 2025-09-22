@@ -30,7 +30,7 @@ export default function NotesBoard() {
   // Fetch notes from DRF
   const fetchNotes = async () => {
     const res = await axios.get("note/notes/");
-    setNotes(res.data);
+    setNotes(res.data.results);
   };
 
   useEffect(() => {

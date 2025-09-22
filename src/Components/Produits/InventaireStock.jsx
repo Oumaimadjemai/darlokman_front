@@ -18,22 +18,28 @@ export default function InventaireStock() {
   const [magasins, setMagasins] = useState([]);
   const [selectedMagasin, setSelectedMagasin] = useState("");
   const [produits, setProduits] = useState([]);
+  const [totaux, setTotaux] = useState({ quantite: 0, valeur_des_produits: 0, capital: 0 });
   const [scannedBarcodes, setScannedBarcodes] = useState([]);
   const [confirmedCount, setConfirmedCount] = useState(0);
 
   // Fetch products
   useEffect(() => {
-    axios
-      .get("/prod/produits/")
-      .then((res) => setProduits(res.data.produits))
-      .catch((err) => console.error(err));
-  }, []);
+  axios
+    .get("/prod/produits/")
+    .then((res) => {
+      setProduits(res.data.results);
+      if (res.data.totaux) {
+        setTotaux(res.data.totaux);
+      }
+    })
+    .catch((err) => console.error(err));
+}, []);
 
   // Fetch stores
   useEffect(() => {
     axios
       .get("/param/magasins")
-      .then((res) => setMagasins(res.data))
+      .then((res) => setMagasins(res.data.results))
       .catch((err) => console.error(err));
   }, []);
 

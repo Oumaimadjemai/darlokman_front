@@ -115,7 +115,7 @@ export default function DashboardHome() {
     axios
       .get("auth/users")
       .then((res) => {
-        setUSers(res.data || []);
+        setUSers(res.data.results || []);
       })
       .catch((err) => console.error("Failed to fetch users", err));
   }, []);
@@ -226,7 +226,7 @@ export default function DashboardHome() {
     // clients
     axios
       .get("auth/clients/", { params })
-      .then((res) => setTotalClients(res.data.total_clients || 0))
+      .then((res) => setTotalClients(res.data.count || 0))
       .catch((err) => console.error("Failed to fetch clients", err));
 
     // depenses

@@ -77,7 +77,7 @@ export default function SalesReport() {
     const fetchMagasins = async () => {
       try {
         const res = await axios.get("/param/magasins/");
-        setMagasins(res.data);
+        setMagasins(res.data.results);
       } catch (err) {
         console.error("Erreur lors du chargement des magasins", err);
       }
@@ -91,7 +91,7 @@ export default function SalesReport() {
       setLoading(true);
       try {
         const produitRes = await axios.get("/prod/produits/");
-        const produits = produitRes.data.produits || produitRes.data;
+        const produits = produitRes.data.results || produitRes.data;
 
         let formattedRows = await Promise.all(
           produits.map(async (prod) => {

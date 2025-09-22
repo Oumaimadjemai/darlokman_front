@@ -38,7 +38,7 @@ export default function UserBoard() {
 
     axios
       .get("auth/users/", { headers })
-      .then((response) => setRows(response.data))
+      .then((response) => setRows(response.data.results))
       .catch((err) =>
         console.error("Erreur lors du chargement des utilisateurs :", err)
       );

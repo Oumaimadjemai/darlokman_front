@@ -59,7 +59,7 @@ export default function Dashboard() {
     const fetchUsers = async () => {
       try {
         const res = await axios.get("/auth/users/", { headers });
-        setUsers(res.data);
+        setUsers(res.data.results);
       } catch (err) {
         console.error("Erreur lors du chargement des users", err);
       }
@@ -176,7 +176,7 @@ export default function Dashboard() {
     setLoadingProducts(true);
     try {
       const produits = (await axios.get("/prod/produits/", { headers })).data
-        .produits;
+        .results;
 
       const topFacilite = [];
       const topCash = [];

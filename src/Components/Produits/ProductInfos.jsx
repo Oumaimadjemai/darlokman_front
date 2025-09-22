@@ -20,7 +20,7 @@ export default function ProductInfos({ ProductInfo, setProductInfo }) {
             Authorization: `Bearer ${access_token}`,
           },
         });
-        setMagasins(response.data);
+        setMagasins(response.data.results);
       } catch (error) {
         console.error("Error fetching magasins:", error);
       } finally {

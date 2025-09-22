@@ -13,7 +13,7 @@ export default function AchatInfos({ onAddProduct }) {
   useEffect(() => {
     axios
       .get("/prod/produits/")
-      .then((res) => setProduits(res.data.produits))
+      .then((res) => setProduits(res.data.results))
       .catch((err) => console.error("Erreur lors du fetch des produits:", err));
   }, []);
 

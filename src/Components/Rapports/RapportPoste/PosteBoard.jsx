@@ -67,7 +67,7 @@ export default function PaymentReport() {
             Authorization: `Bearer ${localStorage.getItem("access_token")}`,
           },
         });
-        setusers(res.data);
+        setusers(res.data.results);
       } catch (err) {
         console.error("Erreur lors du chargement des client", err);
       }

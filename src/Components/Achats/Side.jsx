@@ -33,7 +33,7 @@ export default function Side({
   useEffect(() => {
     axios
       .get("/auth/fournisseurs/")
-      .then((res) => setFournisseurList(res.data))
+      .then((res) => setFournisseurList(res.data.results))
       .catch((err) =>
         console.error("Erreur lors du chargement des fournisseurs:", err)
       );

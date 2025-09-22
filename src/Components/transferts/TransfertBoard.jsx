@@ -41,7 +41,7 @@ export default function TransfertBoard() {
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
       })
-      .then((res) => setMagasins(res.data))
+      .then((res) => setMagasins(res.data.results))
       .catch((err) => console.error("Erreur chargement magasins", err));
   }, []);
   const filterOptions = [

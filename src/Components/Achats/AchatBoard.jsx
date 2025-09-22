@@ -82,7 +82,7 @@ export default function AchatBoard({ setActiveComponent }) {
             Authorization: `Bearer ${localStorage.getItem("access_token")}`,
           },
         });
-        setFournisseurs(res.data);
+        setFournisseurs(res.data.results);
       } catch (err) {
         console.error("Erreur lors du chargement des fournisseurs", err);
       }

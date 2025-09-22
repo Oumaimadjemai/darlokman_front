@@ -111,7 +111,7 @@ export default function FournisseurBoard() {
           wilaya: filterValues.wilaya || undefined,
         },
       })
-      .then((response) => setRows(response.data))
+      .then((response) => setRows(response.data.results))
       .catch((err) =>
         console.error("Erreur lors du chargement des fournisseurs :", err)
       );

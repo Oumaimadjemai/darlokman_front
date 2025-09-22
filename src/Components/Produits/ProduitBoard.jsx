@@ -55,7 +55,7 @@ export default function ProduitBoard() {
     axios
       .get(`prod/produits/?${params.toString()}`, { headers })
       .then((response) => {
-        setRows(response.data.produits);
+        setRows(response.data.results);
         setTotaux(response.data.totaux);
       })
       .catch((err) =>

@@ -36,7 +36,7 @@ export default function MagasinBoard() {
 
     axios
       .get("/param/magasins/", { headers })
-      .then((response) => setRows(response.data))
+      .then((response) => setRows(response.data.results))
       .catch((err) =>
         console.error("Erreur lors du chargement des magasins :", err)
       );

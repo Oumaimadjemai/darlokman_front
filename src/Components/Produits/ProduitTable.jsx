@@ -48,17 +48,17 @@ export default function ProduitTable({ rows, setRows, onEditClick }) {
     {
       field: "reference",
       headerName: "المرجع",
-      minWidth: 120,
+      minWidth: 150,
     },
     {
       field: "nom",
       headerName: "الإسم",
-      minWidth: 120,
+      minWidth: 150,
     },
     {
       field: "famille",
       headerName: "العائلة",
-      minWidth: 100,
+      minWidth: 150,
     },
     {
       field: "taux_benefice_cache",
@@ -73,57 +73,57 @@ export default function ProduitTable({ rows, setRows, onEditClick }) {
     {
       field: "prix_achat",
       headerName: "سعر الشراء",
-      minWidth: 100,
+      minWidth: 150,
     },
     {
       field: "prix_vente_cache",
       headerName: "سعر البيع كاش",
-      minWidth: 100,
+      minWidth: 150,
     },
     {
       field: "prix_vente_3",
       headerName: "سعر 3",
-      minWidth: 80,
+      minWidth: 100,
     },
     {
       field: "prix_vente_5",
       headerName: "سعر 5",
-      minWidth: 80,
+      minWidth: 100,
     },
     {
       field: "prix_vente_6",
       headerName: "سعر 6",
-      minWidth: 80,
+      minWidth: 100,
     },
     {
       field: "prix_vente_8",
       headerName: "سعر 8",
-      minWidth: 80,
+      minWidth: 100,
     },
     {
       field: "prix_vente_9",
       headerName: "سعر 9",
-      minWidth: 80,
+      minWidth: 100,
     },
     {
       field: "prix_vente_10",
       headerName: "سعر 10",
-      minWidth: 80,
+      minWidth: 100,
     },
     {
       field: "prix_vente_12",
       headerName: "سعر 12",
-      minWidth: 80,
+      minWidth: 100,
     },
     {
       field: "prix_vente_15",
       headerName: "سعر 15",
-      minWidth: 80,
+      minWidth: 100,
     },
     {
       field: "quantite",
       headerName: "الكمية",
-      minWidth: 60,
+      minWidth: 80,
     },
     {
       field: "edit",

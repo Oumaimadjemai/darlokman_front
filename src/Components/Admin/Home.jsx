@@ -241,30 +241,29 @@ export default function DashboardHome() {
 
     // produits
     axios
-      .get("prod/produits/", { params })
-      .then((res) => {
-        const produits = res.data.produits || [];
-        const familleMap = {};
+  .get("prod/produits/familles", { params })
+  .then((res) => {
+    const familles = res.data.familles || [];
 
-        produits.forEach((prod) => {
-          const famille = prod.famille || "غير مصنف";
-          if (!familleMap[famille]) familleMap[famille] = 0;
-          familleMap[famille] +=
-            parseFloat(prod.prix_achat) * (prod.quantite || 0);
-        });
+    // Transform backend data into chart-friendly format
+    const familleData = familles.map((fam) => ({
+      name: fam.famille || "غير مصنف",
+      value: parseFloat(fam.total_prix_achat) * (fam.total_quantite || 0),
+    }));
 
-        const familleData = Object.entries(familleMap).map(([name, value]) => ({
-          name,
-          value,
-        }));
+    setProductFamilies(familleData);
 
-        setProductFamilies(familleData);
-        setValeurProduit(
-          formatMoneyCentime(res.data.totaux?.valeur_des_produits || 0)
-        );
-      })
-      .catch((err) => console.error("Failed to fetch produits", err));
-  };
+    // Optionally compute global total
+    const totalValeur = familles.reduce(
+      (acc, fam) =>
+        acc + parseFloat(fam.total_prix_achat) * (fam.total_quantite || 0),
+      0
+    );
+
+    setValeurProduit(formatMoneyCentime(totalValeur));
+  })
+  .catch((err) => console.error("Failed to fetch familles", err));
+  }
 
   return (
     <Grid container spacing={2} sx={{ mt: 2 }}>

@@ -35,8 +35,8 @@ export default function InventoryQuantities() {
   /** 🔹 Charger la liste des références et familles pour remplir les selects */
   const fetchFilterOptions = async () => {
     try {
-      const res = await axios.get("/prod/produits/"); // endpoint qui renvoie tous les produits mini
-      const produits = res.data.produits || [];
+      const res = await axios.get("/prod/produits/familles/"); // endpoint qui renvoie tous les produits mini
+      const produits = res.data.familles || [];
 
       // Extraire listes uniques
       const refs = [...new Set(produits.map((p) => p.reference).filter(Boolean))];

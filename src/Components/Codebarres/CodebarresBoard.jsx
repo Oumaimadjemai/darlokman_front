@@ -22,7 +22,7 @@ export default function CodebarresBoard() {
         setMagasins(
           response.data.results.map((m) => ({
             label: m.nom,
-            value: m.nom,
+            value: m.id,
           }))
         );
       } catch (error) {

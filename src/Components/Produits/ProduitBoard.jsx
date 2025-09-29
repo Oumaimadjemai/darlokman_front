@@ -75,20 +75,25 @@ axios.get("param/magasins/", { headers }).then((res) => {
   setMagasinsOptions([{ value: "", label: "الكل" }, ...options]);
 });
 
-// 🔹 Charger les familles
-axios.get("prod/produits/", { headers }).then((res) => {
-  const produits = Array.isArray(res.data.results) ? res.data.results : [];
-  const familles = Array.from(
-    new Set(produits.map((produit) => produit.famille))
-  ).filter((fam) => fam !== null);
+// 🔹 Charger directement les familles
+axios
+  .get("prod/produits/familles/", { headers })
+  .then((res) => {
+    const familles = Array.isArray(res.data.familles) ? res.data.familles : [];
 
-  const options = familles.map((fam) => ({
-    value: fam,
-    label: fam,
-  }));
+    const options = familles.map((fam) => ({
+      value: fam,
+      label: fam,
+    }));
 
-  setFamillesOptions([{ value: "", label: "الكل" }, ...options]);
-});
+    setFamillesOptions([{ value: "", label: "الكل" }, ...options]);
+  })
+  .catch((err) => {
+    console.error("Erreur lors du chargement des familles :", err);
+    setFamillesOptions([{ value: "", label: "الكل" }]); // fallback
+  });
+
+
 
 
     fetchProduit(); // Initial fetch

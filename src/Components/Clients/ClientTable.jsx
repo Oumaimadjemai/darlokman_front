@@ -41,22 +41,22 @@ export default function ClientTable({ rows, setRows, onEditClick }) {
     {
       field: "prenom_ar",
       headerName: "الإسم",
-      minWidth: 120,
+      minWidth: 150,
     },
     {
       field: "nom_famille_ar",
       headerName: "اللقب",
-      minWidth: 120,
+      minWidth: 150,
     },
     {
       field: "adresse",
       headerName: "العنوان",
-      minWidth: 120,
+      minWidth: 150,
     },
     {
       field: "telephone",
       headerName: "الهاتف",
-      minWidth: 120,
+      minWidth: 150,
     },
     {
       field: "ccp",
@@ -66,38 +66,38 @@ export default function ClientTable({ rows, setRows, onEditClick }) {
     {
       field: "date_debut",
       headerName: "بداية التقسيط",
-      minWidth: 120,
+      minWidth: 150,
     },
 
     {
       field: "date_fin",
       headerName: "نهاية التقسيط",
-      minWidth: 120,
+      minWidth: 150,
     },
     {
       field: "last_payment_date",
       headerName: "أخر تسديد",
-      minWidth: 120,
+      minWidth: 150,
     },
     {
       field: "dette_totale_client",
       headerName: "الدين الإجمالي",
-      minWidth: 120,
+      minWidth: 150,
     },
     {
       field: "dette_actuelle_client",
       headerName: "الدين الساري",
-      minWidth: 120,
+      minWidth: 150,
     },
     {
       field: "montant_verse",
       headerName: "دفعات إضافية",
-      minWidth: 120,
+      minWidth: 150,
     },
     {
       field: "total-jsp",
       headerName: "م.م",
-      minWidth: 120,
+      minWidth: 150,
     },
   {
       field: "edit",

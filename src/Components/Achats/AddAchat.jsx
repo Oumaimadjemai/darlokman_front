@@ -74,7 +74,7 @@ export default function AddAchat({ isEditMode = false, initialData = null }) {
   }, [formData.somme_payee, rows]);
 
 
-  const handleAddProduct = ({
+  const handleAddProduct = async ({
     produit,
     quantite,
     prixAchat,
@@ -94,6 +94,23 @@ export default function AddAchat({ isEditMode = false, initialData = null }) {
     };
 
     setRows((prev) => [...prev, newRow]);
+    if (produit.prix_achat !== parseFloat(prixAchat)) {
+    try {
+      const token = localStorage.getItem("access_token");
+      await axios.patch(
+        `/prod/produits/${produit.id}/`,
+        { prix_achat: parseFloat(prixAchat) },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      console.log(`✅ Produit ${produit.id} mis à jour avec prix_achat=${prixAchat}`);
+    } catch (err) {
+      console.error("❌ Erreur lors de la mise à jour du produit:", err);
+    }
+  }
   };
 
   const handleFournisseurChange = (value) => {

@@ -86,52 +86,45 @@ export default function SalesReport() {
   }, []);
 
   // ✅ Fetch data when filters change
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        const produitRes = await axios.get("/prod/produits/");
-        const produits = produitRes.data.results || produitRes.data;
+useEffect(() => {
+  async function fetchData() {
+    setLoading(true);
+    try {
+      const params = buildParams(filters);
 
-        let formattedRows = await Promise.all(
-          produits.map(async (prod) => {
-            const { qFacilite, qCash } = await getQuantitesVente(prod.id);
+      // 🔹 fetch produits with filters directly
+      const produitRes = await axios.get("/prod/produits/", { params });
+      const produits = produitRes.data.results || produitRes.data;
 
-            return {
-              id: prod.id,
-              reference: prod.famille || "بدون",
-              name: prod.nom,
-              qFacilite,
-              qCash,
-              magasin: prod.magasin_detail?.nom || "غير محدد",
-              quantiteActuelle: prod.quantite || 0,
-            };
-          })
-        );
+      let formattedRows = await Promise.all(
+        produits.map(async (prod) => {
+          const { qFacilite, qCash } = await getQuantitesVente(prod.id);
 
-        // ✅ Sort by id descending (last id first)
-        formattedRows = formattedRows.sort((a, b) => b.id - a.id);
+          return {
+            id: prod.id,
+            reference: prod.famille || "بدون",
+            name: prod.nom,
+            qFacilite,
+            qCash,
+            magasin: prod.magasin_detail?.nom || "غير محدد", // display name
+            magasinId: prod.magasin_detail?.id || null,       // filter id
+            quantiteActuelle: prod.quantite || 0,
+          };
+        })
+      );
 
-        // ✅ Apply magasin filter if selected
-        if (filters.magasins) {
-          const selectedMagasinName = magasins.find(
-            (m) => m.id == filters.magasins
-          )?.nom;
-          formattedRows = formattedRows.filter(
-            (row) => row.magasin === selectedMagasinName
-          );
-        }
+      formattedRows = formattedRows.sort((a, b) => b.id - a.id);
 
-        setRows(formattedRows);
-      } catch (err) {
-        console.error("Error fetching produits or ventes:", err);
-      } finally {
-        setLoading(false);
-      }
+      setRows(formattedRows);
+    } catch (err) {
+      console.error("Error fetching produits or ventes:", err);
+    } finally {
+      setLoading(false);
     }
+  }
 
-    fetchData();
-  }, [filters, magasins]); // include magasins to filter correctly
+  fetchData();
+}, [filters, magasins]);
 
   return (
     <>

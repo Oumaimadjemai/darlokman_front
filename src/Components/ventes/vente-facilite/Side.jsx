@@ -86,6 +86,32 @@ function diviserMontantMultiple500(montant, prelevement) {
 
   return result || [montant];
 }
+function diviserMontantMensuel(montant, prelevement) {
+  if (prelevement <= 0 || montant <= 0) return [];
+  if (prelevement === 1) return [montant];
+
+  const base = Math.floor(montant / prelevement);
+
+  // Si la part de base est déjà < 500, réduire le nombre de prélèvements
+  if (base < 500) {
+    return diviserMontantMensuel(montant, prelevement - 1);
+  }
+
+  const parts = Array(prelevement).fill(base);
+
+  // Calcul du reste à distribuer
+  const reste = montant - base * prelevement;
+
+  // Ajouter tout le reste au dernier prélèvement
+  parts[prelevement - 1] += reste;
+
+  // Vérifier que le dernier prélèvement n’est pas < 500
+  if (parts[prelevement - 1] < 500) {
+    return diviserMontantMensuel(montant, prelevement - 1);
+  }
+
+  return parts;
+}
 
 
 
@@ -135,7 +161,7 @@ function diviserMontantMultiple500(montant, prelevement) {
         : 0;
 
     if (prelevement > 0) {
-      setBreakdown(diviserMontantMultiple500(monthlyAmount, prelevement));
+      setBreakdown(diviserMontantMensuel(monthlyAmount, prelevement));
     } else {
       setBreakdown([]);
     }

@@ -22,42 +22,48 @@ export default function CodeBarreTable({ searchTerm, magasinFilter }) {
   // Fetch data
   useEffect(() => {
   const fetchProduits = async () => {
-  try {
-    const response = await axios.get("/prod/produits/");
-    setProduits(response.data.results);         // ✅ use results
-    setFilteredProduits(response.data.results); // ✅ init filtered
-  } catch (error) {
-    console.error("Erreur lors du chargement des produits:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+    try {
+      setLoading(true);
 
+      const params = {};
+      if (searchTerm) params.search = searchTerm;
+      if (magasinFilter) params.magasin = magasinFilter;
 
-    fetchProduits();
-  }, []);
+      const response = await axios.get("/prod/produits/", { params });
+      setProduits(response.data.results || []);
+      setFilteredProduits(response.data.results || []);
+    } catch (error) {
+      console.error("Erreur lors du chargement des produits:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchProduits();
+}, [searchTerm, magasinFilter]);
+
 
   // Filter logic based on searchTerm
-  useEffect(() => {
-    const lowerSearch = searchTerm.toLowerCase();
+  // useEffect(() => {
+  //   const lowerSearch = searchTerm.toLowerCase();
 
-    const filtered = produits.filter((produit) => {
-      const matchSearch =
-        produit.nom?.toLowerCase().includes(lowerSearch) ||
-        produit.reference?.toLowerCase().includes(lowerSearch) ||
-        produit.marque?.toLowerCase().includes(lowerSearch) ||
-        (produit.codes_barres || []).some((code) =>
-          code.toLowerCase().includes(lowerSearch)
-        );
+  //   const filtered = produits.filter((produit) => {
+  //     const matchSearch =
+  //       produit.nom?.toLowerCase().includes(lowerSearch) ||
+  //       produit.reference?.toLowerCase().includes(lowerSearch) ||
+  //       produit.marque?.toLowerCase().includes(lowerSearch) ||
+  //       (produit.codes_barres || []).some((code) =>
+  //         code.toLowerCase().includes(lowerSearch)
+  //       );
 
-      const matchMagasin =
-        !magasinFilter || produit.magasin_detail?.nom === magasinFilter;
+  //     const matchMagasin =
+  //       !magasinFilter || produit.magasin_detail?.nom === magasinFilter;
 
-      return matchSearch && matchMagasin;
-    });
+  //     return matchSearch && matchMagasin;
+  //   });
 
-    setFilteredProduits(filtered);
-  }, [searchTerm, magasinFilter, produits]);
+  //   setFilteredProduits(filtered);
+  // }, [searchTerm, magasinFilter, produits]);
 
   const handleClickCodeBarre = (produit, codebarre) => {
     setSelectedProduit({ ...produit, codebarre });

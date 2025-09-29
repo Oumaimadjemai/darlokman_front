@@ -31,22 +31,22 @@ export default function ProductInfos({ ProductInfo, setProductInfo }) {
     fetchMagasins();
   }, []);
 
-  // const calculatePrices = (prix_achat, taux) => {
-  //   const prix = prix_achat * (1 + taux / 100);
-  //   return Math.round(prix / 100) * 100; // ✅ multiple de 100
-  // };
-const calculatePrices = (prix_achat, taux) => {
-  const prix = prix_achat * (1 + taux / 100);
-  const reste = prix % 1000;
+  const calculatePrices = (prix_achat, taux) => {
+    const prix = prix_achat * (1 + taux / 100);
+    return Math.round(prix / 100) * 100; // ✅ multiple de 100
+  };
+// const calculatePrices = (prix_achat, taux) => {
+//   const prix = prix_achat * (1 + taux / 100);
+//   const reste = prix % 1000;
 
-  if (reste < 500) {
-    // Descendre au millier inférieur
-    return Math.floor(prix / 1000) * 1000;
-  } else {
-    // Arrondir au millier le plus proche
-    return Math.round(prix / 1000) * 1000;
-  }
-};
+//   if (reste < 500) {
+//     // Descendre au millier inférieur
+//     return Math.floor(prix / 1000) * 1000;
+//   } else {
+//     // Arrondir au millier le plus proche
+//     return Math.round(prix / 1000) * 1000;
+//   }
+// };
 
   const handleBenefitRateChange = (e) => {
     const { name, value } = e.target;

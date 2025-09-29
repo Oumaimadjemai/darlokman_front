@@ -11,11 +11,14 @@ export default function VenteInfos({ onAddProduct, nombreMois }) {
   const [quantite, setQuantite] = useState(1);
 
   useEffect(() => {
-    axios
-      .get("/prod/produits/")
-      .then((res) => setProduits(res.data.results))
-      .catch((err) => console.error("Erreur lors du fetch des produits:", err));
-  }, []);
+  axios
+    .get("/prod/produits/", {
+      params: { search }, // 👈 send as query param
+    })
+    .then((res) => setProduits(res.data.results || []))
+    .catch((err) => console.error("Erreur lors du fetch des produits:", err));
+}, [search]);
+
 
   const handleProduitSelect = (event, value) => {
     setSelectedProduit(value);

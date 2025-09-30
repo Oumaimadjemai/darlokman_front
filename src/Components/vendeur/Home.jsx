@@ -40,7 +40,7 @@ export default function DashboardHome() {
     axios
       .get("auth/users/?role=vendeur")
       .then((res) => {
-        setUsers(res.data || []);
+        setUsers(res.data.results || []);
       })
       .catch((err) => console.error("Failed to fetch users", err));
   }, []);

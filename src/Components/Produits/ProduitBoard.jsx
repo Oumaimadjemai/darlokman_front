@@ -82,8 +82,8 @@ axios
     const familles = Array.isArray(res.data.familles) ? res.data.familles : [];
 
     const options = familles.map((fam) => ({
-      value: fam,
-      label: fam,
+      value: fam.famille,
+      label: fam.famille,
     }));
 
     setFamillesOptions([{ value: "", label: "الكل" }, ...options]);

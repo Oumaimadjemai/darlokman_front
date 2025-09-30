@@ -103,7 +103,7 @@ axios
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
       fetchProduit(searchTerm, filters);
-    }, 500);
+    }, 1500);
 
     return () => clearTimeout(delayDebounce);
   }, [searchTerm, filters]);

@@ -179,6 +179,7 @@ export default function ProduitTable({ rows, setRows, onEditClick }) {
       field: "moyenne_pourcentage_facilite",
       headerName: "ن.ف.ت",
       minWidth: 80,
+      
     },
     {
       field: "prix_achat",
@@ -240,6 +241,14 @@ export default function ProduitTable({ rows, setRows, onEditClick }) {
     role === "admin"
       ? [...baseColumns, ...adminColumns, ...commonColumns]
       : [...baseColumns, ...commonColumns];
+
+  const formattedRows = rows.map(row=>({
+    ...row,
+    moyenne_pourcentage_facilite:row.moyenne_pourcentage_facilite?
+    Math.round(row.moyenne_pourcentage_facilite*100)/100:
+      row.moyenne_pourcentage_facilite
+        
+  }));
   return (
     <>
       <Paper
@@ -255,7 +264,7 @@ export default function ProduitTable({ rows, setRows, onEditClick }) {
 
         <Box sx={{ height: 300, width: "100%", overflowY: "auto" }}>
           <DataGrid
-            rows={rows}
+            rows={formattedRows}
             columns={columns}
             hideFooter
             getRowId={(row) => row.id} // 🔐 Important for correct ID handling

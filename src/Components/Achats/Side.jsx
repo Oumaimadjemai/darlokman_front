@@ -66,7 +66,7 @@ export default function Side({
         المجموع
       </Typography>
       <Typography variant="h4" textAlign="center" sx={{ mb: 2 }}>
-        {total.toFixed(2)} دج
+        {total} دج
       </Typography>
       <Divider sx={{ mt: 2, mb: 2 }} />
       <TextField

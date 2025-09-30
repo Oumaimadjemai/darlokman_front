@@ -85,7 +85,7 @@ export default function VenteTable({ rows, setRows, onDetailsClick }) {
     {
       field: "delete",
       headerName: "حذف",
-      width: 50,
+      width: 80,
       sortable: false,
       renderCell: (params) => (
         <IconButton onClick={() => handleDelete(params.row.id)} color="error">
@@ -96,7 +96,7 @@ export default function VenteTable({ rows, setRows, onDetailsClick }) {
     {
       field: "details",
       headerName: "تفاصيل",
-      width: 50,
+      width: 90,
       sortable: false,
       renderCell: (params) => (
         <IconButton color="info" onClick={() => onDetailsClick(params.row)}>
@@ -107,7 +107,7 @@ export default function VenteTable({ rows, setRows, onDetailsClick }) {
     {
       field: "print",
       headerName: "طباعة",
-      width: 50,
+      width: 80,
       sortable: false,
       renderCell: (params) => (
         <IconButton

@@ -41,22 +41,22 @@ export default function ClientTable({ rows, setRows, onEditClick }) {
     {
       field: "prenom_ar",
       headerName: "الإسم",
-      minWidth: 150,
+      minWidth: 200,
     },
     {
       field: "nom_famille_ar",
       headerName: "اللقب",
-      minWidth: 150,
+      minWidth: 200,
     },
     {
       field: "adresse",
       headerName: "العنوان",
-      minWidth: 150,
+      minWidth: 200,
     },
     {
       field: "telephone",
       headerName: "الهاتف",
-      minWidth: 150,
+      minWidth: 200,
     },
     {
       field: "ccp",
@@ -66,43 +66,43 @@ export default function ClientTable({ rows, setRows, onEditClick }) {
     {
       field: "date_debut",
       headerName: "بداية التقسيط",
-      minWidth: 150,
+      minWidth: 200,
     },
 
     {
       field: "date_fin",
       headerName: "نهاية التقسيط",
-      minWidth: 150,
+      minWidth: 200,
     },
     {
       field: "last_payment_date",
       headerName: "أخر تسديد",
-      minWidth: 150,
+      minWidth: 200,
     },
     {
       field: "dette_totale_client",
       headerName: "الدين الإجمالي",
-      minWidth: 150,
+      minWidth: 200,
     },
     {
       field: "dette_actuelle_client",
       headerName: "الدين الساري",
-      minWidth: 150,
+      minWidth: 200,
     },
     {
       field: "montant_verse",
       headerName: "دفعات إضافية",
-      minWidth: 150,
+      minWidth: 200,
     },
     {
       field: "total-jsp",
       headerName: "م.م",
-      minWidth: 150,
+      minWidth: 200,
     },
   {
       field: "edit",
       headerName: "تعديل",
-      width: 50,
+      width: 80,
       sortable: false,
       renderCell: (params) => (
         <IconButton
@@ -119,7 +119,7 @@ export default function ClientTable({ rows, setRows, onEditClick }) {
     {
       field: "delete",
       headerName: "حذف",
-      width: 50,
+      width: 80,
       sortable: false,
       renderCell: (params) => (
         <IconButton

@@ -20,6 +20,7 @@ export default function ProduitTable({ rows, setRows, onEditClick }) {
   const [selectedId, setSelectedId] = useState(null);
   const [selectedProduit, setSelectedPRoduit] = useState(null);
   const [openDetailDialog, setOpenDetailDialog] = useState(false);
+  const role = localStorage.getItem("role");
   const handleDelete = (id) => {
     setSelectedId(id);
     setConfirmationOpen(true);
@@ -43,23 +44,132 @@ export default function ProduitTable({ rows, setRows, onEditClick }) {
         setSelectedId(null);
       });
   };
-  const columns = [
+  // const columns = [
+  //   { field: "id", headerName: "الرقم", minWidth: 50 },
+  //   {
+  //     field: "reference",
+  //     headerName: "المرجع",
+  //     minWidth: 150,
+  //   },
+  //   {
+  //     field: "nom",
+  //     headerName: "الإسم",
+  //     minWidth: 150,
+  //   },
+  //   {
+  //     field: "famille",
+  //     headerName: "العائلة",
+  //     minWidth: 150,
+  //   },
+  //   {
+  //     field: "taux_benefice_cache",
+  //     headerName: "ن.ف",
+  //     minWidth: 80,
+  //   },
+  //   {
+  //     field: "moyenne_pourcentage_facilite",
+  //     headerName: "ن.ف.ت",
+  //     minWidth: 80,
+  //   },
+  //   {
+  //     field: "prix_achat",
+  //     headerName: "سعر الشراء",
+  //     minWidth: 150,
+  //   },
+  //   {
+  //     field: "prix_vente_cache",
+  //     headerName: "سعر البيع كاش",
+  //     minWidth: 150,
+  //   },
+  //   {
+  //     field: "prix_vente_3",
+  //     headerName: "سعر 3",
+  //     minWidth: 100,
+  //   },
+  //   {
+  //     field: "prix_vente_5",
+  //     headerName: "سعر 5",
+  //     minWidth: 100,
+  //   },
+  //   {
+  //     field: "prix_vente_6",
+  //     headerName: "سعر 6",
+  //     minWidth: 100,
+  //   },
+  //   {
+  //     field: "prix_vente_8",
+  //     headerName: "سعر 8",
+  //     minWidth: 100,
+  //   },
+  //   {
+  //     field: "prix_vente_9",
+  //     headerName: "سعر 9",
+  //     minWidth: 100,
+  //   },
+  //   {
+  //     field: "prix_vente_10",
+  //     headerName: "سعر 10",
+  //     minWidth: 100,
+  //   },
+  //   {
+  //     field: "prix_vente_12",
+  //     headerName: "سعر 12",
+  //     minWidth: 100,
+  //   },
+  //   {
+  //     field: "prix_vente_15",
+  //     headerName: "سعر 15",
+  //     minWidth: 100,
+  //   },
+  //   {
+  //     field: "quantite",
+  //     headerName: "الكمية",
+  //     minWidth: 80,
+  //   },
+  //   {
+  //     field: "edit",
+  //     headerName: "تعديل",
+  //     width: 50,
+  //     sortable: false,
+  //     renderCell: (params) => (
+  //       <IconButton
+  //         onClick={(e) => {
+  //           e.stopPropagation(); // 🛑 Stop row click
+  //           onEditClick(params.row);
+  //         }}
+  //         color="primary"
+  //       >
+  //         <EditIcon />
+  //       </IconButton>
+  //     ),
+  //   },
+  //   {
+  //     field: "delete",
+  //     headerName: "حذف",
+  //     width: 50,
+  //     sortable: false,
+  //     renderCell: (params) => (
+  //       <IconButton
+  //         onClick={(e) => {
+  //           e.stopPropagation(); // 🛑 Stop row click
+  //           handleDelete(params.row.id);
+  //         }}
+  //         color="error"
+  //       >
+  //         <DeleteIcon />
+  //       </IconButton>
+  //     ),
+  //   },
+  // ];
+   const baseColumns = [
     { field: "id", headerName: "الرقم", minWidth: 50 },
-    {
-      field: "reference",
-      headerName: "المرجع",
-      minWidth: 150,
-    },
-    {
-      field: "nom",
-      headerName: "الإسم",
-      minWidth: 150,
-    },
-    {
-      field: "famille",
-      headerName: "العائلة",
-      minWidth: 150,
-    },
+    { field: "reference", headerName: "المرجع", minWidth: 150 },
+    { field: "nom", headerName: "الإسم", minWidth: 500 },
+    { field: "famille", headerName: "العائلة", minWidth: 150 },
+  ];
+
+  // ✅ Extra columns only for admin
+  const adminColumns = [
     {
       field: "taux_benefice_cache",
       headerName: "ن.ف",
@@ -75,65 +185,29 @@ export default function ProduitTable({ rows, setRows, onEditClick }) {
       headerName: "سعر الشراء",
       minWidth: 150,
     },
-    {
-      field: "prix_vente_cache",
-      headerName: "سعر البيع كاش",
-      minWidth: 150,
-    },
-    {
-      field: "prix_vente_3",
-      headerName: "سعر 3",
-      minWidth: 100,
-    },
-    {
-      field: "prix_vente_5",
-      headerName: "سعر 5",
-      minWidth: 100,
-    },
-    {
-      field: "prix_vente_6",
-      headerName: "سعر 6",
-      minWidth: 100,
-    },
-    {
-      field: "prix_vente_8",
-      headerName: "سعر 8",
-      minWidth: 100,
-    },
-    {
-      field: "prix_vente_9",
-      headerName: "سعر 9",
-      minWidth: 100,
-    },
-    {
-      field: "prix_vente_10",
-      headerName: "سعر 10",
-      minWidth: 100,
-    },
-    {
-      field: "prix_vente_12",
-      headerName: "سعر 12",
-      minWidth: 100,
-    },
-    {
-      field: "prix_vente_15",
-      headerName: "سعر 15",
-      minWidth: 100,
-    },
-    {
-      field: "quantite",
-      headerName: "الكمية",
-      minWidth: 80,
-    },
+  ];
+
+  // ✅ Common columns for everyone (after conditional)
+  const commonColumns = [
+    { field: "prix_vente_cache", headerName: "سعر البيع كاش", minWidth: 150 },
+    { field: "prix_vente_3", headerName: "سعر 3", minWidth: 100 },
+    { field: "prix_vente_5", headerName: "سعر 5", minWidth: 100 },
+    { field: "prix_vente_6", headerName: "سعر 6", minWidth: 100 },
+    { field: "prix_vente_8", headerName: "سعر 8", minWidth: 100 },
+    { field: "prix_vente_9", headerName: "سعر 9", minWidth: 100 },
+    { field: "prix_vente_10", headerName: "سعر 10", minWidth: 100 },
+    { field: "prix_vente_12", headerName: "سعر 12", minWidth: 100 },
+    { field: "prix_vente_15", headerName: "سعر 15", minWidth: 100 },
+    { field: "quantite", headerName: "الكمية", minWidth: 80 },
     {
       field: "edit",
       headerName: "تعديل",
-      width: 50,
+      width: 80,
       sortable: false,
       renderCell: (params) => (
         <IconButton
           onClick={(e) => {
-            e.stopPropagation(); // 🛑 Stop row click
+            e.stopPropagation();
             onEditClick(params.row);
           }}
           color="primary"
@@ -145,12 +219,12 @@ export default function ProduitTable({ rows, setRows, onEditClick }) {
     {
       field: "delete",
       headerName: "حذف",
-      width: 50,
+      width: 80,
       sortable: false,
       renderCell: (params) => (
         <IconButton
           onClick={(e) => {
-            e.stopPropagation(); // 🛑 Stop row click
+            e.stopPropagation();
             handleDelete(params.row.id);
           }}
           color="error"
@@ -160,6 +234,12 @@ export default function ProduitTable({ rows, setRows, onEditClick }) {
       ),
     },
   ];
+
+  // ✅ Build final columns depending on role
+  const columns =
+    role === "admin"
+      ? [...baseColumns, ...adminColumns, ...commonColumns]
+      : [...baseColumns, ...commonColumns];
   return (
     <>
       <Paper

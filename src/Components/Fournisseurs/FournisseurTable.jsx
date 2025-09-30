@@ -52,18 +52,18 @@ export default function FournisseurTable({ rows, setRows, onEditClick }) {
     {
       field: "wilaya_display",
       headerName: "الولاية",
-      minWidth: 100,
+      minWidth: 200,
     },
     {
       field: "dettes_initiales",
       headerName: "الديون الإبتدائية",
-      minWidth: 100,
+      minWidth: 150,
     },
 
     {
       field: "edit",
       headerName: "تعديل",
-      width: 50,
+      width: 80,
       sortable: false,
       renderCell: (params) => (
         <IconButton onClick={() => onEditClick(params.row)} color="primary">
@@ -74,7 +74,7 @@ export default function FournisseurTable({ rows, setRows, onEditClick }) {
     {
       field: "delete",
       headerName: "حذف",
-      width: 50,
+      width: 80,
       sortable: false,
       renderCell: (params) => (
         <IconButton onClick={() => handleDelete(params.row.id)} color="error">

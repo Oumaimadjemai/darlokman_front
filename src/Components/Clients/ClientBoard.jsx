@@ -291,6 +291,7 @@ export default function ClientBoard() {
           selectedClient={selectedClient}
           setOpenEditDialog={setOpenEditDialog}
           setRows={setRows}
+          fetchClient={fetchClient}
         />
       </Dialog>
 

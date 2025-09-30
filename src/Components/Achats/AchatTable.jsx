@@ -49,7 +49,7 @@ export default function AchatTable({
     {
       field: "date_formatee",
       headerName: "التاريخ",
-      minWidth: 100,
+      minWidth: 150,
     },
     {
       field: "fournisseur",
@@ -71,17 +71,17 @@ export default function AchatTable({
     {
       field: "somme_payee",
       headerName: "المبلغ المدفوع",
-      minWidth: 100,
+      minWidth: 150,
     },
     {
       field: "somme_restante",
       headerName: "المبلغ المتبقي",
-      minWidth: 100,
+      minWidth: 150,
     },
     {
       field: "utilisateur",
       headerName: "المستخدم",
-      minWidth: 100,
+      minWidth: 150,
       renderCell: (params) => {
         const utilisateur = params.row?.utilisateur_detail;
         if (utilisateur && utilisateur.username) {
@@ -93,7 +93,7 @@ export default function AchatTable({
     {
       field: "edit",
       headerName: "تعديل",
-      width: 50,
+      width: 80,
       renderCell: (params) => (
         <IconButton onClick={() => onEditClick(params.row)} color="primary">
           <EditIcon />
@@ -103,7 +103,7 @@ export default function AchatTable({
     {
       field: "delete",
       headerName: "حذف",
-      width: 50,
+      width: 80,
       sortable: false,
       renderCell: (params) => (
         <IconButton onClick={() => handleDelete(params.row.id)} color="error">

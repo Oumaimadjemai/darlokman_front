@@ -36,7 +36,7 @@ export default function TransfertTable({ rows, setRows }) {
     {
       field: "produit_details",
       headerName: "السلعة",
-      minWidth: 120,
+      minWidth: 150,
       renderCell: (params) => {
         const produit_details = params.row?.produit_details;
         if (produit_details && produit_details.nom) {
@@ -48,7 +48,7 @@ export default function TransfertTable({ rows, setRows }) {
     {
       field: "magasin_source_details",
       headerName: "من",
-      minWidth: 120,
+      minWidth: 150,
       renderCell: (params) => {
         const magasin_source_details = params.row?.magasin_source_details;
         if (magasin_source_details && magasin_source_details.nom) {
@@ -60,7 +60,7 @@ export default function TransfertTable({ rows, setRows }) {
     {
       field: "magasin_destination_details",
       headerName: "إلى",
-      minWidth: 120,
+      minWidth: 150,
       renderCell: (params) => {
         const magasin_destination_details = params.row?.magasin_destination_details;
         if (magasin_destination_details && magasin_destination_details.nom) {
@@ -72,7 +72,7 @@ export default function TransfertTable({ rows, setRows }) {
     {
       field: "quantite",
       headerName: "الكمية",
-      minWidth: 50,
+      minWidth: 80,
     },
     {
       field: "codes_barres_transferes",
@@ -82,17 +82,17 @@ export default function TransfertTable({ rows, setRows }) {
      {
       field: "date_formatee",
       headerName: "اليوم",
-      minWidth: 100,
+      minWidth: 150,
     },
      {
       field: "heure_formatee",
       headerName: "الوقت",
-      minWidth: 50,
+      minWidth: 80,
     },
     {
       field: "utilisateur_details",
       headerName: "المستخدم",
-      minWidth: 100,
+      minWidth: 150,
       renderCell: (params) => {
         const utilisateur = params.row?.utilisateur_details;
         if (utilisateur && utilisateur.username) {
@@ -105,7 +105,7 @@ export default function TransfertTable({ rows, setRows }) {
     {
       field: "delete",
       headerName: "حذف",
-      width: 50,
+      width: 80,
       sortable: false,
       renderCell: (params) => (
         <IconButton onClick={() => handleDelete(params.row.id)} color="error">

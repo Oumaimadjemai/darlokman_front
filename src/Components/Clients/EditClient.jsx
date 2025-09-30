@@ -14,6 +14,7 @@ export default function EditClient({
   selectedClient,
   setOpenEditDialog,
   setRows,
+  fetchClient,
 }) {
   const [formData, setFormData] = useState({
      assurance_militaire: "",
@@ -42,6 +43,7 @@ export default function EditClient({
     code: "",
     dette_initiale: 0,
     note: "",
+
   });
 
   const [files, setFiles] = useState([]); // ✅ Drag & Drop files
@@ -135,13 +137,14 @@ useEffect(() => {
         message: "✅ تم تعديل معلومات الزبون بنجاح",
         severity: "success",
       });
+      fetchClient();
 
       // Update row locally
-      setRows((prev) =>
-        prev.map((m) =>
-          m.id === selectedClient.id ? { ...m, ...formData } : m
-        )
-      );
+      // setRows((prev) =>
+      //   prev.map((m) =>
+      //     m.id === selectedClient.id ? { ...m, ...formData } : m
+      //   )
+      // );
     } catch (err) {
       console.error("Erreur modification:", err);
       setFeedback({

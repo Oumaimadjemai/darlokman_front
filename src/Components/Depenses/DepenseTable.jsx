@@ -37,12 +37,12 @@ export default function DepenseTable({ rows, setRows, onEditClick }) {
     {
       field: "date",
       headerName: "التاريخ",
-      minWidth: 100,
+      minWidth: 150,
     },
     {
       field: "mode_paiement",
       headerName: "السداد",
-      minWidth: 100,
+      minWidth: 150,
     },
     {
       field: "type_depense",
@@ -57,12 +57,12 @@ export default function DepenseTable({ rows, setRows, onEditClick }) {
     {
       field: "montant",
       headerName: "القيمة",
-      minWidth: 100,
+      minWidth: 150,
     },
     {
       field: "utilisateur",
       headerName: "المستخدم",
-      minWidth: 120,
+      minWidth: 150,
       renderCell: (params) => {
         const utilisateur = params.row?.utilisateur;
         if (utilisateur && utilisateur.username) {
@@ -74,7 +74,7 @@ export default function DepenseTable({ rows, setRows, onEditClick }) {
     {
       field: "edit",
       headerName: "تعديل",
-      width: 50,
+      width: 80,
       sortable: false,
       renderCell: (params) => (
         <IconButton onClick={() => onEditClick(params.row)} color="primary">
@@ -85,7 +85,7 @@ export default function DepenseTable({ rows, setRows, onEditClick }) {
     {
       field: "delete",
       headerName: "حذف",
-      width: 50,
+      width: 80,
       sortable: false,
       renderCell: (params) => (
         <IconButton onClick={() => handleDelete(params.row.id)} color="error">

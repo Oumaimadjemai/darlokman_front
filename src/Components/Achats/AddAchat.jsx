@@ -74,44 +74,127 @@ export default function AddAchat({ isEditMode = false, initialData = null }) {
   }, [formData.somme_payee, rows]);
 
 
-  const handleAddProduct = async ({
-    produit,
-    quantite,
-    prixAchat,
-    magasin,
-    magasin_nom,
-  }) => {
+  // const handleAddProduct = async ({
+  //   produit,
+  //   quantite,
+  //   prixAchat,
+  //   magasin,
+  //   magasin_nom,
+  // }) => {
+  //   const newRow = {
+  //     id: rows.length + 1,
+  //     produitId: produit.id,
+  //     reference: produit.reference || "",
+  //     nom: produit.nom || "",
+  //     prix_achat: parseFloat(prixAchat),
+  //     quantite: parseFloat(quantite),
+  //     magasin: parseInt(magasin),
+  //     magasin_nom: magasin_nom || "", // Add this line
+  //     total: parseFloat(prixAchat) * parseFloat(quantite),
+  //   };
+
+  //   setRows((prev) => [...prev, newRow]);
+  //   if (produit.prix_achat !== parseFloat(prixAchat)) {
+  //   try {
+  //     const token = localStorage.getItem("access_token");
+  //     await axios.patch(
+  //       `/prod/produits/${produit.id}/`,
+  //       { prix_achat: parseFloat(prixAchat) },
+  //       {
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //         },
+  //       }
+  //     );
+  //     console.log(`✅ Produit ${produit.id} mis à jour avec prix_achat=${prixAchat}`);
+  //   } catch (err) {
+  //     console.error("❌ Erreur lors de la mise à jour du produit:", err);
+  //   }
+  // }
+  // };
+const handleAddProduct = async ({
+  produit,
+  quantite,
+  prixAchat,
+  magasin,
+  magasin_nom,
+}) => {
+  try {
+    let finalProduitId = produit.id;
+
+    // 🟢 Case: magasin changed
+    if (produit.magasin_detail?.id !== magasin) {
+      const token = localStorage.getItem("access_token");
+
+      // clone produit with new magasin
+     const payloadProduit = {
+  reference: produit.reference || null,
+  nom: produit.nom,
+  famille: produit.famille,              // ✅ required
+  magasin: parseInt(magasin),            // ✅ new magasin
+  marque: produit.marque || "",
+
+  // prix
+  prix_achat: parseFloat(prixAchat),
+  prix_vente_cache: produit.prix_vente_cache || null,
+
+  // ventes facultatives
+  prix_vente_3: produit.prix_vente_3 || null,
+  prix_vente_5: produit.prix_vente_5 || null,
+  prix_vente_6: produit.prix_vente_6 || null,
+  prix_vente_8: produit.prix_vente_8 || null,
+  prix_vente_9: produit.prix_vente_9 || null,
+  prix_vente_10: produit.prix_vente_10 || null,
+  prix_vente_12: produit.prix_vente_12 || null,
+  prix_vente_15: produit.prix_vente_15 || null,
+
+  // stock
+  quantite: 0, // ✅ start at 0 for new produit in new magasin
+
+  // codes-barres (clone or generate)
+  codes_barres: produit.codes_barres?.length ? produit.codes_barres : [],
+};
+
+
+      const res = await axios.post(`/prod/produits/`, payloadProduit, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      finalProduitId = res.data.id; // use new product id
+      console.log(`✅ Produit cloné avec nouvel id=${finalProduitId}`);
+    } else {
+      // 🟢 Case: same magasin but prix_achat changed → update it
+      if (produit.prix_achat !== parseFloat(prixAchat)) {
+        const token = localStorage.getItem("access_token");
+        await axios.patch(
+          `/prod/produits/${produit.id}/`,
+          { prix_achat: parseFloat(prixAchat) },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        console.log(`✅ Produit ${produit.id} mis à jour avec prix_achat=${prixAchat}`);
+      }
+    }
+
+    // now add row with correct produitId
     const newRow = {
       id: rows.length + 1,
-      produitId: produit.id,
+      produitId: finalProduitId,
       reference: produit.reference || "",
       nom: produit.nom || "",
       prix_achat: parseFloat(prixAchat),
       quantite: parseFloat(quantite),
       magasin: parseInt(magasin),
-      magasin_nom: magasin_nom || "", // Add this line
+      magasin_nom: magasin_nom || "",
       total: parseFloat(prixAchat) * parseFloat(quantite),
     };
 
     setRows((prev) => [...prev, newRow]);
-    if (produit.prix_achat !== parseFloat(prixAchat)) {
-    try {
-      const token = localStorage.getItem("access_token");
-      await axios.patch(
-        `/prod/produits/${produit.id}/`,
-        { prix_achat: parseFloat(prixAchat) },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      console.log(`✅ Produit ${produit.id} mis à jour avec prix_achat=${prixAchat}`);
-    } catch (err) {
-      console.error("❌ Erreur lors de la mise à jour du produit:", err);
-    }
+  } catch (err) {
+    console.error("❌ Erreur lors du traitement du produit:", err);
   }
-  };
+};
 
   const handleFournisseurChange = (value) => {
     setFormData((prev) => ({ ...prev, fournisseur: value }));

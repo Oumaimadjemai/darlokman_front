@@ -166,19 +166,7 @@ function diviserMontantMensuel(montant, prelevement) {
       setBreakdown([]);
     }
   }, [prelevement, mois, montantRestant]);
-//   useEffect(() => {
-//   if (selectedClient?.assurance_militaire && selectedClient?.date_expedition) {
-//     const expiration = dayjs(selectedClient.date_expedition); // date from backend
-//     if (expiration.isBefore(dayjs(), "day")) {
-//       alert(
-//         "⚠️ هذا الزبون عسكري و تأمينه منتهي الصلاحية، لا يمكنك البيع له."
-//       );
-//       // Optional: reset client selection if you want to block
-//       setSelectedClient(null);
-//       onclientChange(""); 
-//     }
-//   }
-// }, [selectedClient, onclientChange]);
+
 useEffect(() => {
     if (selectedClient?.assurance_militaire && selectedClient?.date_expedition) {
       const expiration = dayjs(selectedClient.date_expedition); // date from backend
@@ -392,34 +380,61 @@ useEffect(() => {
       <Divider sx={{ mt: 1, mb: 1 }} />
       <Box>
         {breakdown.map((value, index) => (
-          <TextField
-            key={index}
-            size="small"
-            type="number"
-            value={value}
-            sx={{ mb: 1, width: "100%" }}
-            onChange={(e) => {
-              const newBreakdown = [...breakdown];
-              const val = parseFloat(e.target.value || 0);
-              newBreakdown[index] = val;
+  <TextField
+    key={index}
+    size="small"
+    type="number"
+    value={value}
+    sx={{ mb: 1, width: "100%" }}
+    onChange={(e) => {
+      const newBreakdown = [...breakdown];
+      let val = parseFloat(e.target.value || 0);
 
-              const monthlyAmount = mois > 0 ? total / mois : 0;
-              const sumWithoutLast = newBreakdown
-                .slice(0, -1)
-                .reduce((acc, v) => acc + (parseFloat(v || 0) || 0), 0);
+      // mise à jour de la case modifiée
+      newBreakdown[index] = val;
 
-              if (index !== breakdown.length - 1) {
-                newBreakdown[newBreakdown.length - 1] = (
-                  monthlyAmount - sumWithoutLast
-                ).toFixed(2);
-              }
+      // ⚡ montant mensuel attendu
+      const monthlyAmount =
+        mois > 0 && montantRestant > 0
+          ? Math.floor(montantRestant / mois / 100) * 100
+          : 0;
 
-              setBreakdown(
-                newBreakdown.map((v) => parseFloat(v || 0).toFixed(2))
-              );
-            }}
-          />
-        ))}
+      // somme actuelle
+      const sommeActuelle = newBreakdown.reduce(
+        (acc, v) => acc + (parseFloat(v) || 0),
+        0
+      );
+
+      // différence à compenser
+      const diff = monthlyAmount - sommeActuelle;
+
+      if (index !== newBreakdown.length - 1) {
+        // compenser sur la dernière case
+        newBreakdown[newBreakdown.length - 1] =
+          (parseFloat(newBreakdown[newBreakdown.length - 1]) || 0) + diff;
+      } else {
+        // si on modifie la dernière case → répartir la différence sur les autres
+        const reste = monthlyAmount - val;
+        const autres = newBreakdown.length - 1;
+
+        if (autres > 0) {
+          const repartition = Math.floor(reste / autres);
+          for (let i = 0; i < autres; i++) {
+            newBreakdown[i] = repartition;
+          }
+          // ajuster le petit écart sur la première case
+          const correction =
+            monthlyAmount -
+            newBreakdown.reduce((acc, v) => acc + (parseFloat(v) || 0), 0);
+          newBreakdown[0] += correction;
+        }
+      }
+
+      setBreakdown(newBreakdown);
+    }}
+  />
+))}
+
       </Box>
 
       {/* Submit */}

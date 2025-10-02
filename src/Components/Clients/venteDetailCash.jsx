@@ -69,7 +69,7 @@ export default function VenteDetailCash({ clientId }) {
               <Divider flexItem orientation="vertical" />
 
               <Typography variant="h6" color="primary" fontWeight="bold">
-                الإجمالي : {parseFloat(vente.montant_total).toLocaleString()}
+                الإجمالي : {parseFloat(vente.montant_total)}
               </Typography>
             </Paper>
 
@@ -97,10 +97,10 @@ export default function VenteDetailCash({ clientId }) {
                         <TableCell align="right">{ligne.produit}</TableCell>
                         <TableCell align="right">{ligne.produit_reference || ""}</TableCell>
                         <TableCell align="right">{ligne.produit_nom || ""}</TableCell>
-                        <TableCell align="right">{parseFloat(ligne.prix_unitaire || 0).toLocaleString()}</TableCell>
+                        <TableCell align="right">{parseFloat(ligne.prix_unitaire || 0)}</TableCell>
                         <TableCell align="right">{ligne.quantite || 0}</TableCell>
                         <TableCell align="right">{ligne.magasin_detail?.nom || ""}</TableCell>
-                        <TableCell align="right">{parseFloat(ligne.sous_total || 0).toLocaleString()}</TableCell>
+                        <TableCell align="right">{parseFloat(ligne.sous_total || 0)}</TableCell>
                       </TableRow>
                     ))
                   ) : (

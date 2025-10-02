@@ -87,7 +87,7 @@ export default function FournisseurTable({ rows, setRows, onEditClick }) {
     <>
       <Paper
         elevation={3}
-        sx={{ p: 3, borderRadius: 3, backgroundColor: "#fff", mb: 2 }}
+        sx={{ p: 3, borderRadius: 3, backgroundColor: "#fff"}}
       >
         <Typography
           variant="h4"
@@ -96,7 +96,7 @@ export default function FournisseurTable({ rows, setRows, onEditClick }) {
           قائمة الممونين
         </Typography>
 
-        <Box sx={{ height: 300, width: "100%", overflowY: "auto" }}>
+        <Box sx={{ height: 370, width: "100%", overflowY: "auto" }}>
           <DataGrid
             rows={[...rows].sort((a, b) => b.id - a.id)} // ✅ sort by ID descending
             columns={columns}

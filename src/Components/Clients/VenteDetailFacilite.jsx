@@ -61,22 +61,37 @@ export default function VenteDetailFacilite({ clientId }) {
                 <Typography variant="body1">
                   <strong>تاريخ البيع :</strong> {vente.date_formatee || "--"}
                 </Typography>
-                <Typography variant="body1">
-                  <strong>تاريخ البداية :</strong> {vente.date_debut || "--"}
-                </Typography>
-                <Typography variant="body1">
-                  <strong>تاريخ النهاية :</strong> {vente.date_fin || "--"}
-                </Typography>
+              <Typography variant="body1">
+  <strong>تاريخ البداية :</strong>{" "}
+  {vente.date_debut
+    ? new Date(vente.date_debut).toLocaleDateString("eng", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
+    : "--"}
+</Typography>
+               <Typography variant="body1">
+  <strong>تاريخ النهاية :</strong>{" "}
+  {vente.date_fin
+    ? new Date(vente.date_fin).toLocaleDateString("eng", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
+    : "--"}
+</Typography>
                 <Typography variant="body1">
                   <strong>رقم البيع :</strong> {vente.id}
                 </Typography>
+                 <Divider flexItem orientation="vertical" />
+ <Typography variant="h6" color="primary" fontWeight="bold">
+                الإجمالي : {parseFloat(vente.montant_total || 0)}
+              </Typography>
               </Stack>
 
-              <Divider flexItem orientation="vertical" />
-
-              <Typography variant="h6" color="primary" fontWeight="bold">
-                الإجمالي : {parseFloat(vente.montant_total || 0).toLocaleString()}
-              </Typography>
+             
+             
             </Paper>
 
             {/* 🔹 Table for lignes */}
@@ -122,14 +137,14 @@ export default function VenteDetailFacilite({ clientId }) {
                           {ligne.produit_detail?.nom || ""}
                         </TableCell>
                         <TableCell align="right">
-                          {parseFloat(ligne.prix_unitaire || 0).toLocaleString()}
+                          {parseFloat(ligne.prix_unitaire || 0)}
                         </TableCell>
                         <TableCell align="right">{ligne.quantite || 0}</TableCell>
                         <TableCell align="right">
                           {ligne.produit_detail?.magasin_detail?.nom || ""}
                         </TableCell>
                         <TableCell align="right">
-                          {parseFloat(ligne.sous_total || 0).toLocaleString()}
+                          {parseFloat(ligne.sous_total || 0)}
                         </TableCell>
                       </TableRow>
                     ))

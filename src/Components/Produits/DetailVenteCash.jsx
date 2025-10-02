@@ -91,7 +91,7 @@ export default function DetailVenteCash({ produitId }) {
                     (sum, ligne) => sum + parseFloat(ligne.sous_total || 0),
                     0
                   )
-                  .toLocaleString()}
+                 }
               </Typography>
             </Paper>
 
@@ -137,13 +137,13 @@ export default function DetailVenteCash({ produitId }) {
                             : ""}
                         </TableCell>
                         <TableCell align="right">
-                          {parseFloat(ligne.prix_unitaire || 0).toLocaleString()}
+                          {parseFloat(ligne.prix_unitaire || 0)}
                         </TableCell>
                         <TableCell align="right">
                           {ligne.quantite || 0}
                         </TableCell>
                         <TableCell align="right">
-                          {parseFloat(ligne.sous_total || 0).toLocaleString()}
+                          {parseFloat(ligne.sous_total || 0)}
                         </TableCell>
                       </TableRow>
                     ))

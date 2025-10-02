@@ -82,7 +82,7 @@ export default function DetailVenteFacilite({ produitId }) {
                 <Divider flexItem orientation="vertical" />
 
                 <Typography variant="h6" color="primary" fontWeight="bold">
-                  الإجمالي : {totalFiltered.toLocaleString()}
+                  الإجمالي : {totalFiltered}
                 </Typography>
               </Paper>
 
@@ -110,9 +110,9 @@ export default function DetailVenteFacilite({ produitId }) {
                             ? `${vente.client_detail.nom_famille_ar || ""} ${vente.client_detail.prenom_ar || ""}`
                             : ""}
                         </TableCell>
-                        <TableCell align="right">{parseFloat(ligne.prix_unitaire || 0).toLocaleString()}</TableCell>
+                        <TableCell align="right">{parseFloat(ligne.prix_unitaire || 0)}</TableCell>
                         <TableCell align="right">{ligne.quantite || 0}</TableCell>
-                        <TableCell align="right">{parseFloat(ligne.sous_total || 0).toLocaleString()}</TableCell>
+                        <TableCell align="right">{parseFloat(ligne.sous_total || 0)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

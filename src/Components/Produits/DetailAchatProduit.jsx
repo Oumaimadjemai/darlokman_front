@@ -91,7 +91,7 @@ export default function DetailAchatProduit({ produitId }) {
                 <Divider flexItem orientation="vertical" />
 
                 <Typography variant="h6" color="primary" fontWeight="bold">
-                  الإجمالي : {totalFiltered.toLocaleString()}
+                  الإجمالي : {totalFiltered}
                 </Typography>
               </Paper>
 
@@ -125,7 +125,7 @@ export default function DetailAchatProduit({ produitId }) {
                       <TableRow key={ligne.id}>
                         <TableCell align="right">{ligne.id}</TableCell>
                         <TableCell align="right">
-                          {parseFloat(ligne.prix_achat || 0).toLocaleString()}
+                          {parseFloat(ligne.prix_achat || 0)}
                         </TableCell>
                         <TableCell align="right">{ligne.quantite || 0}</TableCell>
                         <TableCell align="right">
@@ -134,7 +134,7 @@ export default function DetailAchatProduit({ produitId }) {
                         <TableCell align="right">
                           {(
                             parseFloat(ligne.prix_achat || 0) * (ligne.quantite || 0)
-                          ).toLocaleString()}
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}

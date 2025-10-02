@@ -269,8 +269,8 @@ const handleAddProduct = async ({
           setRows([]);
           setFormData({
             fournisseur: "",
-            somme_payee: "",
-            somme_restante: "",
+            somme_payee: 0,
+            somme_restante: 0,
             achats: [],
           });
         } catch (error) {

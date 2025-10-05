@@ -6,27 +6,36 @@ export default function VenteInfos({ onAddProduct }) {
   const [search, setSearch] = useState("");
   const [produits, setProduits] = useState([]);
   const [selectedProduit, setSelectedProduit] = useState(null);
-  const [magasin, setMagasin] = useState("");
+  const [magasins, setMagasins] = useState("");
+  const [selectedMagasin, setSelectedMagasin] = useState(null);
   const [prixVente, setPrixVente] = useState("");
   const [quantite, setQuantite] = useState(1);
 
-  useEffect(() => {
+useEffect(() => {
   axios
     .get("/prod/produits/", {
-      params: { search }, // 👈 send as query param
+      params: { 
+        search,
+        ...(selectedMagasin ? { magasin: selectedMagasin.id } : {}) // 👈 ajoute seulement si magasin choisi
+      },
     })
     .then((res) => setProduits(res.data.results || []))
     .catch((err) => console.error("Erreur lors du fetch des produits:", err));
-}, [search]);
-
+}, [search, selectedMagasin]);
+ useEffect(() => {
+    axios
+      .get("/param/magasins/")
+      .then((res) => setMagasins(res.data.results || []))
+      .catch((err) => console.error("Erreur lors du fetch des magasins:", err));
+  }, []);
 
   const handleProduitSelect = (event, value) => {
     setSelectedProduit(value);
     if (value) {
-      setMagasin(value.magasin_detail?.nom || "");
+      setSelectedMagasin(value.magasin_detail || null);
       setPrixVente(value.prix_vente_cache || "");
     } else {
-      setMagasin("");
+      setSelectedMagasin(null);
       setPrixVente("");
     }
   };
@@ -36,13 +45,13 @@ export default function VenteInfos({ onAddProduct }) {
         produit: selectedProduit,
         quantite: parseFloat(quantite) || 0,
         prixVenteCache: parseFloat(prixVente) || 0,
-        magasin: selectedProduit.magasin_detail?.id || null,
-        magasin_nom: selectedProduit.magasin_detail?.nom || "",
+          magasin: selectedMagasin.id, // ✅ use chosen magasin
+        magasin_nom: selectedMagasin.nom,
       });
 
       // Reset
       setSelectedProduit(null);
-      setMagasin("");
+      setSelectedMagasin(null);
       setPrixVente("");
       setQuantite(1);
       setSearch("");
@@ -92,13 +101,24 @@ export default function VenteInfos({ onAddProduct }) {
       <br />
 
       <Stack direction="row" spacing={2}>
-        <TextField
-          label="المحل"
-          value={magasin}
-          size="small"
-          className="Input-field"
-          sx={{ width: "33%" }}
-          disabled
+         <Autocomplete
+          options={Array.isArray(magasins) ? magasins : []}
+          getOptionLabel={(option) => option.nom || ""}
+          value={selectedMagasin}
+          onChange={(e, value) => setSelectedMagasin(value)}
+          isOptionEqualToValue={(option, value) => option.id === value.id}
+          noOptionsText="لا يوجد محلات"
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label="المحل"
+              size="small"
+              className="Input-field"
+              sx={{ width: "92%" }}
+            />
+          )}
+          sx={{width:'33%'}}
+
         />
         <TextField
   label="السعر"

@@ -112,6 +112,19 @@ export default function AddAchat({ isEditMode = false, initialData = null }) {
   //   }
   // }
   // };
+  const recalculatePrixVente = (produit, nouveauPrixAchat) => {
+  const keys = ["cache", "3", "5", "6", "8", "9", "10", "12", "15"];
+  const result = {};
+
+  keys.forEach((key) => {
+    const taux = parseFloat(produit[`taux_benefice_${key}`]) || 0;
+    const prix = nouveauPrixAchat + (nouveauPrixAchat * taux) / 100;
+    result[`prix_vente_${key}`] = parseFloat(prix.toFixed(2));
+  });
+
+  return result;
+};
+
 const handleAddProduct = async ({
   produit,
   quantite,
@@ -166,9 +179,10 @@ const handleAddProduct = async ({
       // 🟢 Case: same magasin but prix_achat changed → update it
       if (produit.prix_achat !== parseFloat(prixAchat)) {
         const token = localStorage.getItem("access_token");
+        const recalculatedPrices = recalculatePrixVente(produit, parseFloat(prixAchat));
         await axios.patch(
           `/prod/produits/${produit.id}/`,
-          { prix_achat: parseFloat(prixAchat) },
+          { prix_achat: parseFloat(prixAchat) ,...recalculatedPrices,},
           {
             headers: { Authorization: `Bearer ${token}` },
           }

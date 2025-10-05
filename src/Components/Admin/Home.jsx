@@ -73,7 +73,7 @@ export default function DashboardHome() {
     setFilters((prev) => ({ ...prev, periode: event.target.value || null }));
   };
   const cards = [
-    { title: "الزبان الجدد", value: `+${totalClients}` },
+    { title: "الزبائن الجدد", value: `+${totalClients}` },
     { title: "عمليات البيع بالتقسيط", value: `+${totalFacilite}` },
     { title: "عمليات البيع نقدا", value: `+${totalCash}` },
     { title: "المصاريف", value: totalMontantDepense },

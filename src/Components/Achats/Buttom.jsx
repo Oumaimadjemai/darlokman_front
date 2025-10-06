@@ -55,8 +55,8 @@ export default function Buttom({ rows, setRows, showDelete = true }) {
           </TableRow>
         </TableHead>
         <TableBody>
-          {rows.map((row, index) => (
-            <TableRow key={index}>
+          {rows.map((row) => (
+           <TableRow key={row.id}>
               <TableCell align="right">{row.id}</TableCell>
               <TableCell align="right">{row.reference}</TableCell>
               <TableCell align="right">{row.nom}</TableCell>

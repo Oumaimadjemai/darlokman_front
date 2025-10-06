@@ -193,7 +193,7 @@ const handleAddProduct = async ({
 
     // now add row with correct produitId
     const newRow = {
-      id: rows.length + 1,
+      id: finalProduitId,
       produitId: finalProduitId,
       reference: produit.reference || "",
       nom: produit.nom || "",
@@ -204,7 +204,8 @@ const handleAddProduct = async ({
       total: parseFloat(prixAchat) * parseFloat(quantite),
     };
 
-    setRows((prev) => [...prev, newRow]);
+  setRows((prev) => [...prev, newRow]);
+
   } catch (err) {
     console.error("❌ Erreur lors du traitement du produit:", err);
   }

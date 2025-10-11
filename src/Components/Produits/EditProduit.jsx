@@ -83,28 +83,87 @@ export default function EditProduit({
     }
   }, [selectedProduit]);
 
+// const handleUpdate = async () => {
+//   try {
+//     const token = localStorage.getItem("access_token");
+//     const { codes_barres_raw, ...dataToSend } = formData;
+
+//     // Prepare FormData for PATCH (to support image upload)
+//     const formDataToSend = new FormData();
+
+//     Object.entries(dataToSend).forEach(([key, value]) => {
+//       if (key === "codes_barres") {
+//         formDataToSend.append(key, JSON.stringify(value));
+//       } else if (value !== null && value !== undefined) {
+//         formDataToSend.append(key, value);
+//       }
+//     });
+
+//     // If new files uploaded, replace image
+//     if (files.length > 0) {
+//       formDataToSend.append("image", files[0]); 
+//     } else if (formData.image === null) {
+//       // 👇 Explicitly clear the image on backend
+//       formDataToSend.append("image", "");
+//     }
+
+//     console.log("Payload envoyé :", [...formDataToSend.entries()]);
+
+//     const response = await axios.patch(
+//       `/prod/produits/${selectedProduit.id}/`,
+//       formDataToSend,
+//       {
+//         headers: {
+//           Authorization: `Bearer ${token}`,
+//           "Content-Type": "multipart/form-data",
+//         },
+//       }
+//     );
+
+//     setFeedback({
+//       open: true,
+//       message: "✅ تم تعديل السلعة بنجاح",
+//       severity: "success",
+//     });
+
+//     setRows((prev) =>
+//       prev.map((m) =>
+//         m.id === selectedProduit.id ? { ...m, ...response.data } : m
+//       )
+//     );
+//   } catch (err) {
+//     console.error("Erreur modification:", err);
+//     setFeedback({
+//       open: true,
+//       message: "❌ فشل في التعديل",
+//       severity: "error",
+//     });
+//   }
+// };
 const handleUpdate = async () => {
   try {
     const token = localStorage.getItem("access_token");
     const { codes_barres_raw, ...dataToSend } = formData;
 
-    // Prepare FormData for PATCH (to support image upload)
     const formDataToSend = new FormData();
 
     Object.entries(dataToSend).forEach(([key, value]) => {
       if (key === "codes_barres") {
         formDataToSend.append(key, JSON.stringify(value));
-      } else if (value !== null && value !== undefined) {
+      } else if (value === null || value === undefined) {
+        // Allow clearing a field if needed
+        formDataToSend.append(key, "");
+      } else {
+        // ✅ Always include 0 values
         formDataToSend.append(key, value);
       }
     });
 
-    // If new files uploaded, replace image
+    // ✅ Handle image
     if (files.length > 0) {
-      formDataToSend.append("image", files[0]); 
+      formDataToSend.append("image", files[0]);
     } else if (formData.image === null) {
-      // 👇 Explicitly clear the image on backend
-      formDataToSend.append("image", "");
+      formDataToSend.append("image", ""); // clear the image
     }
 
     console.log("Payload envoyé :", [...formDataToSend.entries()]);

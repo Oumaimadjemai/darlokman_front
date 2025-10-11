@@ -32,11 +32,11 @@ export default function TransfertTable({ rows, setRows }) {
       });
   };
   const columns = [
-    { field: "id", headerName: "الرقم", minWidth: 30 },
+    { field: "id", headerName: "الرقم", minWidth: 50 },
     {
       field: "produit_details",
       headerName: "السلعة",
-      minWidth: 150,
+      minWidth: 200,
       renderCell: (params) => {
         const produit_details = params.row?.produit_details;
         if (produit_details && produit_details.nom) {
@@ -48,7 +48,7 @@ export default function TransfertTable({ rows, setRows }) {
     {
       field: "magasin_source_details",
       headerName: "من",
-      minWidth: 150,
+      minWidth: 200,
       renderCell: (params) => {
         const magasin_source_details = params.row?.magasin_source_details;
         if (magasin_source_details && magasin_source_details.nom) {
@@ -60,7 +60,7 @@ export default function TransfertTable({ rows, setRows }) {
     {
       field: "magasin_destination_details",
       headerName: "إلى",
-      minWidth: 150,
+      minWidth: 200,
       renderCell: (params) => {
         const magasin_destination_details = params.row?.magasin_destination_details;
         if (magasin_destination_details && magasin_destination_details.nom) {
@@ -72,7 +72,7 @@ export default function TransfertTable({ rows, setRows }) {
     {
       field: "quantite",
       headerName: "الكمية",
-      minWidth: 80,
+      minWidth: 100,
     },
     {
       field: "codes_barres_transferes",

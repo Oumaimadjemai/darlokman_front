@@ -158,38 +158,45 @@ const handlePriceOrRateChange = (e) => {
   const { name, value } = e.target;
 
   setProductInfo((prev) => {
-    const updatedInfo = { ...prev, [name]: value };
+    const updatedInfo = { ...prev };
+
+    // Convert safely to number or 0
+    const inputValue = parseFloat(value);
+    const isEmpty = value === "" || isNaN(inputValue);
+    const safeValue = isEmpty ? 0 : inputValue;
+
+    updatedInfo[name] = safeValue;
 
     const prixAchat = parseFloat(updatedInfo.prix_achat) || 0;
-    const inputValue = parseFloat(value) || 0;
 
-    // 🟢 Case 1: prix_achat changed → recalc all prices
+    // 🟢 Case 1: prix_achat changed → recalc all prix_vente_*
     if (name === "prix_achat") {
       const tauxFields = ["cache", "3", "5", "6", "8", "9", "10", "12", "15"];
       tauxFields.forEach((key) => {
         const taux = parseFloat(updatedInfo[`taux_benefice_${key}`]) || 0;
-        updatedInfo[`prix_vente_${key}`] = calculatePrices(prixAchat, taux);
+        updatedInfo[`prix_vente_${key}`] = prixAchat > 0
+          ? calculatePrices(prixAchat, taux)
+          : 0;
       });
     }
 
-    // 🟢 Case 2: taux_benefice_* changed → update prix_vente
+    // 🟢 Case 2: taux_benefice_* changed → recalc prix_vente_*
     else if (name.startsWith("taux_benefice_")) {
       const key = name.replace("taux_benefice_", "");
-      updatedInfo[`prix_vente_${key}`] = calculatePrices(prixAchat, inputValue);
-      updatedInfo[name] = inputValue; // store number instead of string
+      updatedInfo[`prix_vente_${key}`] = prixAchat > 0
+        ? calculatePrices(prixAchat, safeValue)
+        : 0;
     }
 
-    // 🟢 Case 3: prix_vente_* changed → update taux
+    // 🟢 Case 3: prix_vente_* changed → recalc taux_benefice_*
     else if (name.startsWith("prix_vente_")) {
       const key = name.replace("prix_vente_", "");
-      if (prixAchat > 0) {
-        updatedInfo[`taux_benefice_${key}`] = (
-          ((inputValue - prixAchat) / prixAchat) * 100
-        ).toFixed(2);
+      if (prixAchat > 0 && !isEmpty) {
+        const taux = ((safeValue - prixAchat) / prixAchat) * 100;
+        updatedInfo[`taux_benefice_${key}`] = taux < 0 ? 0 : taux.toFixed(2);
       } else {
-        updatedInfo[`taux_benefice_${key}`] = "0.00";
+        updatedInfo[`taux_benefice_${key}`] = 0;
       }
-      updatedInfo[name] = inputValue; // store number instead of string
     }
 
     return updatedInfo;

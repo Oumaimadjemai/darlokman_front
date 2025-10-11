@@ -18,7 +18,7 @@ export default function TransfertInfos({setOpenAddTransfertDialog,fetchTransfert
   const [selectedProduit, setSelectedProduit] = useState(null);
   const [destinationMagasins, setDestinationMagasins] = useState([]);
   const [selectedMagasinDest, setSelectedMagasinDest] = useState("");
-  const [quantite, setQuantite] = useState("");
+  const [quantite, setQuantite] = useState(1);
   const [quantiteError, setQuantiteError] = useState("");
   const [feedback, setFeedback] = useState({
     open: false,
@@ -32,7 +32,7 @@ export default function TransfertInfos({setOpenAddTransfertDialog,fetchTransfert
     const fetchProduits = async () => {
       try {
         const response = await axios.get(`prod/produits/?search=${inputValue}`);
-        setOptions(response.data.produits || []);
+        setOptions(response.data.results || []);
       } catch (error) {
         console.error("Erreur de récupération des produits :", error);
         setOptions([]);
@@ -52,7 +52,7 @@ export default function TransfertInfos({setOpenAddTransfertDialog,fetchTransfert
     if (newValue?.magasin_detail?.id) {
       try {
         const response = await axios.get("param/magasins/");
-        const filtered = response.data.filter(
+        const filtered = response.data.results.filter(
           (mag) => mag.id !== newValue.magasin_detail.id
         );
         setDestinationMagasins(filtered);
@@ -81,61 +81,115 @@ export default function TransfertInfos({setOpenAddTransfertDialog,fetchTransfert
       }
     }
   };
-  const handleSubmit = async () => {
-    if (
-      !selectedProduit?.id ||
-      !selectedMagasinDest ||
-      !quantite ||
-      quantiteError
-    ) {
-      let message = "يرجى تعبئة جميع الحقول بشكل صحيح";
-      setFeedback({
-        open: true,
-        message,
-        severity: "error",
-      });
-      //   alert();
-      fetchTransfert();
-      return;
-    }
+  // const handleSubmit = async () => {
+  //   if (
+  //     !selectedProduit?.id ||
+  //     !selectedMagasinDest ||
+  //     !quantite ||
+  //     quantiteError
+  //   ) {
+  //     let message = "يرجى تعبئة جميع الحقول بشكل صحيح";
+  //     setFeedback({
+  //       open: true,
+  //       message,
+  //       severity: "error",
+  //     });
+  //     //   alert();
+  //     fetchTransfert();
+  //     return;
+  //   }
 
-    const data = {
-      produit: selectedProduit.id,
-      magasin_destination: selectedMagasinDest,
-      quantite: parseInt(quantite),
-    };
+  //   const data = {
+  //     produit: selectedProduit.id,
+  //     magasin_destination: selectedMagasinDest,
+  //     quantite: parseInt(quantite),
+  //   };
 
-    try {
-      const access_token = localStorage.getItem("access_token");
+  //   try {
+  //     const access_token = localStorage.getItem("access_token");
 
-      const response = await axios.post("trans/transferts/", data, {
-        headers: {
-          Authorization: `Bearer ${access_token}`,
-        },
-      });
-      setFeedback({
-        open: true,
-        message: "✅ Transfer Effectué avec succès",
-        severity: "success",
-      });
-      //   alert("تمت عملية التحويل بنجاح");
-      // Optionally reset form
-      setSelectedProduit(null);
-      setSelectedMagasinDest("");
-      setQuantite("");
-      setOptions([]);
-      setInputValue("");
-    } catch (error) {
-      let message = "❌ Une erreur est survenue.";
-      console.error("Erreur lors de la soumission :", error);
-      //   alert("حدث خطأ أثناء التحويل");
-      setFeedback({
-        open: true,
-        message,
-        severity: "error",
-      });
-    }
+  //     const response = await axios.post("trans/transferts/", data, {
+  //       headers: {
+  //         Authorization: `Bearer ${access_token}`,
+  //       },
+  //     });
+  //     setFeedback({
+  //       open: true,
+  //       message: "✅ Transfer Effectué avec succès",
+  //       severity: "success",
+  //     });
+  //     //   alert("تمت عملية التحويل بنجاح");
+  //     // Optionally reset form
+  //     setSelectedProduit(null);
+  //     setSelectedMagasinDest("");
+  //     setQuantite("");
+  //     setOptions([]);
+  //     setInputValue("");
+  //   } catch (error) {
+  //     let message = "❌ Une erreur est survenue.";
+  //     console.error("Erreur lors de la soumission :", error);
+  //     //   alert("حدث خطأ أثناء التحويل");
+  //     setFeedback({
+  //       open: true,
+  //       message,
+  //       severity: "error",
+  //     });
+  //   }
+  // };
+const handleSubmit = async () => {
+  if (
+    !selectedProduit?.id ||
+    !selectedMagasinDest ||
+    !quantite ||
+    quantiteError
+  ) {
+    setFeedback({
+      open: true,
+      message: "يرجى تعبئة جميع الحقول بشكل صحيح",
+      severity: "error",
+    });
+    return;
+  }
+
+  const data = {
+    produit: selectedProduit.id,
+    magasin_destination: selectedMagasinDest,
+    quantite: parseInt(quantite),
   };
+
+  try {
+    const access_token = localStorage.getItem("access_token");
+
+    const response = await axios.post("trans/transferts/", data, {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+      },
+    });
+
+    // ✅ Refresh the transfert table immediately after success
+    await fetchTransfert();
+
+    setFeedback({
+      open: true,
+      message: "✅ تم تحويل المنتج بنجاح",
+      severity: "success",
+    });
+
+    // Reset form
+    setSelectedProduit(null);
+    setSelectedMagasinDest("");
+    setQuantite("");
+    setOptions([]);
+    setInputValue("");
+  } catch (error) {
+    console.error("Erreur lors de la soumission :", error);
+    setFeedback({
+      open: true,
+      message: error.response?.data?.error || "❌ Une erreur est survenue.",
+      severity: "error",
+    });
+  }
+};
 
   return (
     <>

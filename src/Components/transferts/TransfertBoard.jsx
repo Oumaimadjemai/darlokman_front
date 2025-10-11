@@ -86,7 +86,7 @@ export default function TransfertBoard() {
       .get("trans/transferts/", { headers, params })
       .then((response) => {
         console.log("transfert", response.data.rows);
-        setRows(response.data || []);
+        setRows(response.data.results || []);
       })
       .catch((err) =>
         console.error("Erreur lors du chargement des transferts :", err)

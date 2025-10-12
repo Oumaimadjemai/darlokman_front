@@ -425,7 +425,7 @@ useEffect(() => {
       // ⚡ montant mensuel attendu
       const monthlyAmount =
         mois > 0 && montantRestant > 0
-          ? Math.floor(montantRestant / mois / 100) * 100
+          ? Math.floor(montantRestant / mois)
           : 0;
 
       // somme actuelle

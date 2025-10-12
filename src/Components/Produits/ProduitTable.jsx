@@ -200,23 +200,7 @@ export default function ProduitTable({ rows, setRows, onEditClick }) {
     { field: "prix_vente_12", headerName: "سعر 12", minWidth: 100 },
     { field: "prix_vente_15", headerName: "سعر 15", minWidth: 100 },
     { field: "quantite", headerName: "الكمية", minWidth: 80 },
-    {
-      field: "edit",
-      headerName: "تعديل",
-      width: 80,
-      sortable: false,
-      renderCell: (params) => (
-        <IconButton
-          onClick={(e) => {
-            e.stopPropagation();
-            onEditClick(params.row);
-          }}
-          color="primary"
-        >
-          <EditIcon />
-        </IconButton>
-      ),
-    },
+   
     {
       field: "delete",
       headerName: "حذف",
@@ -235,11 +219,29 @@ export default function ProduitTable({ rows, setRows, onEditClick }) {
       ),
     },
   ];
+  const adminActionColumns = [
+  {
+    field: "edit",
+    headerName: "تعديل",
+    width: 80,
+    sortable: false,
+    renderCell: (params) => (
+      <IconButton
+        onClick={(e) => {
+          e.stopPropagation();
+          onEditClick(params.row);
+        }}
+        color="primary"
+      >
+        <EditIcon />
+      </IconButton>
+    ),
+  },]
 
   // ✅ Build final columns depending on role
   const columns =
     role === "admin"
-      ? [...baseColumns, ...adminColumns, ...commonColumns]
+      ? [...baseColumns, ...adminColumns, ...commonColumns,...adminActionColumns]
       : [...baseColumns, ...commonColumns];
 
   const formattedRows = rows.map(row=>({

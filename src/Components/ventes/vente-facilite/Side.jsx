@@ -90,26 +90,24 @@ function diviserMontantMensuel(montant, prelevement) {
   if (prelevement <= 0 || montant <= 0) return [];
   if (prelevement === 1) return [montant];
 
-  const base = Math.floor(montant / prelevement);
-
-  // Si la part de base est déjà < 500, réduire le nombre de prélèvements
-  if (base < 500) {
-    return diviserMontantMensuel(montant, prelevement - 1);
-  }
-
+  // 🧮 Base arrondie à la dizaine inférieure
+  const base = Math.floor(montant / prelevement / 10) * 10;
   const parts = Array(prelevement).fill(base);
 
-  // Calcul du reste à distribuer
-  const reste = montant - base * prelevement;
+  // 🔹 Calcul du reste total à répartir
+  let sommePartielle = parts.reduce((a, b) => a + b, 0);
+  let reste = montant - sommePartielle;
 
-  // Ajouter tout le reste au dernier prélèvement
-  parts[prelevement - 1] += reste;
-
-  // Vérifier que le dernier prélèvement n’est pas < 500
-  if (parts[prelevement - 1] < 500) {
-    return diviserMontantMensuel(montant, prelevement - 1);
+  // 🟢 Distribuer le reste sur les premiers prélèvements
+  let i = 0;
+  while (reste > 0 && i < parts.length - 1) { // pas le dernier
+    const ajout = reste >= 10 ? 10 : reste; // palier de 10 DA
+    parts[i] += ajout;
+    reste -= ajout;
+    i++;
   }
 
+  // 🟣 Si jamais il reste encore quelques dinars (rare), le dernier reste inchangé (donc plus petit)
   return parts;
 }
 
@@ -157,7 +155,7 @@ function diviserMontantMensuel(montant, prelevement) {
   useEffect(() => {
     const monthlyAmount =
       mois > 0 && montantRestant > 0
-        ? Math.floor(montantRestant / mois / 100) * 100
+        ? Math.floor(montantRestant / mois)
         : 0;
 
     if (prelevement > 0) {
@@ -380,7 +378,7 @@ useEffect(() => {
         <Typography variant="body1">المبلغ الشهري</Typography>
         <Typography variant="body1">
           {mois > 0 && montantRestant > 0
-            ? Math.floor(montantRestant / mois / 100) * 100
+            ? Math.floor(montantRestant / mois ) 
             : 0}{" "}
           دج
         </Typography>

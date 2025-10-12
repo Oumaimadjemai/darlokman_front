@@ -235,38 +235,126 @@
 // }
 
 
-import { useEffect, useState } from "react";
-import { Dialog, Box, Button } from "@mui/material";
-import JsBarcode from "jsbarcode";
+// import { useEffect, useState } from "react";
+// import { Dialog, Box, Button } from "@mui/material";
+// import JsBarcode from "jsbarcode";
 
-export default function BarcodePrintDialog({ selectedProduit, onClose }) {
+// export default function BarcodePrintDialog({ selectedProduit, onClose }) {
+//   const [svgMarkup, setSvgMarkup] = useState("");
+
+//   useEffect(() => {
+//     if (selectedProduit) {
+//       const svg = document.createElement("svg");
+
+//      JsBarcode(svg, selectedProduit.codebarre, {
+//   format: "EAN13",
+//   width: 1,         // thinner bars → smaller footprint
+//   height: 30,       // shorter bars
+//   displayValue: true,
+//   fontSize: 9,      // smaller font
+//   margin: 0,
+// });
+
+
+//       const finalMarkup = `
+//         <div style="width: 58mm; font-family: Arial, sans-serif;">
+//           <div style="text-align:center; font-weight:bold; font-size:12px;">Dar Lokman</div>
+//           <div style="text-align:center; font-size:10px;">${selectedProduit.nom}</div>
+//           <div style="text-align:center; margin-top:2mm;">${svg.outerHTML}</div>
+//         </div>
+//       `;
+//       setSvgMarkup(finalMarkup);
+//     }
+//   }, [selectedProduit]);
+
+//   const handleWebPrint = () => {
+//     const iframe = document.createElement("iframe");
+//     iframe.style.position = "fixed";
+//     iframe.style.right = "0";
+//     iframe.style.bottom = "0";
+//     iframe.style.width = "0";
+//     iframe.style.height = "0";
+//     iframe.style.border = "0";
+//     document.body.appendChild(iframe);
+
+//     const printContent = `
+//       <html>
+//         <head>
+//           <style>
+//             @page {
+//               size: 58mm auto;
+//               margin: 0;
+//             }
+//             body {
+//               margin: 0;
+//               padding: 0;
+//               display: flex;
+//               justify-content: center;
+//             }
+//           </style>
+//         </head>
+//         <body>${svgMarkup}</body>
+//       </html>
+//     `;
+
+//     iframe.contentDocument.write(printContent);
+//     iframe.contentDocument.close();
+//     iframe.contentWindow.focus();
+//     iframe.contentWindow.print();
+
+//     setTimeout(() => document.body.removeChild(iframe), 1000);
+//   };
+
+//   if (!selectedProduit) return null;
+
+//   return (
+//     <Dialog open={!!selectedProduit} onClose={onClose}>
+//       <Box sx={{ p: 2, width: 230 }}>
+//         <Box dangerouslySetInnerHTML={{ __html: svgMarkup }} sx={{ mb: 2 }} />
+//         <Button variant="contained" fullWidth onClick={handleWebPrint}>
+//           Imprimer
+//         </Button>
+//       </Box>
+//     </Dialog>
+//   );
+// }
+
+
+import { useEffect, useState } from "react";
+import { Dialog, Box, Button, Stack } from "@mui/material";
+import JsBarcode from "jsbarcode";
+import axios from "../../api/axiosInstance"
+
+export default function BarcodePrintDialog({ selectedProduit, onClose, refreshProduits }) {
   const [svgMarkup, setSvgMarkup] = useState("");
 
   useEffect(() => {
     if (selectedProduit) {
       const svg = document.createElement("svg");
+      const code = selectedProduit.codebarre?.toString() || "0000000000000";
 
-     JsBarcode(svg, selectedProduit.codebarre, {
-  format: "EAN13",
-  width: 1,         // thinner bars → smaller footprint
-  height: 30,       // shorter bars
-  displayValue: true,
-  fontSize: 9,      // smaller font
-  margin: 0,
-});
-
+      JsBarcode(svg, code, {
+        format: "EAN13",
+        lineColor: "#000",
+        width: 2,
+        height: 60,
+        displayValue: false, // Masquer le code sous le code-barres
+        margin: 0,
+      });
 
       const finalMarkup = `
-        <div style="width: 58mm; font-family: Arial, sans-serif;">
-          <div style="text-align:center; font-weight:bold; font-size:12px;">Dar Lokman</div>
-          <div style="text-align:center; font-size:10px;">${selectedProduit.nom}</div>
-          <div style="text-align:center; margin-top:2mm;">${svg.outerHTML}</div>
+        <div style="width: 56mm; font-family: Arial, sans-serif; text-align:center;">
+          <div style="font-weight:bold; font-size:14px;">Dar Lokman</div>
+          <div style="font-size:12px; margin-bottom:2mm;">${selectedProduit.nom}</div>
+          <div style="text-align:center;">${svg.outerHTML}</div>
+          <div style="font-size:14px; letter-spacing:2px; margin-top:2mm;">${code}</div>
         </div>
       `;
       setSvgMarkup(finalMarkup);
     }
   }, [selectedProduit]);
 
+  // ✅ Impression sur ticket
   const handleWebPrint = () => {
     const iframe = document.createElement("iframe");
     iframe.style.position = "fixed";
@@ -283,7 +371,7 @@ export default function BarcodePrintDialog({ selectedProduit, onClose }) {
           <style>
             @page {
               size: 58mm auto;
-              margin: 0;
+              margin: 2mm;
             }
             body {
               margin: 0;
@@ -299,10 +387,51 @@ export default function BarcodePrintDialog({ selectedProduit, onClose }) {
 
     iframe.contentDocument.write(printContent);
     iframe.contentDocument.close();
-    iframe.contentWindow.focus();
-    iframe.contentWindow.print();
+    setTimeout(() => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      setTimeout(() => document.body.removeChild(iframe), 1000);
+    }, 300);
+  };
 
-    setTimeout(() => document.body.removeChild(iframe), 1000);
+  // ✅ Suppression du code-barre
+  const handleDeleteBarcode = async () => {
+    try {
+      const token = localStorage.getItem("access_token");
+      const produit = selectedProduit;
+
+      // Supprimer le code-barre sélectionné
+      const updatedCodes =
+        (produit.codes_barres || []).filter(
+          (cb) => cb !== produit.codebarre
+        ) || [];
+
+      // Mettre à jour la quantité
+      const updatedQuantite = Math.max(0, (produit.quantite || 0) - 1);
+
+      // PATCH vers backend
+      await axios.patch(
+        `/prod/produits/${produit.id}/`,
+        {
+          codes_barres: updatedCodes,
+          quantite: updatedQuantite,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      // 🔁 Actualiser la liste dans le tableau
+      if (refreshProduits) await refreshProduits();
+
+      // Fermer le dialogue
+      onClose();
+    } catch (error) {
+      console.error("Erreur lors de la suppression du code-barre :", error);
+      alert("Une erreur est survenue lors de la suppression du code-barre.");
+    }
   };
 
   if (!selectedProduit) return null;
@@ -311,13 +440,21 @@ export default function BarcodePrintDialog({ selectedProduit, onClose }) {
     <Dialog open={!!selectedProduit} onClose={onClose}>
       <Box sx={{ p: 2, width: 230 }}>
         <Box dangerouslySetInnerHTML={{ __html: svgMarkup }} sx={{ mb: 2 }} />
-        <Button variant="contained" fullWidth onClick={handleWebPrint}>
-          Imprimer
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button variant="contained" fullWidth onClick={handleWebPrint}>
+            Imprimer
+          </Button>
+          <Button
+            variant="contained"
+            fullWidth
+            color="error"
+            onClick={handleDeleteBarcode}
+          >
+            Supprimer
+          </Button>
+        </Stack>
       </Box>
     </Dialog>
   );
 }
-
-
 

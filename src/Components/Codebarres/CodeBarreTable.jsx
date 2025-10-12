@@ -15,23 +15,19 @@ import axios from "../../api/axiosInstance";
 export default function CodeBarreTable({ searchTerm, magasinFilter }) {
   const [selectedProduit, setSelectedProduit] = useState(null);
   const [produits, setProduits] = useState([]);
-  const [filteredProduits, setFilteredProduits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [printedCodeBarres, setPrintedCodeBarres] = useState([]);
 
-  // Fetch data
-  useEffect(() => {
+  // ✅ Fonction de fetch réutilisable
   const fetchProduits = async () => {
     try {
       setLoading(true);
-
       const params = {};
       if (searchTerm) params.search = searchTerm;
       if (magasinFilter) params.magasin = magasinFilter;
 
       const response = await axios.get("/prod/produits/", { params });
       setProduits(response.data.results || []);
-      setFilteredProduits(response.data.results || []);
     } catch (error) {
       console.error("Erreur lors du chargement des produits:", error);
     } finally {
@@ -39,51 +35,20 @@ export default function CodeBarreTable({ searchTerm, magasinFilter }) {
     }
   };
 
-  fetchProduits();
-}, [searchTerm, magasinFilter]);
-
-
-  // Filter logic based on searchTerm
-  // useEffect(() => {
-  //   const lowerSearch = searchTerm.toLowerCase();
-
-  //   const filtered = produits.filter((produit) => {
-  //     const matchSearch =
-  //       produit.nom?.toLowerCase().includes(lowerSearch) ||
-  //       produit.reference?.toLowerCase().includes(lowerSearch) ||
-  //       produit.marque?.toLowerCase().includes(lowerSearch) ||
-  //       (produit.codes_barres || []).some((code) =>
-  //         code.toLowerCase().includes(lowerSearch)
-  //       );
-
-  //     const matchMagasin =
-  //       !magasinFilter || produit.magasin_detail?.nom === magasinFilter;
-
-  //     return matchSearch && matchMagasin;
-  //   });
-
-  //   setFilteredProduits(filtered);
-  // }, [searchTerm, magasinFilter, produits]);
+  useEffect(() => {
+    fetchProduits();
+  }, [searchTerm, magasinFilter]);
 
   const handleClickCodeBarre = (produit, codebarre) => {
     setSelectedProduit({ ...produit, codebarre });
   };
 
-  const handleCloseDialog = () => {
-    setSelectedProduit(null);
-  };
+  const handleCloseDialog = () => setSelectedProduit(null);
 
-  const handleAfterPrint = (codebarre) => {
-    setPrintedCodeBarres((prev) => [...prev, codebarre]);
-  };
-
-  // Group by magasin
   const magasinsMap = {};
-  filteredProduits.forEach((produit) => {
+  produits.forEach((produit) => {
     const magasinNom = produit.magasin_detail?.nom || "Inconnu";
-    if (!magasinsMap[magasinNom]) {
-      magasinsMap[magasinNom] = [];
-    }
+    if (!magasinsMap[magasinNom]) magasinsMap[magasinNom] = [];
     magasinsMap[magasinNom].push(produit);
   });
 
@@ -142,13 +107,7 @@ export default function CodeBarreTable({ searchTerm, magasinFilter }) {
                               display: "inline-block",
                             }}
                             onClick={() =>
-                              handleClickCodeBarre(
-                                {
-                                  ...produit,
-                                  magasin: produit.magasin_detail?.nom,
-                                },
-                                cb
-                              )
+                              handleClickCodeBarre(produit, cb)
                             }
                           >
                             {cb}
@@ -167,7 +126,7 @@ export default function CodeBarreTable({ searchTerm, magasinFilter }) {
       <BarcodePrintDialog
         selectedProduit={selectedProduit}
         onClose={handleCloseDialog}
-        onPrinted={handleAfterPrint}
+        refreshProduits={fetchProduits} // ✅ passe la fonction pour MAJ après suppression
       />
     </Box>
   );

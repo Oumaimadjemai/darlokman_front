@@ -343,56 +343,86 @@ export default function BarcodePrintDialog({ selectedProduit, onClose, refreshPr
       });
 
       const finalMarkup = `
-        <div style="width: 56mm; font-family: Arial, sans-serif; text-align:center;">
-          <div style="font-weight:bold; font-size:14px;">Dar Lokman</div>
-          <div style="font-size:12px; margin-bottom:2mm;">${selectedProduit.nom}</div>
-          <div style="text-align:center;">${svg.outerHTML}</div>
-          <div style="font-size:14px; letter-spacing:2px; margin-top:2mm;">${code}</div>
-        </div>
-      `;
+  <div class="ticket">
+    <div class="title">Dar Lokman</div>
+    <div class="name">${selectedProduit.nom}</div>
+    <div>${svg.outerHTML}</div>
+    <div class="code">${code}</div>
+  </div>
+`;
+
       setSvgMarkup(finalMarkup);
     }
   }, [selectedProduit]);
 
   // ✅ Impression sur ticket
-  const handleWebPrint = () => {
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "0";
-    document.body.appendChild(iframe);
+ // ✅ Impression sur ticket (20x40 mm)
+const handleWebPrint = () => {
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  document.body.appendChild(iframe);
+const printContent = `
+<html>
+  <head>
+    <style>
+      @page {
+        size: 40mm 20mm landscape; /* 👈 Add landscape */
+        margin: 0;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        width: 40mm;
+        height: 20mm;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .ticket {
+        width: 38mm;
+        height: 18mm;
+        text-align: center;
+        font-family: Arial, sans-serif;
+        overflow: hidden;
+      }
+      .title {
+        font-weight: bold;
+        font-size: 8px;
+        line-height: 1;
+      }
+      .name {
+        font-size: 7px;
+        line-height: 1;
+      }
+      svg {
+        width: 36mm;
+        height: 8mm;
+      }
+      .code {
+        font-size: 8px;
+        letter-spacing: 1px;
+      }
+    </style>
+  </head>
+  <body>${svgMarkup}</body>
+</html>
+`;
 
-    const printContent = `
-      <html>
-        <head>
-          <style>
-            @page {
-              size: 58mm auto;
-              margin: 2mm;
-            }
-            body {
-              margin: 0;
-              padding: 0;
-              display: flex;
-              justify-content: center;
-            }
-          </style>
-        </head>
-        <body>${svgMarkup}</body>
-      </html>
-    `;
 
-    iframe.contentDocument.write(printContent);
-    iframe.contentDocument.close();
-    setTimeout(() => {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-      setTimeout(() => document.body.removeChild(iframe), 1000);
-    }, 300);
-  };
+  iframe.contentDocument.write(printContent);
+  iframe.contentDocument.close();
+  setTimeout(() => {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    setTimeout(() => document.body.removeChild(iframe), 1000);
+  }, 300);
+};
+
 
   // ✅ Suppression du code-barre
   const handleDeleteBarcode = async () => {

@@ -404,7 +404,7 @@ export default function DashboardHome() {
                               dominantBaseline="central"
                               style={{ fontSize: "12px", fontWeight: "bold" }}
                             >
-                              {`${name} ${(percent * 100).toFixed(1)}%`}
+                              {`${(percent * 100).toFixed(1)}%`}
                             </text>
                           );
                         }}

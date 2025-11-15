@@ -1,12 +1,4 @@
-import {
-  Drawer,
-  List,
-  ListItemText,
-  Box,
-  Collapse,
-  Divider,
-} from "@mui/material";
-import ListItemButton from "@mui/material/ListItemButton";
+import { Drawer, List, ListItemButton, ListItemText, Box, Collapse, Divider } from "@mui/material";
 import InventoryIcon from "@mui/icons-material/Inventory";
 import HomeIcon from "@mui/icons-material/Home";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
@@ -40,9 +32,9 @@ import { useTheme } from "@mui/material/styles";
 import axios from "../../api/axiosInstance"; // ton instance axios
 import { useNavigate } from "react-router-dom";
 
-const drawerWidth = 200;
+// const drawerWidth = 200;
 
-export default function Sidebar({ onAction, selectedId }) {
+export default function Sidebar({ onAction, selectedId,open }) {
   const navigate = useNavigate();
 const [features, setFeatures] = useState([]);
 const [role, setRole] = useState(null);
@@ -330,17 +322,21 @@ const filteredMenuItems = useMemo(() => {
 
   return (
     <Drawer
-      variant="permanent"
+      variant="persistent"
       anchor={theme.direction === "rtl" ? "left" : "right"}
+      open={open}
       sx={{
-        width: drawerWidth,
+        width: open ?200:0,
         flexShrink: 0,
         [`& .MuiDrawer-paper`]: {
-          width: drawerWidth,
-          boxSizing: "border-box",
+          width: open ?200:0,
+          overflowX: "hidden",
+      boxSizing: "border-box",
+      transition: "width 0.3s",
         },
       }}
     >
+      
       <Box
         component="img"
         src="/assets/images/logo.png"

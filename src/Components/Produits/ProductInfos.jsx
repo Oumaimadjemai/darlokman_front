@@ -35,165 +35,95 @@ export default function ProductInfos({ ProductInfo, setProductInfo }) {
     const prix = prix_achat * (1 + taux / 100);
     return prix// ✅ multiple de 100
   };
-// const calculatePrices = (prix_achat, taux) => {
-//   const prix = prix_achat * (1 + taux / 100);
-//   const reste = prix % 1000;
 
-//   if (reste < 500) {
-//     // Descendre au millier inférieur
-//     return Math.floor(prix / 1000) * 1000;
-//   } else {
-//     // Arrondir au millier le plus proche
-//     return Math.round(prix / 1000) * 1000;
-//   }
+// const handlePriceOrRateChange = (e) => {
+//   const { name, value } = e.target;
+
+//   setProductInfo((prev) => {
+//     const updatedInfo = { ...prev };
+
+//     // Convert safely to number or 0
+//     const inputValue = parseFloat(value);
+//     const isEmpty = value === "" || isNaN(inputValue);
+//     const safeValue = isEmpty ? 0 : inputValue;
+
+//     updatedInfo[name] = safeValue;
+
+//     const prixAchat = parseFloat(updatedInfo.prix_achat) || 0;
+
+//     // 🟢 Case 1: prix_achat changed → recalc all prix_vente_*
+//     if (name === "prix_achat") {
+//       const tauxFields = ["cache", "3", "5", "6", "8", "9", "10", "12", "15"];
+//       tauxFields.forEach((key) => {
+//         const taux = parseFloat(updatedInfo[`taux_benefice_${key}`]) || 0;
+//         updatedInfo[`prix_vente_${key}`] = prixAchat > 0
+//           ? calculatePrices(prixAchat, taux)
+//           : 0;
+//       });
+//     }
+
+//     // 🟢 Case 2: taux_benefice_* changed → recalc prix_vente_*
+//     else if (name.startsWith("taux_benefice_")) {
+//       const key = name.replace("taux_benefice_", "");
+//       updatedInfo[`prix_vente_${key}`] = prixAchat > 0
+//         ? calculatePrices(prixAchat, safeValue)
+//         : 0;
+//     }
+
+//     // 🟢 Case 3: prix_vente_* changed → recalc taux_benefice_*
+//     else if (name.startsWith("prix_vente_")) {
+//       const key = name.replace("prix_vente_", "");
+//       if (prixAchat > 0 && !isEmpty) {
+//         const taux = ((safeValue - prixAchat) / prixAchat) * 100;
+//         updatedInfo[`taux_benefice_${key}`] = taux < 0 ? 0 : taux.toFixed(2);
+//       } else {
+//         updatedInfo[`taux_benefice_${key}`] = 0;
+//       }
+//     }
+
+//     return updatedInfo;
+//   });
 // };
 
-  // const handleBenefitRateChange = (e) => {
-  //   const { name, value } = e.target;
-
-  //   // Don't parse to float immediately - keep as string until stored in state
-  //   setProductInfo((prev) => {
-  //     const updatedInfo = {
-  //       ...prev,
-  //       [name]: value, // Store as string first
-  //     };
-
-  //     // Convert to numbers for calculation
-  //     const prixAchatNum = parseFloat(prev.prix_achat) || 0;
-  //     const currentValueNum = parseFloat(value) || 0;
-
-  //     if (name === "prix_achat" || name.startsWith("taux_benefice")) {
-  //       // Recalculate all prices when purchase price changes
-  //       if (name === "prix_achat") {
-  //         updatedInfo.prix_vente_cache = calculatePrices(
-  //           currentValueNum,
-  //           parseFloat(prev.taux_benefice_cache) || 0
-  //         );
-  //         updatedInfo.prix_vente_3 = calculatePrices(
-  //           currentValueNum,
-  //           parseFloat(prev.taux_benefice_3) || 0
-  //         );
-  //         updatedInfo.prix_vente_5 = calculatePrices(
-  //           currentValueNum,
-  //           parseFloat(prev.taux_benefice_5) || 0
-  //         );
-  //         updatedInfo.prix_vente_8 = calculatePrices(
-  //           currentValueNum,
-  //           parseFloat(prev.taux_benefice_8) || 0
-  //         );
-  //         updatedInfo.prix_vente_10 = calculatePrices(
-  //           currentValueNum,
-  //           parseFloat(prev.taux_benefice_10) || 0
-  //         );
-  //         updatedInfo.prix_vente_6 = calculatePrices(
-  //           currentValueNum,
-  //           parseFloat(prev.taux_benefice_6) || 0
-  //         );
-  //         updatedInfo.prix_vente_9 = calculatePrices(
-  //           currentValueNum,
-  //           parseFloat(prev.taux_benefice_9) || 0
-  //         );
-  //         updatedInfo.prix_vente_12 = calculatePrices(
-  //           currentValueNum,
-  //           parseFloat(prev.taux_benefice_12) || 0
-  //         );
-  //         updatedInfo.prix_vente_15 = calculatePrices(
-  //           currentValueNum,
-  //           parseFloat(prev.taux_benefice_15) || 0
-  //         );
-  //       }
-  //       // Recalculate specific price when its rate changes
-  //       else if (name === "taux_benefice_cache") {
-  //         updatedInfo.prix_vente_cache = calculatePrices(
-  //           prixAchatNum,
-  //           currentValueNum
-  //         );
-  //       } else if (name === "taux_benefice_3") {
-  //         updatedInfo.prix_vente_3 = calculatePrices(
-  //           prixAchatNum,
-  //           currentValueNum
-  //         );
-  //       } else if (name === "taux_benefice_5") {
-  //         updatedInfo.prix_vente_5 = calculatePrices(
-  //           prixAchatNum,
-  //           currentValueNum
-  //         );
-  //       } else if (name === "taux_benefice_8") {
-  //         updatedInfo.prix_vente_8 = calculatePrices(
-  //           prixAchatNum,
-  //           currentValueNum
-  //         );
-  //       } else if (name === "taux_benefice_10") {
-  //         updatedInfo.prix_vente_10 = calculatePrices(
-  //           prixAchatNum,
-  //           currentValueNum
-  //         );
-  //       } else if (name === "taux_benefice_6") {
-  //         updatedInfo.prix_vente_6 = calculatePrices(
-  //           prixAchatNum,
-  //           currentValueNum
-  //         );
-  //       } else if (name === "taux_benefice_9") {
-  //         updatedInfo.prix_vente_9 = calculatePrices(
-  //           prixAchatNum,
-  //           currentValueNum
-  //         );
-  //       } else if (name === "taux_benefice_12") {
-  //         updatedInfo.prix_vente_12 = calculatePrices(
-  //           prixAchatNum,
-  //           currentValueNum
-  //         );
-  //       } else if (name === "taux_benefice_15") {
-  //         updatedInfo.prix_vente_15 = calculatePrices(
-  //           prixAchatNum,
-  //           currentValueNum
-  //         );
-  //       }
-  //     }
-
-  //     return updatedInfo;
-  //   });
-  // };
 const handlePriceOrRateChange = (e) => {
   const { name, value } = e.target;
 
   setProductInfo((prev) => {
     const updatedInfo = { ...prev };
 
-    // Convert safely to number or 0
-    const inputValue = parseFloat(value);
-    const isEmpty = value === "" || isNaN(inputValue);
-    const safeValue = isEmpty ? 0 : inputValue;
+    // Convert input to integer
+    const inputValue = parseInt(value.replace(/\D/g, ""), 10); // remove any non-digit characters
+    const safeValue = isNaN(inputValue) ? 0 : inputValue;
 
     updatedInfo[name] = safeValue;
 
-    const prixAchat = parseFloat(updatedInfo.prix_achat) || 0;
+    const prixAchat = parseInt(updatedInfo.prix_achat, 10) || 0;
 
-    // 🟢 Case 1: prix_achat changed → recalc all prix_vente_*
+    // Case 1: prix_achat changed → recalc all prix_vente_*
     if (name === "prix_achat") {
       const tauxFields = ["cache", "3", "5", "6", "8", "9", "10", "12", "15"];
       tauxFields.forEach((key) => {
-        const taux = parseFloat(updatedInfo[`taux_benefice_${key}`]) || 0;
+        const taux = parseInt(updatedInfo[`taux_benefice_${key}`], 10) || 0;
         updatedInfo[`prix_vente_${key}`] = prixAchat > 0
-          ? calculatePrices(prixAchat, taux)
+          ? Math.round(prixAchat * (1 + taux / 100))
           : 0;
       });
     }
 
-    // 🟢 Case 2: taux_benefice_* changed → recalc prix_vente_*
+    // Case 2: taux_benefice_* changed → recalc prix_vente_*
     else if (name.startsWith("taux_benefice_")) {
       const key = name.replace("taux_benefice_", "");
       updatedInfo[`prix_vente_${key}`] = prixAchat > 0
-        ? calculatePrices(prixAchat, safeValue)
+        ? Math.round(prixAchat * safeValue / 100 + prixAchat)
         : 0;
     }
 
-    // 🟢 Case 3: prix_vente_* changed → recalc taux_benefice_*
+    // Case 3: prix_vente_* changed → recalc taux_benefice_*
     else if (name.startsWith("prix_vente_")) {
       const key = name.replace("prix_vente_", "");
-      if (prixAchat > 0 && !isEmpty) {
+      if (prixAchat > 0 && safeValue > 0) {
         const taux = ((safeValue - prixAchat) / prixAchat) * 100;
-        updatedInfo[`taux_benefice_${key}`] = taux < 0 ? 0 : taux.toFixed(2);
+        updatedInfo[`taux_benefice_${key}`] = Math.round(taux);
       } else {
         updatedInfo[`taux_benefice_${key}`] = 0;
       }
@@ -203,10 +133,9 @@ const handlePriceOrRateChange = (e) => {
   });
 };
 
-
   return (
     <>
-      <Container maxWidth="md" sx={{ p: 4 }}>
+      <Container maxWidth="sm" sx={{ p: 4 }}>
         <Box sx={{ minWidth: 275 }}>
           <Card>
             <Typography
@@ -320,7 +249,7 @@ const handlePriceOrRateChange = (e) => {
               className="Input-field"
               sx={{ width: "95%" }}
               name="prix_achat"
-              value={ProductInfo.prix_achat}
+              value={ProductInfo.prix_achat || ""}
               onChange={handlePriceOrRateChange}
             />
             <br />

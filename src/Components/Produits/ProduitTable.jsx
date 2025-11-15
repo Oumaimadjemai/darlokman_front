@@ -244,13 +244,41 @@ export default function ProduitTable({ rows, setRows, onEditClick }) {
       ? [...baseColumns, ...adminColumns, ...commonColumns,...adminActionColumns]
       : [...baseColumns, ...commonColumns];
 
-  const formattedRows = rows.map(row=>({
-    ...row,
-    moyenne_pourcentage_facilite:row.moyenne_pourcentage_facilite?
-    Math.round(row.moyenne_pourcentage_facilite*100)/100:
-      row.moyenne_pourcentage_facilite
-        
-  }));
+  const formattedRows = rows.map((row) => {
+  const priceFields = [
+    "prix_achat",
+    "prix_vente_cache",
+    "prix_vente_3",
+    "prix_vente_5",
+    "prix_vente_6",
+    "prix_vente_8",
+    "prix_vente_9",
+    "prix_vente_10",
+    "prix_vente_12",
+    "prix_vente_15",
+  ];
+
+  const newRow = { ...row };
+
+  // Convert all prices to integers (no dots, no decimals)
+  priceFields.forEach((field) => {
+    if (newRow[field] !== null && newRow[field] !== undefined) {
+      newRow[field] = Math.round(newRow[field]);
+    }
+  });
+
+  // Optional: round moyenne_pourcentage_facilite to 2 decimals
+  if (
+    newRow.moyenne_pourcentage_facilite !== null &&
+    newRow.moyenne_pourcentage_facilite !== undefined
+  ) {
+    newRow.moyenne_pourcentage_facilite =
+      Math.round(newRow.moyenne_pourcentage_facilite * 100) / 100;
+  }
+
+  return newRow;
+});
+
   return (
     <>
       <Paper

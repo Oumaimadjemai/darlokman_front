@@ -9,6 +9,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
 
 import CloseIcon from "@mui/icons-material/Close";
 import { useState, useEffect } from "react";
@@ -50,7 +51,11 @@ export default function AdminDashboard() {
   const [activeComponent, setActiveComponent] = useState({ name: "home" });
 const [features, setFeatures] = useState([]);
 const [role, setRole] = useState("");
+const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
   useEffect(() => {
     const storedId = localStorage.getItem("selectedSidebarId");
     if (storedId) {
@@ -183,22 +188,52 @@ const [role, setRole] = useState("");
 
   return (
     <>
-      <Grid container sx={{ height: "100vh" }}>
-        <Grid
-          item
-          xs={2}
-          sx={{ bgcolor: "#f5f5f5", borderRight: "1px solid #ddd" }}
-        >
-          <Sidebar onAction={handleAction} selectedId={activeComponent.name} />
-        </Grid>
+  <Box sx={{ display: "flex", height: "100vh"}}>
+  
+  <Sidebar
+    open={sidebarOpen}
+    onAction={handleAction}
+    selectedId={activeComponent.name}
+    onClose={() => setSidebarOpen(false)} 
+  />
 
-        <Grid item xs={10} sx={{ p: 1, overflowY: "auto" }}>
-          
-            <Header />
-            {/* <Box sx={{ height: "5px", bgcolor:"primary.main",my:1}} /> */}
-            {renderComponent()}
-        </Grid>
-      </Grid>
+  {/* Main Content */}
+  <Box
+    sx={{
+      flex: 1,
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
+      width: "100%",   
+      height: "100%",
+    }}
+  >
+    <Header>
+      <IconButton onClick={toggleSidebar} sx={{color:"primary.main"}}>
+        <MenuIcon />
+      </IconButton>
+    </Header>
+
+    {/* Content */}
+    <Box
+      sx={{
+        p: 1,
+        overflowY: "auto",
+        overflowX: "hidden",
+        height: "100%",
+        width: "100%",
+        boxSizing: "border-box",
+      }}
+    >
+      {renderComponent()}
+    </Box>
+  </Box>
+
+</Box>
+
+
+
+      
       <Dialog
         open={openAddClientDialog}
         onClose={() => setOpenAddClientDialog(false)}

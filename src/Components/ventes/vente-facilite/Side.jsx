@@ -129,7 +129,7 @@ function diviserMontantMensuel(montant, prelevement) {
 
   useEffect(() => {
     if (startDate) {
-      const calculatedEnd = dayjs(startDate).add(mois, "month");
+      const calculatedEnd = dayjs(startDate).add(mois, "month").subtract(1,"month");
       setEndDate(calculatedEnd);
     } else {
       setEndDate(null);

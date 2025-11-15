@@ -17,7 +17,7 @@ export default function CodeBar({ ProductInfo, setProductInfo }) {
   };
 
   return (
-    <Container maxWidth="md">
+    <Container maxWidth="md" sx={{p:4}}>
       <Box sx={{ minWidth: 275 }}>
         <Card
           sx={{

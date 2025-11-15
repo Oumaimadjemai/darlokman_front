@@ -132,18 +132,17 @@ export default function AddProduit({ setOpenAddProductDialog, fetchProduit }) {
   return (
     <>
       <Grid container>
-        <Grid item xs={7}>
+        <Grid size={7}>
           <ProductInfos ProductInfo={ProductInfo} setProductInfo={setProductInfo} />
         </Grid>
 
         <Grid
-          item
-          xs={5}
+          size={5}
           sx={{
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            mt: 4,
+           
           }}
         >
           <CodeBar ProductInfo={ProductInfo} setProductInfo={setProductInfo} />

@@ -10,6 +10,7 @@ import {
   Paper,
   Typography,
   Stack,
+  TextField,
 } from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -27,6 +28,7 @@ export default function SalesReport() {
   const [magasins, setMagasins] = useState([]);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // ✅ Build query params from filters
   const buildParams = (appliedFilters) => {
@@ -40,6 +42,7 @@ export default function SalesReport() {
     const params = {
       periode: appliedFilters.periode || "",
       magasin: appliedFilters.magasins || "",
+      search: searchTerm || "",
       date_from: fromDate ? dayjs(fromDate).format("YYYY-MM-DD") : "",
       date_to: toDate ? dayjs(toDate).format("YYYY-MM-DD") : "",
     };
@@ -53,8 +56,8 @@ export default function SalesReport() {
   };
 
   // 🔹 Fetch sold quantity separated (facilité & cash) for a given product
-  const getQuantitesVente = async (produitId) => {
-    const params = buildParams(filters);
+  const getQuantitesVente = async (produitId,appliedFilters) => {
+    const params = buildParams(appliedFilters);
 
     try {
       const [faciliteRes, cashRes] = await Promise.all([
@@ -98,7 +101,7 @@ useEffect(() => {
 
       let formattedRows = await Promise.all(
         produits.map(async (prod) => {
-          const { qFacilite, qCash } = await getQuantitesVente(prod.id);
+          const { qFacilite, qCash } = await getQuantitesVente(prod.id,filters);
 
           return {
             id: prod.id,
@@ -124,7 +127,7 @@ useEffect(() => {
   }
 
   fetchData();
-}, [filters, magasins]);
+}, [filters, magasins,searchTerm]);
 
   return (
     <>
@@ -136,6 +139,12 @@ useEffect(() => {
         justifyContent="space-between"
       >
         <Stack direction="row" spacing={2}>
+           <TextField
+    label="ابحث بالاسم"
+    value={searchTerm}
+    onChange={(e) => setSearchTerm(e.target.value)}
+    sx={{ width: 200 }}
+  />
           <LocalizationProvider dateAdapter={AdapterDayjs}>
             <DatePicker
               label="من تاريخ"

@@ -17,7 +17,7 @@ const salaryData = [
   { location: "محل عين وسارة", استقبال: 15312, نقطة_البيع: 25312 },
 ];
 
-export default function DashboardHome() {
+export default function DashboardHomeVendeur() {
   const [users, setUsers] = useState([]);
   const [totalClients, setTotalClients] = useState(0);
   const [totalFacilite, setTotalFacilite] = useState(0);

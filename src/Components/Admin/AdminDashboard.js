@@ -41,6 +41,7 @@ import InventoryQuantities from "../Rapports/ComparaisonProduits/ComparaisonBoar
 import SalesReport from "../Rapports/RapportProduitVendu/ProduitVenduBoard";
 import DashboardHome from "./Home";
 import Profile from "./Profile";
+import DashboardHomeVendeur from "../vendeur/Home";
 export default function AdminDashboard() {
   const [openAddClientDialog, setOpenAddClientDialog] = useState(false);
   const [openAddProductDialog, setOpenAddProductDialog] = useState(false);
@@ -48,11 +49,13 @@ export default function AdminDashboard() {
     useState(false);
 
   // Change activeComponent to handle both string and object
-  const [activeComponent, setActiveComponent] = useState({ name: "home" });
+
 const [features, setFeatures] = useState([]);
 const [role, setRole] = useState("");
 const [sidebarOpen, setSidebarOpen] = useState(false);
-
+const [activeComponent, setActiveComponent] = useState({ 
+  name: (role === "vendeur" || role === "magasinier") ? "home" : "home" 
+});
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
@@ -124,7 +127,72 @@ const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Component switching logic
   const renderComponent = () => {
+     if (role === "vendeur" || role === "magasinier") {
     switch (activeComponent.name) {
+      
+      case "home":
+        return <DashboardHomeVendeur/>
+      case "settings":
+      case "magasins":
+        return <MagasinBoard />;
+      case "users":
+        return <UserBoard />;
+      case "notes":
+        return <NotesBoard />;
+      case "lists":
+      case "client-list":
+        return <ClientBoard />;
+      case "product-list":
+        return <ProduitBoard />;
+      case "fournisseur-list":
+        return <FournisseurBoard />;
+      case "depense-list":
+        return <DepenseBoard />;
+      case "transfert":
+        return <TransfertBoard />;
+      case "achat":
+      case "nouveau-achat":
+        return <AddAchat isEditMode={false} />;
+      case "edit-achat":
+        return <AddAchat {...activeComponent.props} />;
+
+      case "achat-list":
+        return <AchatBoard setActiveComponent={setActiveComponent} />;
+      case "codebar":
+        return <CodebarresBoard />;
+      case "get-product":
+        return <InventaireStock />;
+      
+      case "vente":
+      case "nouveau-vente-cache":
+        return <AddVente isEditMode={false} />;
+      case "vente-cache-list":
+        return <VenteBoard setActiveComponent={setActiveComponent} />;
+      case "nouveau-vente-facilite":
+        return <AddVenteFacilite isEditMode={false}/>
+      case "vente-facilite-list":
+        return <VenteBoardFacilite setActiveComponent={setActiveComponent}/>;
+      case "rapport":
+      case "rapport-vente":
+        return <Dashboard/>
+      case "rapport-depense":
+        return <PaymentDashboard/>
+      case "depense-client":
+        return <MatrixTable/>
+      case "rapport-poste":
+        return <PaymentReport/>
+      case "produit-comparaison":
+        return <InventoryQuantities/>
+      case "rapport-produit-vendu":
+        return <SalesReport/>
+      case "profil":
+        return <Profile/>
+      default:
+        return null;
+    }
+  }
+    switch (activeComponent.name) {
+      
       case "home":
         return <DashboardHome/>
       case "settings":

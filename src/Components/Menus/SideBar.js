@@ -29,51 +29,43 @@ import FormatListBulletedAddIcon from "@mui/icons-material/FormatListBulletedAdd
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import { useMemo, useState, useEffect } from "react";
 import { useTheme } from "@mui/material/styles";
-import axios from "../../api/axiosInstance"; // ton instance axios
+import axios from "../../api/axiosInstance";
 import { useNavigate } from "react-router-dom";
 
-// const drawerWidth = 200;
-
-export default function Sidebar({ onAction, selectedId,open }) {
+export default function Sidebar({ onAction, selectedId, open, onClose }) {
   const navigate = useNavigate();
-const [features, setFeatures] = useState([]);
-const [role, setRole] = useState(null);
-useEffect(() => {
-  const storedFeatures = JSON.parse(localStorage.getItem("features")) || [];
-  const storedRole = localStorage.getItem("role");
-  setFeatures(storedFeatures);
-  setRole(storedRole);
-}, []);
+  const [features, setFeatures] = useState([]);
+  const [role, setRole] = useState(null);
+  
+  useEffect(() => {
+    const storedFeatures = JSON.parse(localStorage.getItem("features")) || [];
+    const storedRole = localStorage.getItem("role");
+    setFeatures(storedFeatures);
+    setRole(storedRole);
+  }, []);
 
-const handleLogout = async () => {
-  const refresh = localStorage.getItem("refresh_token");
-  const access = localStorage.getItem("access_token");
+  const handleLogout = async () => {
+    const refresh = localStorage.getItem("refresh_token");
+    const access = localStorage.getItem("access_token");
 
-
-
-  try {
-    if (refresh) {
-      await axios.post(
-        "auth/logout/",
-        { refresh },
-        {
-          headers: { Authorization: `Bearer ${access}` },
-        }
-      );
+    try {
+      if (refresh) {
+        await axios.post(
+          "auth/logout/",
+          { refresh },
+          {
+            headers: { Authorization: `Bearer ${access}` },
+          }
+        );
+      }
+    } catch (error) {
+      console.warn("Erreur de logout côté serveur :", error.response?.data?.detail);
+    } finally {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      navigate("/login");
     }
-  } catch (error) {
-    // Si le token est invalide ou déjà blacklisté, on ignore
-    console.warn("Erreur de logout côté serveur :", error.response?.data?.detail);
-  } finally {
-    // Nettoyage côté front
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-
-    // Redirection vers login
-    navigate("/login");
-  }
-};
-
+  };
 
   const iconStyle = {
     color: "primary.main",
@@ -292,33 +284,43 @@ const handleLogout = async () => {
     }
   }, [selectedId, menuItems]);
 
-  const handleToggle = (index) => {
+  const handleToggle = (index, event) => {
+    event.stopPropagation();
     setOpenSection(openSection === index ? null : index);
+    // REMOVED: Auto-selection of first child for admin
+    // Now all users have the same behavior - just toggle collapse
   };
 
-  const handleSelect = (id) => {
-    if (onAction) onAction(id);
+  const handleSelect = (id, event) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    
+    if (onAction) {
+      onAction(id);
+    }
   };
-const isAllowed = (id) => {
-  if (role === "admin") return true; // Admin sees everything
-  return features.includes(id); // User sees only their features
-};
 
-const filteredMenuItems = useMemo(() => {
-  return menuItems
-    .map((item) => {
-      if (item.children) {
-        const allowedChildren = item.children.filter((child) =>
-          isAllowed(child.id)
-        );
-        return allowedChildren.length > 0
-          ? { ...item, children: allowedChildren }
-          : null;
-      }
-      return isAllowed(item.id) ? item : null;
-    })
-    .filter(Boolean);
-}, [menuItems, role, features]);
+  const isAllowed = (id) => {
+    if (role === "admin") return true;
+    return features.includes(id);
+  };
+
+  const filteredMenuItems = useMemo(() => {
+    return menuItems
+      .map((item) => {
+        if (item.children) {
+          const allowedChildren = item.children.filter((child) =>
+            isAllowed(child.id)
+          );
+          return allowedChildren.length > 0
+            ? { ...item, children: allowedChildren }
+            : null;
+        }
+        return isAllowed(item.id) ? item : null;
+      })
+      .filter(Boolean);
+  }, [menuItems, role, features]);
 
   return (
     <Drawer
@@ -326,13 +328,13 @@ const filteredMenuItems = useMemo(() => {
       anchor={theme.direction === "rtl" ? "left" : "right"}
       open={open}
       sx={{
-        width: open ?200:0,
+        width: open ? 200 : 0,
         flexShrink: 0,
         [`& .MuiDrawer-paper`]: {
-          width: open ?200:0,
+          width: open ? 200 : 0,
           overflowX: "hidden",
-      boxSizing: "border-box",
-      transition: "width 0.3s",
+          boxSizing: "border-box",
+          transition: "width 0.3s",
         },
       }}
     >
@@ -358,21 +360,22 @@ const filteredMenuItems = useMemo(() => {
           {filteredMenuItems.map((item, index) => (
             <Box key={item.id}>
               <ListItemButton
-                onClick={() => {
+                onClick={(event) => {
                   if (item.id === "logout") {
                     handleLogout();
+                  } else if (item.children) {
+                    handleToggle(index, event);
                   } else {
-                    handleToggle(index);
-                    handleSelect(item.id);
+                    handleSelect(item.id, event);
                   }
                 }}
-                selected={selectedId === item.id}
+                selected={selectedId === item.id || item.children?.some(child => child.id === selectedId)}
                 sx={{
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "flex-start",
                   gap: 1,
-                  ...(selectedId === item.id && {
+                  ...((selectedId === item.id || item.children?.some(child => child.id === selectedId)) && {
                     backgroundColor: "secondary.main !important",
                     color: "primary.main",
                   }),
@@ -392,7 +395,7 @@ const filteredMenuItems = useMemo(() => {
                     {item.children.map((subItem) => (
                       <ListItemButton
                         key={subItem.id}
-                        onClick={() => handleSelect(subItem.id)}
+                        onClick={(event) => handleSelect(subItem.id, event)}
                         selected={selectedId === subItem.id}
                         sx={{
                           pl: 4,

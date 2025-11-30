@@ -11,7 +11,6 @@ import {
   Typography,
   Card,
   CardContent,
-  
 } from "@mui/material";
 import { useState, useEffect } from "react";
 import axios from "../../../api/axiosInstance";
@@ -43,75 +42,76 @@ export default function Side({
 
   const arrondir = (val) => (val <= 0 ? 0 : Math.round(val / 10) * 10);
 
-function diviserMontantMultiple500(montant, prelevement) {
-  if (prelevement <= 0 || montant <= 0) return [];
-  if (montant < 500) return [montant]; // si < 500, pas besoin de diviser
+  function diviserMontantMultiple500(montant, prelevement) {
+    if (prelevement <= 0 || montant <= 0) return [];
+    if (montant < 500) return [montant]; // si < 500, pas besoin de diviser
 
-  const tryDivide = (m, p) => {
-    const parts = [];
-    let reste = m;
+    const tryDivide = (m, p) => {
+      const parts = [];
+      let reste = m;
 
-    for (let i = 0; i < p; i++) {
-      let part = Math.floor(reste / (p - i) / 500) * 500;
+      for (let i = 0; i < p; i++) {
+        let part = Math.floor(reste / (p - i) / 500) * 500;
 
-      if (part < 500 && i < p - 1) {
-        part = 500;
+        if (part < 500 && i < p - 1) {
+          part = 500;
+        }
+
+        parts.push(part);
+        reste -= part;
       }
 
-      parts.push(part);
-      reste -= part;
+      if (reste > 0) {
+        parts[parts.length - 1] += reste;
+      }
+
+      // Vérifier que toutes les parts sont >= 500 sauf si montant < 500
+      if (
+        parts.some((p, i) => p < 500 && !(m < 500 && i === parts.length - 1))
+      ) {
+        return null; // division non valide
+      }
+
+      // Trier du plus grand au plus petit
+      return parts.sort((a, b) => b - a);
+    };
+
+    // Essayer avec le nombre demandé
+    let result = tryDivide(montant, prelevement);
+
+    // Si pas valide, réduire jusqu'à trouver une division correcte
+    while (!result && prelevement > 1) {
+      prelevement--;
+      result = tryDivide(montant, prelevement);
     }
 
-    if (reste > 0) {
-      parts[parts.length - 1] += reste;
-    }
-
-    // Vérifier que toutes les parts sont >= 500 sauf si montant < 500
-    if (parts.some((p, i) => p < 500 && !(m < 500 && i === parts.length - 1))) {
-      return null; // division non valide
-    }
-
-    // Trier du plus grand au plus petit
-    return parts.sort((a, b) => b - a);
-  };
-
-  // Essayer avec le nombre demandé
-  let result = tryDivide(montant, prelevement);
-
-  // Si pas valide, réduire jusqu'à trouver une division correcte
-  while (!result && prelevement > 1) {
-    prelevement--;
-    result = tryDivide(montant, prelevement);
+    return result || [montant];
   }
+  function diviserMontantMensuel(montant, prelevement) {
+    if (prelevement <= 0 || montant <= 0) return [];
+    if (prelevement === 1) return [montant];
 
-  return result || [montant];
-}
-function diviserMontantMensuel(montant, prelevement) {
-  if (prelevement <= 0 || montant <= 0) return [];
-  if (prelevement === 1) return [montant];
+    // 🧮 Base arrondie à la dizaine inférieure
+    const base = Math.floor(montant / prelevement / 10) * 10;
+    const parts = Array(prelevement).fill(base);
 
-  // 🧮 Base arrondie à la dizaine inférieure
-  const base = Math.floor(montant / prelevement / 10) * 10;
-  const parts = Array(prelevement).fill(base);
+    // 🔹 Calcul du reste total à répartir
+    let sommePartielle = parts.reduce((a, b) => a + b, 0);
+    let reste = montant - sommePartielle;
 
-  // 🔹 Calcul du reste total à répartir
-  let sommePartielle = parts.reduce((a, b) => a + b, 0);
-  let reste = montant - sommePartielle;
+    // 🟢 Distribuer le reste sur les premiers prélèvements
+    let i = 0;
+    while (reste > 0 && i < parts.length - 1) {
+      // pas le dernier
+      const ajout = reste >= 10 ? 10 : reste; // palier de 10 DA
+      parts[i] += ajout;
+      reste -= ajout;
+      i++;
+    }
 
-  // 🟢 Distribuer le reste sur les premiers prélèvements
-  let i = 0;
-  while (reste > 0 && i < parts.length - 1) { // pas le dernier
-    const ajout = reste >= 10 ? 10 : reste; // palier de 10 DA
-    parts[i] += ajout;
-    reste -= ajout;
-    i++;
+    // 🟣 Si jamais il reste encore quelques dinars (rare), le dernier reste inchangé (donc plus petit)
+    return parts;
   }
-
-  // 🟣 Si jamais il reste encore quelques dinars (rare), le dernier reste inchangé (donc plus petit)
-  return parts;
-}
-
-
 
   useEffect(() => {
     const totalAmount = rows.reduce((acc, row) => acc + (row.total || 0), 0);
@@ -129,7 +129,9 @@ function diviserMontantMensuel(montant, prelevement) {
 
   useEffect(() => {
     if (startDate) {
-      const calculatedEnd = dayjs(startDate).add(mois, "month").subtract(1,"month");
+      const calculatedEnd = dayjs(startDate)
+        .add(mois, "month")
+        .subtract(1, "month");
       setEndDate(calculatedEnd);
     } else {
       setEndDate(null);
@@ -154,9 +156,7 @@ function diviserMontantMensuel(montant, prelevement) {
 
   useEffect(() => {
     const monthlyAmount =
-      mois > 0 && montantRestant > 0
-        ? Math.floor(montantRestant / mois)
-        : 0;
+      mois > 0 && montantRestant > 0 ? Math.floor(montantRestant / mois) : 0;
 
     if (prelevement > 0) {
       setBreakdown(diviserMontantMensuel(monthlyAmount, prelevement));
@@ -165,33 +165,38 @@ function diviserMontantMensuel(montant, prelevement) {
     }
   }, [prelevement, mois, montantRestant]);
 
-useEffect(() => {
-    if (selectedClient?.assurance_militaire && selectedClient?.date_expedition) {
+  useEffect(() => {
+    if (
+      selectedClient?.assurance_militaire &&
+      selectedClient?.date_expedition
+    ) {
       const expiration = dayjs(selectedClient.date_expedition); // date from backend
       if (expiration.isBefore(dayjs(), "day")) {
         setWarning(true);
         setSelectedClient(null);
-        onclientChange(""); 
+        onclientChange("");
       } else {
         setWarning(false);
       }
     }
   }, [selectedClient, setSelectedClient, onclientChange]);
 
-
   return (
     <>
-     {warning && (
+      {warning && (
         <Card
           sx={{
             backgroundColor: "#fff3cd",
             border: "1px solid #ffecb5",
             mb: 2,
-            borderRadius: 2
+            borderRadius: 2,
           }}
         >
           <CardContent>
-            <Typography variant="body1" sx={{ color: "#664d03", fontWeight: "bold" }}>
+            <Typography
+              variant="body1"
+              sx={{ color: "#664d03", fontWeight: "bold" }}
+            >
               ⚠️ هذا الزبون عسكري و تأمينه منتهي الصلاحية، لا يمكنك البيع له.
             </Typography>
             <Button
@@ -232,36 +237,39 @@ useEffect(() => {
         isOptionEqualToValue={(option, value) => option.id === value.id}
       /> */}
       <Autocomplete
-  options={clientList}
-  getOptionLabel={(option) =>
-    `${option.nom_famille_ar || ""} ${option.prenom_ar || ""} ${option.ccp || ""}`
-  }
-  value={clientList.find((c) => c.id === clientId) || null}
-  onChange={(event, newValue) => {
-    const client = newValue || null;
-    setSelectedClient(client);
-    onclientChange(client ? client.id : "");
-  }}
-  onInputChange={(event, newInputValue) => {
-    // fetch filtered results dynamically
-    if (newInputValue && newInputValue.length >= 2) {
-      axios
-        .get(`/auth/clients/?search=${encodeURIComponent(newInputValue)}`)
-        .then((res) => setClientList(res.data.results))
-        .catch((err) => console.error("Erreur lors de la recherche des clients:", err));
-    }
-  }}
-  renderInput={(params) => (
-    <TextField
-      {...params}
-      label="الزبون"
-      size="small"
-      sx={{ width: "95%", mt: 2, mb: 2 }}
-    />
-  )}
-  isOptionEqualToValue={(option, value) => option.id === value.id}
-/>
-
+        options={clientList}
+        getOptionLabel={(option) =>
+          `${option.nom_famille_ar || ""} ${option.prenom_ar || ""} ${
+            option.ccp || ""
+          }`
+        }
+        value={clientList.find((c) => c.id === clientId) || null}
+        onChange={(event, newValue) => {
+          const client = newValue || null;
+          setSelectedClient(client);
+          onclientChange(client ? client.id : "");
+        }}
+        onInputChange={(event, newInputValue) => {
+          // fetch filtered results dynamically
+          if (newInputValue && newInputValue.length >= 2) {
+            axios
+              .get(`/auth/clients/?search=${encodeURIComponent(newInputValue)}`)
+              .then((res) => setClientList(res.data.results))
+              .catch((err) =>
+                console.error("Erreur lors de la recherche des clients:", err)
+              );
+          }
+        }}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label="الزبون"
+            size="small"
+            sx={{ width: "95%", mt: 2, mb: 2 }}
+          />
+        )}
+        isOptionEqualToValue={(option, value) => option.id === value.id}
+      />
 
       <Divider sx={{ mt: 1, mb: 1 }} />
       <Box display="flex" alignItems="center" gap={5}>
@@ -342,10 +350,9 @@ useEffect(() => {
       <Divider sx={{ mt: 1, mb: 1 }} />
       <Box display="flex" alignItems="center" gap={5}>
         <Typography variant="body1">المجموع</Typography>
-       <Typography variant="body1">
-  {parseInt(total).toLocaleString("fr-DZ")} دج
-</Typography>
-
+        <Typography variant="body1">
+          {parseInt(total).toLocaleString("fr-DZ")} دج
+        </Typography>
       </Box>
 
       <Divider sx={{ mt: 2, mb: 2 }} />
@@ -377,10 +384,11 @@ useEffect(() => {
       <Box display="flex" alignItems="center" gap={5}>
         <Typography variant="body1">المبلغ الشهري</Typography>
         <Typography variant="body1">
-          {mois > 0 && montantRestant > 0
-            ? Math.floor(montantRestant / mois ) 
-            : 0}{" "}
-          دج
+              {mois > 0 && montantRestant > 0
+      ? Math.floor(montantRestant / mois)  // ✅ Same calculation
+      : 0}{" "}
+    دج
+
         </Typography>
       </Box>
 
@@ -409,61 +417,64 @@ useEffect(() => {
       <Divider sx={{ mt: 1, mb: 1 }} />
       <Box>
         {breakdown.map((value, index) => (
-  <TextField
-    key={index}
-    size="small"
-    type="number"
-    value={value}
-    sx={{ mb: 1, width: "100%" }}
-    onChange={(e) => {
-      const newBreakdown = [...breakdown];
-      let val = parseFloat(e.target.value || 0);
+          <TextField
+            key={index}
+            size="small"
+            type="number"
+            value={value}
+            sx={{ mb: 1, width: "100%" }}
+            onChange={(e) => {
+              const newBreakdown = [...breakdown];
+              let val = parseFloat(e.target.value || 0);
 
-      // mise à jour de la case modifiée
-      newBreakdown[index] = val;
+              // mise à jour de la case modifiée
+              newBreakdown[index] = val;
 
-      // ⚡ montant mensuel attendu
-      const monthlyAmount =
-        mois > 0 && montantRestant > 0
-          ? Math.floor(montantRestant / mois)
-          : 0;
+              // ⚡ montant mensuel attendu
+              const monthlyAmount =
+                mois > 0 && montantRestant > 0
+                  ? Math.floor(montantRestant / mois)
+                  : 0;
 
-      // somme actuelle
-      const sommeActuelle = newBreakdown.reduce(
-        (acc, v) => acc + (parseFloat(v) || 0),
-        0
-      );
+              // somme actuelle
+              const sommeActuelle = newBreakdown.reduce(
+                (acc, v) => acc + (parseFloat(v) || 0),
+                0
+              );
 
-      // différence à compenser
-      const diff = monthlyAmount - sommeActuelle;
+              // différence à compenser
+              const diff = monthlyAmount - sommeActuelle;
 
-      if (index !== newBreakdown.length - 1) {
-        // compenser sur la dernière case
-        newBreakdown[newBreakdown.length - 1] =
-          (parseFloat(newBreakdown[newBreakdown.length - 1]) || 0) + diff;
-      } else {
-        // si on modifie la dernière case → répartir la différence sur les autres
-        const reste = monthlyAmount - val;
-        const autres = newBreakdown.length - 1;
+              if (index !== newBreakdown.length - 1) {
+                // compenser sur la dernière case
+                newBreakdown[newBreakdown.length - 1] =
+                  (parseFloat(newBreakdown[newBreakdown.length - 1]) || 0) +
+                  diff;
+              } else {
+                // si on modifie la dernière case → répartir la différence sur les autres
+                const reste = monthlyAmount - val;
+                const autres = newBreakdown.length - 1;
 
-        if (autres > 0) {
-          const repartition = Math.floor(reste / autres);
-          for (let i = 0; i < autres; i++) {
-            newBreakdown[i] = repartition;
-          }
-          // ajuster le petit écart sur la première case
-          const correction =
-            monthlyAmount -
-            newBreakdown.reduce((acc, v) => acc + (parseFloat(v) || 0), 0);
-          newBreakdown[0] += correction;
-        }
-      }
+                if (autres > 0) {
+                  const repartition = Math.floor(reste / autres);
+                  for (let i = 0; i < autres; i++) {
+                    newBreakdown[i] = repartition;
+                  }
+                  // ajuster le petit écart sur la première case
+                  const correction =
+                    monthlyAmount -
+                    newBreakdown.reduce(
+                      (acc, v) => acc + (parseFloat(v) || 0),
+                      0
+                    );
+                  newBreakdown[0] += correction;
+                }
+              }
 
-      setBreakdown(newBreakdown);
-    }}
-  />
-))}
-
+              setBreakdown(newBreakdown);
+            }}
+          />
+        ))}
       </Box>
 
       {/* Submit */}
@@ -488,9 +499,9 @@ useEffect(() => {
             montant_verse: montantVerse,
             montant_restant: montantRestant,
             montant_mensuel:
-              mois > 0 && montantRestant > 0
-                ? Math.floor(montantRestant / mois / 100) * 100
-                : 0,
+    mois > 0 && montantRestant > 0
+      ? Math.floor(montantRestant / mois)  // ✅ Always round down
+      : 0,
             montants_par_mois: breakdown.map((v) => parseFloat(v)),
           });
         }}

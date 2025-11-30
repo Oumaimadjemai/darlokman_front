@@ -32,6 +32,7 @@ import AddFournisseur from "../Fournisseurs/AddFournisseur";
 
 import AddClient from "../Clients/AddClient";
 import SidebarVendeur from "../Menus/SidebarVendeur";
+import Sidebar from "../Menus/SideBar";
 export default function VendeurDashboard() {
   const [openAddClientDialog, setOpenAddClientDialog] = useState(false);
   const [openAddProductDialog, setOpenAddProductDialog] = useState(false);
@@ -140,7 +141,7 @@ export default function VendeurDashboard() {
           xs={2}
           sx={{ bgcolor: "#f5f5f5", borderRight: "1px solid #ddd" }}
         >
-          <SidebarVendeur onAction={handleAction} selectedId={activeComponent.name} />
+          <Sidebar onAction={handleAction} selectedId={activeComponent.name} />
         </Grid>
 
         <Grid item xs={10} sx={{ p: 1, overflowY: "auto" }}>

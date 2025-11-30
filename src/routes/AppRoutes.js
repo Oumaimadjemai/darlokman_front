@@ -13,8 +13,8 @@ export default function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/*" element={<Navigate to="/login" replace />} />
       <Route path="/admin" element={<AdminDashboard />} />
-      <Route path="/vendeur" element={<VendeurDashboard />} />
-     <Route path="/magasinier" element={<VendeurDashboard/>}/>
+      <Route path="/vendeur" element={<AdminDashboard />} />
+     <Route path="/magasinier" element={<AdminDashboard/>}/>
     </Routes>
   );
 }

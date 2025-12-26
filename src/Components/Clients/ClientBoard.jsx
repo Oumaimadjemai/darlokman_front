@@ -6,6 +6,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import InputAdornment from "@mui/material/InputAdornment";
 import { useState, useEffect, useMemo } from "react";
 import CloseIcon from "@mui/icons-material/Close";
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import {
   Box,
   Dialog,
@@ -24,8 +25,9 @@ import ClientTable from "./ClientTable";
 import FilterPanel from "./FilterPanel";
 import EditClient from "./EditClient";
 import ExtraCard from "./ExtraCard";
+import { useNavigate } from "react-router-dom";
 
-export default function ClientBoard() {
+export default function ClientBoard({ setActiveComponent }) {
   const [openAddClientDialog, setOpenAddClientDialog] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
   const [openEditDialog, setOpenEditDialog] = useState(false);
@@ -33,7 +35,8 @@ export default function ClientBoard() {
   const [rows, setRows] = useState([]);
   const [openExcelDialog, setOpenExcelDialog] = useState(false);
   const [excelFile, setExcelFile] = useState(null);
-  const [totalClients,setTotalClients]=useState(0)
+  const [totalClients, setTotalClients] = useState(0);
+  const navigate = useNavigate();
 
   // 🔹 Filter state
   const [filters, setFilters] = useState({
@@ -189,6 +192,23 @@ export default function ClientBoard() {
         <Stack direction="row" spacing={2}>
           <Button
             variant="contained"
+            endIcon={<ShoppingCartIcon />}
+            sx={{ width: "120px", height: "55px", bgcolor: "blueviolet" }}
+            disabled={!selectedClient}
+            onClick={() => {
+             setActiveComponent({
+                name: "nouveau-vente-facilite",
+                props: { isEditMode: false ,clientId: selectedClient.id, 
+        fromClientBoard: true,        
+        },
+              })
+            }}
+          >
+            وصل البيع
+          </Button>
+
+          <Button
+            variant="contained"
             endIcon={<AddIcon />}
             sx={{ width: "120px", height: "55px" }}
             onClick={() => setOpenAddClientDialog(true)}
@@ -206,15 +226,20 @@ export default function ClientBoard() {
         </Stack>
       </Stack>
 
-<ExtraCard
-  data={{
-    totalClients: totals.totalClients,
-    totalDette: totals.totalDette,
-    totalPaye: totals.totalPaye,
-  }}
-/>
+      <ExtraCard
+        data={{
+          totalClients: totals.totalClients,
+          totalDette: totals.totalDette,
+          totalPaye: totals.totalPaye,
+        }}
+      />
 
-      <ClientTable rows={rows} setRows={setRows} onEditClick={handleEditClick} />
+      <ClientTable
+        rows={rows}
+        setRows={setRows}
+        onEditClick={handleEditClick}
+        onSelectClient={setSelectedClient} // 👈 NEW
+      />
 
       {/* Dialogs */}
       <Dialog
@@ -223,7 +248,7 @@ export default function ClientBoard() {
         maxWidth="lg"
         fullWidth
       >
-          <DialogTitle sx={{ m: 0, p: 2 }}>
+        <DialogTitle sx={{ m: 0, p: 2 }}>
           <Box
             sx={{
               display: "flex",
@@ -261,7 +286,7 @@ export default function ClientBoard() {
         maxWidth="xl"
         fullWidth
       >
-         <DialogTitle sx={{ m: 0, p: 2 }}>
+        <DialogTitle sx={{ m: 0, p: 2 }}>
           <Box
             sx={{
               display: "flex",

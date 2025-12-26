@@ -5,10 +5,22 @@ import { useState, useEffect } from "react";
 import axios from "../../../api/axiosInstance";
 import FeedbackCard from "../../Cards/FeedbackCard";
 import VenteInfos from "./VenteInfos";
-
+import {
+  Box,
+  Dialog,
+  DialogTitle,
+  IconButton,
+  InputAdornment,
+  TextField,
+  Typography,
+} from "@mui/material";
+import Button from "@mui/material/Button";
+import { saveAs } from "file-saver";
 export default function AddVenteFacilite({
   isEditMode = false,
   initialData = null,
+  clientId,
+  fromClientBoard,
 }) {
   const [rows, setRows] = useState([]);
   const [mois, setMois] = useState(3); // LIFTED UP
@@ -29,36 +41,54 @@ export default function AddVenteFacilite({
     severity: "success",
     message: "",
   });
+const [printDialogOpen, setPrintDialogOpen] = useState(false);
+const [selectedVente, setSelectedVente] = useState(null);
+
+
+const preselectedClientId =
+  location.state?.fromClientBoard === true
+    ? location.state?.clientId
+    : null;
 
   // Initialize form if in edit mode
-  useEffect(() => {
-    if (isEditMode && initialData) {
-      setFormData({
-        client: initialData.client_detail?.id || "",
-        lignes: initialData.ligne || [],
-        nombre_mois: initialData.nombre_mois || "",
-        date_debut: initialData.date_debut || null,
-        date_fin: initialData.date_fin || null,
-        montant_total: initialData.montant_total || 0,
-        montant_verse: initialData.montant_verse || 0,
-        montant_restant: initialData.montant_restant || 0,
-        montant_mensuel: initialData.montant_mensuel || 0,
-        montants_par_mois: initialData.montants_par_mois || [],
-      });
+  // useEffect(() => {
+  //   if (isEditMode && initialData) {
+  //     setFormData({
+  //       client: initialData.client_detail?.id || "",
+  //       lignes: initialData.ligne || [],
+  //       nombre_mois: initialData.nombre_mois || "",
+  //       date_debut: initialData.date_debut || null,
+  //       date_fin: initialData.date_fin || null,
+  //       montant_total: initialData.montant_total || 0,
+  //       montant_verse: initialData.montant_verse || 0,
+  //       montant_restant: initialData.montant_restant || 0,
+  //       montant_mensuel: initialData.montant_mensuel || 0,
+  //       montants_par_mois: initialData.montants_par_mois || [],
+  //     });
 
-      const initialRows = (initialData.ligne || []).map((item, index) => ({
-        id: index + 1,
-        produitId: item.produit_detail?.id,
-        reference: item.produit_detail?.reference || "",
-        nom: item.produit_detail?.nom || "",
-        quantite: item.quantite,
-        magasin: item.magasin_detail?.id || item.magasin || "",
-        magasin_nom: item.magasin_detail?.nom || "",
-        total: parseFloat(item.prix_unitaire || 0) * item.quantite,
-      }));
-      setRows(initialRows);
-    }
-  }, [isEditMode, initialData]);
+  //     const initialRows = (initialData.ligne || []).map((item, index) => ({
+  //       id: index + 1,
+  //       produitId: item.produit_detail?.id,
+  //       reference: item.produit_detail?.reference || "",
+  //       nom: item.produit_detail?.nom || "",
+  //       quantite: item.quantite,
+  //       magasin: item.magasin_detail?.id || item.magasin || "",
+  //       magasin_nom: item.magasin_detail?.nom || "",
+  //       total: parseFloat(item.prix_unitaire || 0) * item.quantite,
+  //     }));
+  //     setRows(initialRows);
+  //   }
+  // }, [isEditMode, initialData]);
+useEffect(() => {
+  if (!fromClientBoard || !clientId || isEditMode) return;
+
+  setFormData((prev) => ({
+    ...prev,
+    client: clientId,
+  }));
+}, [fromClientBoard, clientId, isEditMode]);
+
+
 
   // Update lignes when rows change
   useEffect(() => {
@@ -147,14 +177,13 @@ export default function AddVenteFacilite({
           message: "✅ Vente modifiée avec succès",
         });
       } else {
-        await axios.post("vente/ventes-facilite/", payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setFeedback({
-          open: true,
-          severity: "success",
-          message: "✅ Vente enregistrée avec succès",
-        });
+        const res = await axios.post("vente/ventes-facilite/", payload, {
+  headers: { Authorization: `Bearer ${token}` },
+});
+        setSelectedVente(res.data);   // 🔥 store created vente
+setPrintDialogOpen(true);     // 🔥 open dialog automatically
+
+        
         setRows([]);
         setFormData({
           client: "",
@@ -219,7 +248,23 @@ useEffect(() => {
   setRows(updatedRows);
 }, [mois]);
 
-  
+   const downloadFile = async (url, filename) => {
+    try {
+      const token = localStorage.getItem("access_token");
+
+      const response = await axios.get(url, {
+        responseType: "blob", // Important to handle binary files
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      // Trigger download
+      saveAs(response.data, filename);
+    } catch (error) {
+      console.error("Erreur lors du téléchargement du fichier :", error);
+    }
+  };
   return (
     <>
       <Grid container sx={{ height: "100vh" }}>
@@ -227,6 +272,7 @@ useEffect(() => {
           <Side
             rows={rows}
             clientId={formData.client}
+            autoSelectClient={fromClientBoard === true}
             onclientChange={handleclientChange}
             onSubmit={(data) => {
               setFormData((prev) => ({
@@ -261,6 +307,94 @@ useEffect(() => {
           onClose={() => setFeedback({ ...feedback, open: false })}
         />
       )}
+      <Dialog open={printDialogOpen} onClose={() => setPrintDialogOpen(false)}>
+  <DialogTitle>خيارات الطباعة</DialogTitle>
+
+  <Box sx={{ px: 3, pb: 3 }}>
+   
+
+    <Typography sx={{ mb: 2 }}>
+      اختر نوع الطباعة لعملية البيع رقم {selectedVente?.id}
+    </Typography>
+
+    <Button
+      fullWidth
+      sx={{ mb: 2 }}
+      variant="contained"
+      onClick={() => {
+        downloadFile(
+          `/vente/ventes-facilite/${selectedVente.id}/acte/word/`,
+          "Acte.docx"
+        );
+        
+      }}
+    >
+      عقد البيع بالتقسيط
+    </Button>
+
+    <Button
+      fullWidth
+      sx={{ mb: 2 }}
+      variant="contained"
+      onClick={() => {
+        downloadFile(
+          `/vente/ventes-facilite/${selectedVente.id}/bon/word/`,
+          "Bon.docx"
+        );
+        
+      }}
+    >
+      وصل البيع
+    </Button>
+
+    <Button
+      fullWidth
+      variant="contained"
+      onClick={() => {
+        downloadFile(
+          `/vente/ventes-facilite/${selectedVente.id}/depot/word/`,
+          "Depot.docx"
+        );
+        
+      }}
+    >
+      وصل المخزن
+    </Button>
+
+    {/* CCP buttons */}
+    {Array.isArray(selectedVente?.montants_par_mois) && (
+      <Box sx={{ mt: 2, display: "flex", flexWrap: "wrap", gap: 1 }}>
+        {selectedVente.montants_par_mois.map((montant, index) => (
+          <Button
+            key={index}
+            variant="outlined"
+            color="success"
+            onClick={() => {
+              downloadFile(
+                `/vente/ventes-facilite/${selectedVente.id}/ccp/word/?prelevement=${montant}`,
+                "CCP.docx"
+              );
+              
+            }}
+          >
+            {montant} دج
+          </Button>
+        ))}
+
+      </Box>
+    )}
+     <Button
+  fullWidth
+  color="error"
+  variant="outlined"
+  sx={{ mt: 2 }}
+  onClick={() => setPrintDialogOpen(false)}
+>
+  إغلاق
+</Button>
+  </Box>
+</Dialog>
+
     </>
   );
 }

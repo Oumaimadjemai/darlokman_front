@@ -8,7 +8,10 @@ import { useState } from "react";
 import ConfirmationDialog from "../Cards/ConfirmationDialog";
 import ClientDetail from "./ClientDetail";
 import CloseIcon from "@mui/icons-material/Close";
-export default function ClientTable({ rows, setRows, onEditClick }) {
+export default function ClientTable({ rows,
+  setRows,
+  onEditClick,
+  onSelectClient, }) {
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const handleDelete = (id) => {
@@ -156,9 +159,12 @@ export default function ClientTable({ rows, setRows, onEditClick }) {
             hideFooter
             getRowId={(row) => row.id}
             onRowClick={(params) => {
-              setSelectedClient(params.row); // Save the clicked row
-              setOpenDetailDialog(true); // Open the dialog
+              onSelectClient(params.row); // Save the clicked row
             }} // 🔐 Important for correct ID handling
+            onRowDoubleClick={(params) => {
+    setSelectedClient(params.row);
+    setOpenDetailDialog(true); // ✅ details only
+  }}
             sx={{
               "& .MuiDataGrid-columnHeaders": {
                 backgroundColor: "primary.main",

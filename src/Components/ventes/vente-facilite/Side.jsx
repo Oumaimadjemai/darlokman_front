@@ -22,6 +22,7 @@ export default function Side({
   rows,
   clientId,
   onclientChange,
+  autoSelectClient, 
   onSubmit,
   isEditMode,
   onMoisChange,
@@ -180,6 +181,15 @@ export default function Side({
       }
     }
   }, [selectedClient, setSelectedClient, onclientChange]);
+useEffect(() => {
+  if (!autoSelectClient) return;
+  if (!clientId || clientList.length === 0) return;
+
+  const found = clientList.find((c) => c.id === clientId);
+  if (found) {
+    setSelectedClient(found);
+  }
+}, [autoSelectClient, clientId, clientList]);
 
   return (
     <>
@@ -243,7 +253,12 @@ export default function Side({
             option.ccp || ""
           }`
         }
-        value={clientList.find((c) => c.id === clientId) || null}
+        value={
+  autoSelectClient && clientId
+    ? clientList.find((c) => c.id === clientId) || null
+    : selectedClient
+}
+
         onChange={(event, newValue) => {
           const client = newValue || null;
           setSelectedClient(client);

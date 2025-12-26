@@ -10,6 +10,7 @@ export default function AchatInfos({ onAddProduct }) {
   const [selectedMagasin, setSelectedMagasin] = useState(null);
   const [prixAchat, setPrixAchat] = useState("");
   const [quantite, setQuantite] = useState(1);
+const [originalPrixAchat, setOriginalPrixAchat] = useState(null);
 
  useEffect(() => {
   axios
@@ -30,41 +31,60 @@ export default function AchatInfos({ onAddProduct }) {
       .then((res) => setMagasins(res.data.results || []))
       .catch((err) => console.error("Erreur lors du fetch des magasins:", err));
   }, []);
+
+
 // const handleProduitSelect = (event, value) => {
-//   setSelectedProduit(value);
-//   if (value) {
-//     setMagasin(value.magasin_detail?.nom || "");
-//     // remove decimals (e.g., 19880.0 → 19880)
-//     setPrixAchat(value.prix_achat ? parseInt(value.prix_achat, 10).toString() : "");
-//   } else {
-//     setMagasin("");
-//     setPrixAchat("");
-//   }
-// };
+//     setSelectedProduit(value);
+//     if (value) {
+//       setSelectedMagasin(value.magasin_detail || null); // default magasin
+//       setPrixAchat(
+//         value.prix_achat ? parseInt(value.prix_achat, 10).toString() : ""
+//       );
+//     } else {
+//       setSelectedMagasin(null);
+//       setPrixAchat("");
+//     }
+//   };
 const handleProduitSelect = (event, value) => {
-    setSelectedProduit(value);
-    if (value) {
-      setSelectedMagasin(value.magasin_detail || null); // default magasin
-      setPrixAchat(
-        value.prix_achat ? parseInt(value.prix_achat, 10).toString() : ""
-      );
-    } else {
-      setSelectedMagasin(null);
-      setPrixAchat("");
-    }
-  };
+  setSelectedProduit(value);
+
+  if (value) {
+    setSelectedMagasin(value.magasin_detail || null);
+
+    const original = value.prix_achat
+      ? parseInt(value.prix_achat, 10)
+      : 0;
+
+    setPrixAchat(original.toString());
+    setOriginalPrixAchat(original); // ✅ STORE ORIGINAL PRICE
+  } else {
+    setSelectedMagasin(null);
+    setPrixAchat("");
+    setOriginalPrixAchat(null);
+  }
+};
+
  const handleAddClick = () => {
   if (selectedProduit && quantite) {
-    onAddProduct({
-      produit: selectedProduit,
-      quantite,
-      prixAchat,
-      // magasin: selectedProduit.magasin_detail?.id || null,
-      // magasin_nom: selectedProduit.magasin_detail?.nom || "" // Magasin name
-       magasin: selectedMagasin.id, // ✅ use chosen magasin
-        magasin_nom: selectedMagasin.nom,
-   // 👈 ID du magasin
-    });
+  //   onAddProduct({
+  //     produit: selectedProduit,
+  //     quantite,
+  //     prixAchat,
+  //     // magasin: selectedProduit.magasin_detail?.id || null,
+  //     // magasin_nom: selectedProduit.magasin_detail?.nom || "" // Magasin name
+  //      magasin: selectedMagasin.id, // ✅ use chosen magasin
+  //       magasin_nom: selectedMagasin.nom,
+  //  // 👈 ID du magasin
+  //   });
+  onAddProduct({
+  produit: selectedProduit,
+  quantite,
+  prixAchat,
+  originalPrixAchat, // ✅ pass it
+  magasin: selectedMagasin.id,
+  magasin_nom: selectedMagasin.nom,
+});
+
 
     // Reset les champs
     setSelectedProduit(null);

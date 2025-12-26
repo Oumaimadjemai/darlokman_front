@@ -125,14 +125,23 @@ export default function AddAchat({ isEditMode = false, initialData = null }) {
   return result;
 };
 
+
 const handleAddProduct = async ({
   produit,
   quantite,
   prixAchat,
+  originalPrixAchat,
   magasin,
   magasin_nom,
 }) => {
+
   try {
+    const newPrixAchat = parseFloat(prixAchat);
+const originalPrix = Number(originalPrixAchat);
+
+const userChangedPrice =
+  !Number.isNaN(originalPrix) &&
+  originalPrix !== newPrixAchat;
     let finalProduitId = produit.id;
 
     // 🟢 Case: magasin changed
@@ -143,30 +152,30 @@ const handleAddProduct = async ({
      const payloadProduit = {
   reference: produit.reference || null,
   nom: produit.nom,
-  famille: produit.famille,              // ✅ required
-  magasin: parseInt(magasin),            // ✅ new magasin
+  famille: produit.famille,
+  magasin: parseInt(magasin),
   marque: produit.marque || "",
 
-  // prix
-  prix_achat: parseFloat(prixAchat),
-  prix_vente_cache: produit.prix_vente_cache || null,
+  prix_achat: newPrixAchat,
 
-  // ventes facultatives
-  prix_vente_3: produit.prix_vente_3 || null,
-  prix_vente_5: produit.prix_vente_5 || null,
-  prix_vente_6: produit.prix_vente_6 || null,
-  prix_vente_8: produit.prix_vente_8 || null,
-  prix_vente_9: produit.prix_vente_9 || null,
-  prix_vente_10: produit.prix_vente_10 || null,
-  prix_vente_12: produit.prix_vente_12 || null,
-  prix_vente_15: produit.prix_vente_15 || null,
+  ...(userChangedPrice
+    ? recalculatePrixVente(produit, newPrixAchat)
+    : {
+        prix_vente_cache: produit.prix_vente_cache,
+        prix_vente_3: produit.prix_vente_3,
+        prix_vente_5: produit.prix_vente_5,
+        prix_vente_6: produit.prix_vente_6,
+        prix_vente_8: produit.prix_vente_8,
+        prix_vente_9: produit.prix_vente_9,
+        prix_vente_10: produit.prix_vente_10,
+        prix_vente_12: produit.prix_vente_12,
+        prix_vente_15: produit.prix_vente_15,
+      }),
 
-  // stock
-  quantite: 0, // ✅ start at 0 for new produit in new magasin
-
-  // codes-barres (clone or generate)
+  quantite: 0,
   codes_barres: produit.codes_barres?.length ? produit.codes_barres : [],
 };
+
 
 
       const res = await axios.post(`/prod/produits/`, payloadProduit, {
@@ -176,21 +185,22 @@ const handleAddProduct = async ({
       finalProduitId = res.data.id; // use new product id
       console.log(`✅ Produit cloné avec nouvel id=${finalProduitId}`);
     } else {
-      // 🟢 Case: same magasin but prix_achat changed → update it
-      if (produit.prix_achat !== parseFloat(prixAchat)) {
-        const token = localStorage.getItem("access_token");
-        const recalculatedPrices = recalculatePrixVente(produit, parseFloat(prixAchat));
-        await axios.patch(
-          `/prod/produits/${produit.id}/`,
-          { prix_achat: parseFloat(prixAchat) ,...recalculatedPrices,},
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        console.log(`✅ Produit ${produit.id} mis à jour avec prix_achat=${prixAchat}`);
-      }
-    }
+  if (userChangedPrice) {
+    const token = localStorage.getItem("access_token");
+    const recalculatedPrices = recalculatePrixVente(produit, newPrixAchat);
 
+    await axios.patch(
+      `/prod/produits/${produit.id}/`,
+      {
+        prix_achat: newPrixAchat,
+        ...recalculatedPrices, // ✅ ONLY HERE
+      },
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+  }
+}
     // now add row with correct produitId
     const newRow = {
       id: finalProduitId,

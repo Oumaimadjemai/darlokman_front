@@ -50,12 +50,12 @@ export default function AdminDashboard() {
 
   // Change activeComponent to handle both string and object
 
-const [features, setFeatures] = useState([]);
-const [role, setRole] = useState("");
-const [sidebarOpen, setSidebarOpen] = useState(false);
-const [activeComponent, setActiveComponent] = useState({ 
-  name: (role === "vendeur" || role === "magasinier") ? "home" : "home" 
-});
+  const [features, setFeatures] = useState([]);
+  const [role, setRole] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeComponent, setActiveComponent] = useState({
+    name: role === "vendeur" || role === "magasinier" ? "home" : "home",
+  });
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
@@ -64,18 +64,18 @@ const [activeComponent, setActiveComponent] = useState({
     if (storedId) {
       setActiveComponent({ name: storedId });
     }
-     const storedFeatures = JSON.parse(localStorage.getItem("features")) || [];
-  setFeatures(storedFeatures);
+    const storedFeatures = JSON.parse(localStorage.getItem("features")) || [];
+    setFeatures(storedFeatures);
 
-  const storedRole = localStorage.getItem("role");
-  setRole(storedRole);
+    const storedRole = localStorage.getItem("role");
+    setRole(storedRole);
   }, []);
 
   const handleAction = (actionId) => {
     if (role !== "admin" && !features.includes(actionId)) {
-    alert("🚫 ليس لديك صلاحية للوصول إلى هذه الميزة");
-    return;
-  }
+      alert("🚫 ليس لديك صلاحية للوصول إلى هذه الميزة");
+      return;
+    }
     localStorage.setItem("selectedSidebarId", actionId);
     switch (actionId) {
       case "add-client":
@@ -116,7 +116,6 @@ const [activeComponent, setActiveComponent] = useState({
       case "produit-comparaison":
       case "rapport-produit-vendu":
       case "profil":
-      
         setActiveComponent({ name: actionId });
         break;
       default:
@@ -127,74 +126,72 @@ const [activeComponent, setActiveComponent] = useState({
 
   // Component switching logic
   const renderComponent = () => {
-     if (role === "vendeur" || role === "magasinier") {
-    switch (activeComponent.name) {
-      
-      case "home":
-        return <DashboardHomeVendeur/>
-      case "settings":
-      case "magasins":
-        return <MagasinBoard />;
-      case "users":
-        return <UserBoard />;
-      case "notes":
-        return <NotesBoard />;
-      case "lists":
-      case "client-list":
-        return <ClientBoard />;
-      case "product-list":
-        return <ProduitBoard />;
-      case "fournisseur-list":
-        return <FournisseurBoard />;
-      case "depense-list":
-        return <DepenseBoard />;
-      case "transfert":
-        return <TransfertBoard />;
-      case "achat":
-      case "nouveau-achat":
-        return <AddAchat isEditMode={false} />;
-      case "edit-achat":
-        return <AddAchat {...activeComponent.props} />;
+    if (role === "vendeur" || role === "magasinier") {
+      switch (activeComponent.name) {
+        case "home":
+          return <DashboardHomeVendeur />;
+        case "settings":
+        case "magasins":
+          return <MagasinBoard />;
+        case "users":
+          return <UserBoard />;
+        case "notes":
+          return <NotesBoard />;
+        case "lists":
+        case "client-list":
+          return <ClientBoard setActiveComponent={setActiveComponent} />;
+        case "product-list":
+          return <ProduitBoard />;
+        case "fournisseur-list":
+          return <FournisseurBoard />;
+        case "depense-list":
+          return <DepenseBoard />;
+        case "transfert":
+          return <TransfertBoard />;
+        case "achat":
+        case "nouveau-achat":
+          return <AddAchat isEditMode={false} />;
+        case "edit-achat":
+          return <AddAchat {...activeComponent.props} />;
 
-      case "achat-list":
-        return <AchatBoard setActiveComponent={setActiveComponent} />;
-      case "codebar":
-        return <CodebarresBoard />;
-      case "get-product":
-        return <InventaireStock />;
-      
-      case "vente":
-      case "nouveau-vente-cache":
-        return <AddVente isEditMode={false} />;
-      case "vente-cache-list":
-        return <VenteBoard setActiveComponent={setActiveComponent} />;
-      case "nouveau-vente-facilite":
-        return <AddVenteFacilite isEditMode={false}/>
-      case "vente-facilite-list":
-        return <VenteBoardFacilite setActiveComponent={setActiveComponent}/>;
-      case "rapport":
-      case "rapport-vente":
-        return <Dashboard/>
-      case "rapport-depense":
-        return <PaymentDashboard/>
-      case "depense-client":
-        return <MatrixTable/>
-      case "rapport-poste":
-        return <PaymentReport/>
-      case "produit-comparaison":
-        return <InventoryQuantities/>
-      case "rapport-produit-vendu":
-        return <SalesReport/>
-      case "profil":
-        return <Profile/>
-      default:
-        return null;
+        case "achat-list":
+          return <AchatBoard setActiveComponent={setActiveComponent} />;
+        case "codebar":
+          return <CodebarresBoard />;
+        case "get-product":
+          return <InventaireStock />;
+
+        case "vente":
+        case "nouveau-vente-cache":
+          return <AddVente isEditMode={false} />;
+        case "vente-cache-list":
+          return <VenteBoard setActiveComponent={setActiveComponent} />;
+        case "nouveau-vente-facilite":
+          return <AddVenteFacilite isEditMode={false} {...activeComponent.props} />;
+        case "vente-facilite-list":
+          return <VenteBoardFacilite setActiveComponent={setActiveComponent} />;
+        case "rapport":
+        case "rapport-vente":
+          return <Dashboard />;
+        case "rapport-depense":
+          return <PaymentDashboard />;
+        case "depense-client":
+          return <MatrixTable />;
+        case "rapport-poste":
+          return <PaymentReport />;
+        case "produit-comparaison":
+          return <InventoryQuantities />;
+        case "rapport-produit-vendu":
+          return <SalesReport />;
+        case "profil":
+          return <Profile />;
+        default:
+          return null;
+      }
     }
-  }
     switch (activeComponent.name) {
-      
       case "home":
-        return <DashboardHome/>
+        return <DashboardHome />;
       case "settings":
       case "magasins":
         return <MagasinBoard />;
@@ -204,7 +201,7 @@ const [activeComponent, setActiveComponent] = useState({
         return <NotesBoard />;
       case "lists":
       case "client-list":
-        return <ClientBoard />;
+        return <ClientBoard setActiveComponent={setActiveComponent} />;
       case "product-list":
         return <ProduitBoard />;
       case "fournisseur-list":
@@ -231,24 +228,27 @@ const [activeComponent, setActiveComponent] = useState({
       case "vente-cache-list":
         return <VenteBoard setActiveComponent={setActiveComponent} />;
       case "nouveau-vente-facilite":
-        return <AddVenteFacilite isEditMode={false}/>
+        return (
+          <AddVenteFacilite isEditMode={false} {...activeComponent.props} />
+        );
+
       case "vente-facilite-list":
-        return <VenteBoardFacilite setActiveComponent={setActiveComponent}/>;
+        return <VenteBoardFacilite setActiveComponent={setActiveComponent} />;
       case "rapport-vente":
       case "rapport":
-        return <Dashboard/>
+        return <Dashboard />;
       case "rapport-depense":
-        return <PaymentDashboard/>
+        return <PaymentDashboard />;
       case "depense-client":
-        return <MatrixTable/>
+        return <MatrixTable />;
       case "rapport-poste":
-        return <PaymentReport/>
+        return <PaymentReport />;
       case "produit-comparaison":
-        return <InventoryQuantities/>
+        return <InventoryQuantities />;
       case "rapport-produit-vendu":
-        return <SalesReport/>
+        return <SalesReport />;
       case "profil":
-        return <Profile/>
+        return <Profile />;
       default:
         return null;
     }
@@ -256,52 +256,47 @@ const [activeComponent, setActiveComponent] = useState({
 
   return (
     <>
-  <Box sx={{ display: "flex", height: "100vh"}}>
-  
-  <Sidebar
-    open={sidebarOpen}
-    onAction={handleAction}
-    selectedId={activeComponent.name}
-    onClose={() => setSidebarOpen(false)} 
-  />
+      <Box sx={{ display: "flex", height: "100vh" }}>
+        <Sidebar
+          open={sidebarOpen}
+          onAction={handleAction}
+          selectedId={activeComponent.name}
+          onClose={() => setSidebarOpen(false)}
+        />
 
-  {/* Main Content */}
-  <Box
-    sx={{
-      flex: 1,
-      display: "flex",
-      flexDirection: "column",
-      overflow: "hidden",
-      width: "100%",   
-      height: "100%",
-    }}
-  >
-    <Header>
-      <IconButton onClick={toggleSidebar} sx={{color:"primary.main"}}>
-        <MenuIcon />
-      </IconButton>
-    </Header>
+        {/* Main Content */}
+        <Box
+          sx={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+            width: "100%",
+            height: "100%",
+          }}
+        >
+          <Header>
+            <IconButton onClick={toggleSidebar} sx={{ color: "primary.main" }}>
+              <MenuIcon />
+            </IconButton>
+          </Header>
 
-    {/* Content */}
-    <Box
-      sx={{
-        p: 1,
-        overflowY: "auto",
-        overflowX: "hidden",
-        height: "100%",
-        width: "100%",
-        boxSizing: "border-box",
-      }}
-    >
-      {renderComponent()}
-    </Box>
-  </Box>
+          {/* Content */}
+          <Box
+            sx={{
+              p: 1,
+              overflowY: "auto",
+              overflowX: "hidden",
+              height: "100%",
+              width: "100%",
+              boxSizing: "border-box",
+            }}
+          >
+            {renderComponent()}
+          </Box>
+        </Box>
+      </Box>
 
-</Box>
-
-
-
-      
       <Dialog
         open={openAddClientDialog}
         onClose={() => setOpenAddClientDialog(false)}

@@ -1,4 +1,4 @@
-import { Button, Stack, TextField, Autocomplete } from "@mui/material";
+import { Button, Stack, TextField, Autocomplete, Container, Card } from "@mui/material";
 import { useEffect, useState } from "react";
 import axios from "../../../api/axiosInstance";
 
@@ -111,6 +111,7 @@ useEffect(() => {
 
   return (
     <>
+    <Card sx={{bgcolor:"#9e2a2b",p:1}}>
       <Autocomplete
         options={Array.isArray(produits) ? produits : []}
         getOptionLabel={(option) =>
@@ -141,7 +142,7 @@ useEffect(() => {
             label="بحث"
             size="small"
             className="Input-field"
-            sx={{ width: "97.5%" }}
+            sx={{ width: "97.5%" ,bgcolor:"white"}}
             onChange={(e) => setSearch(e.target.value)}
           />
         )}
@@ -163,7 +164,7 @@ useEffect(() => {
               label="المحل"
               size="small"
               className="Input-field"
-              sx={{ width: "92%" }}
+              sx={{ width: "92%" ,bgcolor:"white"}}
             />
           )}
           sx={{width:'33%'}}
@@ -174,7 +175,7 @@ useEffect(() => {
           value={prixVente}
           size="small"
           className="Input-field"
-          sx={{ width: "33%" }}
+          sx={{ width: "33%" ,bgcolor:"white"}}
         />
         <TextField
           label="الكمية"
@@ -183,7 +184,7 @@ useEffect(() => {
           onChange={(e) => setQuantite(e.target.value)}
           size="small"
           className="Input-field"
-          sx={{ width: "33%" }}
+          sx={{ width: "33%" ,bgcolor:"white"}}
         />
       </Stack>
 
@@ -195,6 +196,7 @@ useEffect(() => {
       >
         +
       </Button>
+      </Card>
     </>
   );
 }

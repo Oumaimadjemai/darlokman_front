@@ -220,7 +220,7 @@ useEffect(() => {
           </CardContent>
         </Card>
       )}
-      <Typography variant="h5" color="primary" sx={{ textAlign: "center" }}>
+      <Typography variant="h5" color="primary" sx={{ textAlign: "center" ,color:"#9e2a2b"}}>
         عملية بيع بالتقسيط
       </Typography>
 
@@ -306,7 +306,7 @@ useEffect(() => {
 
       {/* Sélection mois */}
       <Divider sx={{ mt: 1, mb: 1 }} />
-      <Box display="flex" alignItems="center" gap={2}>
+      <Box display="flex" alignItems="center" gap={2} >
         <Typography variant="body1">عدد الأشهر</Typography>
         <FormControl sx={{ minWidth: 170 }} size="small">
           <InputLabel id="mois-label">الشهر</InputLabel>
@@ -320,9 +320,15 @@ useEffect(() => {
               setMois(newValue);
               if (onMoisChange) onMoisChange(newValue);
             }}
+            sx={{bgcolor:"#9e2a2b",color:"white"}}
           >
             {[3, 5, 6, 8, 9, 10, 12, 15].map((m) => (
-              <MenuItem key={m} value={m}>{`${m} أشهر`}</MenuItem>
+              <MenuItem key={m} value={m} sx={{color:'white',bgcolor:"#9e2a2b","&.Mui-selected": {
+          bgcolor: "#7f1d1d",
+        },
+        "&:hover": {
+          bgcolor: "#7f1d1d",
+        },}}>{`${m} أشهر`}</MenuItem>
             ))}
           </Select>
         </FormControl>
@@ -365,7 +371,7 @@ useEffect(() => {
       <Divider sx={{ mt: 1, mb: 1 }} />
       <Box display="flex" alignItems="center" gap={5}>
         <Typography variant="body1">المجموع</Typography>
-        <Typography variant="body1">
+        <Typography variant="body1" sx={{color:"#9e2a2b"}}>
           {parseInt(total).toLocaleString("fr-DZ")} دج
         </Typography>
       </Box>
@@ -398,7 +404,7 @@ useEffect(() => {
       <Divider sx={{ mt: 1, mb: 1 }} />
       <Box display="flex" alignItems="center" gap={5}>
         <Typography variant="body1">المبلغ الشهري</Typography>
-        <Typography variant="body1">
+        <Typography variant="body1" sx={{color:"#9e2a2b"}}>
               {mois > 0 && montantRestant > 0
       ? Math.floor(montantRestant / mois)  // ✅ Same calculation
       : 0}{" "}
@@ -521,7 +527,7 @@ useEffect(() => {
           });
         }}
         fullWidth
-        sx={{ height: "45px", width: "90%", ml: 1 }}
+        sx={{ height: "45px", width: "90%", ml: 1 ,bgcolor:"#9e2a2b"}}
       >
         {isEditMode ? "تعديل" : "حفظ"}
       </Button>

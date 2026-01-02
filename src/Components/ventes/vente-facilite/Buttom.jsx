@@ -21,7 +21,7 @@ export default function Buttom({ rows, setRows }) {
   return (
     <TableContainer
       component={Paper}
-      sx={{ width: "100%", mt: 1, height: "350px" ,bgcolor:"black",height:"550px"}}
+      sx={{ width: "100%", mt: 1, height: "350px" ,bgcolor:"white",height:"550px"}}
     >
       <Table aria-label="receipt table">
         <TableHead>
@@ -52,17 +52,17 @@ export default function Buttom({ rows, setRows }) {
             </TableCell>
           </TableRow>
         </TableHead>
-        <TableBody sx={{bgcolor:"white"}}>
+        <TableBody sx={{bgcolor:"black"}}>
           {rows.map((row) => (
             <TableRow key={row.id}>
-              <TableCell align="right" >{row.id}</TableCell>
-              <TableCell align="right" >{row.reference}</TableCell>
-              <TableCell align="right" >{row.nom}</TableCell>
-              <TableCell align="right" >{Number(row.prix_vente_facilite).toFixed(0)}</TableCell>
+              <TableCell align="right" sx={{color:"white"}} >{row.id}</TableCell>
+              <TableCell align="right" sx={{color:"white"}} >{row.reference}</TableCell>
+              <TableCell align="right" sx={{color:"white"}}  >{row.nom}</TableCell>
+              <TableCell align="right" sx={{color:"white"}} >{Number(row.prix_vente_facilite).toFixed(0)}</TableCell>
 
-              <TableCell align="right" >{row.quantite}</TableCell>
-              <TableCell align="right" >{row.magasin_nom || row.magasin}</TableCell>
-             <TableCell align="right" >{Number(row.total).toFixed(0)}</TableCell>
+              <TableCell align="right" sx={{color:"white"}} >{row.quantite}</TableCell>
+              <TableCell align="right" sx={{color:"white"}} >{row.magasin_nom || row.magasin}</TableCell>
+             <TableCell align="right" sx={{color:"white"}} >{Number(row.total).toFixed(0)}</TableCell>
 
               <TableCell align="center">
                 <IconButton

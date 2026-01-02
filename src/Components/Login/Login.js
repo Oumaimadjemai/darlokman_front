@@ -1,25 +1,23 @@
-import Grid from "@mui/material/GridLegacy";
+import Grid from "@mui/material/Grid";
 import LoginPage from "./LoginPage";
-import SideLoginPage from "./SideLoginPage";
+import Container from "@mui/material/Container";
+import Card from "@mui/material/Card";
+import Box from "@mui/material/Box";
 
 export default function Login() {
   return (
-    <>
-      <Grid
-        container
-        sx={{
-          height: "100vh",
-          margin: 0,
-          padding: 0,
-        }}
-      >
-        <Grid item xs={6}>
-          <LoginPage />
-        </Grid>
-        <Grid item xs={6}>
-          <SideLoginPage />
-        </Grid>
-      </Grid>
-    </>
+    <Box
+      sx={{
+        minHeight: "100vh", // full viewport height
+        display: "flex",
+        justifyContent: "center", // horizontal center
+        alignItems: "center",     // vertical center
+        bgcolor: "#f5f5f5",      // optional background color
+      }}
+    >
+      
+        <LoginPage />
+     
+    </Box>
   );
 }

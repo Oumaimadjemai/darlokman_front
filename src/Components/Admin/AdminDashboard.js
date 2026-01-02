@@ -42,7 +42,7 @@ import SalesReport from "../Rapports/RapportProduitVendu/ProduitVenduBoard";
 import DashboardHome from "./Home";
 import Profile from "./Profile";
 import DashboardHomeVendeur from "../vendeur/Home";
-export default function AdminDashboard() {
+export default function AdminDashboard({handleLogout}) {
   const [openAddClientDialog, setOpenAddClientDialog] = useState(false);
   const [openAddProductDialog, setOpenAddProductDialog] = useState(false);
   const [openAddFournisseurDialog, setOpenAddFournisseurtDialog] =
@@ -262,6 +262,8 @@ export default function AdminDashboard() {
           onAction={handleAction}
           selectedId={activeComponent.name}
           onClose={() => setSidebarOpen(false)}
+           handleLogout={handleLogout}
+          
         />
 
         {/* Main Content */}

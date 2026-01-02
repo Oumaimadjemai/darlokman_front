@@ -32,7 +32,7 @@ import { useTheme } from "@mui/material/styles";
 import axios from "../../api/axiosInstance";
 import { useNavigate } from "react-router-dom";
 
-export default function Sidebar({ onAction, selectedId, open, onClose }) {
+export default function Sidebar({ onAction, selectedId, open, onClose, handleLogout }) {
   const navigate = useNavigate();
   const [features, setFeatures] = useState([]);
   const [role, setRole] = useState(null);
@@ -44,28 +44,28 @@ export default function Sidebar({ onAction, selectedId, open, onClose }) {
     setRole(storedRole);
   }, []);
 
-  const handleLogout = async () => {
-    const refresh = localStorage.getItem("refresh_token");
-    const access = localStorage.getItem("access_token");
+  // const handleLogout = async () => {
+  //   const refresh = localStorage.getItem("refresh_token");
+  //   const access = localStorage.getItem("access_token");
 
-    try {
-      if (refresh) {
-        await axios.post(
-          "auth/logout/",
-          { refresh },
-          {
-            headers: { Authorization: `Bearer ${access}` },
-          }
-        );
-      }
-    } catch (error) {
-      console.warn("Erreur de logout côté serveur :", error.response?.data?.detail);
-    } finally {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
-      navigate("/login");
-    }
-  };
+  //   try {
+  //     if (refresh) {
+  //       await axios.post(
+  //         "auth/logout/",
+  //         { refresh },
+  //         {
+  //           headers: { Authorization: `Bearer ${access}` },
+  //         }
+  //       );
+  //     }
+  //   } catch (error) {
+  //     console.warn("Erreur de logout côté serveur :", error.response?.data?.detail);
+  //   } finally {
+  //     localStorage.removeItem("access_token");
+  //     localStorage.removeItem("refresh_token");
+  //     navigate("/login");
+  //   }
+  // };
 
   const iconStyle = {
     color: "primary.main",

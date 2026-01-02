@@ -12,6 +12,9 @@ import {
   DialogTitle,
   IconButton,
   Typography,
+  DialogContent,
+  DialogContentText,
+  DialogActions
 } from "@mui/material";
 
 import axios from "../../api/axiosInstance";
@@ -21,6 +24,7 @@ import FilterPanel from "../Clients/FilterPanel";
 import ExtraCard from "./ExtraCard";
 import ProduitTable from "./ProduitTable";
 import EditProduit from "./EditProduit";
+import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
 
 export default function ProduitBoard() {
   const [openAddProduitDialog, setOpenAddProduitDialog] = useState(false);
@@ -34,6 +38,8 @@ export default function ProduitBoard() {
   const [openExcelDialog, setOpenExcelDialog] = useState(false);
   const [importFile, setImportFile] = useState(null);
   const [totaux, setTotaux] = useState(null);
+  const [openResetDialog, setOpenResetDialog] = useState(false);
+  const [loadingReset, setLoadingReset] = useState(false);
 
   // 🔹 Récupère le rôle depuis localStorage
   const userRole = localStorage.getItem("role"); // "admin", "vendeur", "magasinier"
@@ -166,6 +172,22 @@ axios
         alert("Erreur lors de l'importation");
       });
   };
+  const handleResetQuantite = () => {
+    setLoadingReset(true);
+    axios
+      .post("/prod/reset-quantite-codes/", {}, { headers })
+      .then((res) => {
+        alert(res.data.message);
+        fetchProduit(); // Refresh table
+        setOpenResetDialog(false);
+      })
+      .catch((err) => {
+        console.error("Erreur lors de la remise à zéro :", err);
+        alert("Erreur lors de la remise à zéro des quantités");
+      })
+      .finally(() => setLoadingReset(false));
+  };
+
 
   return (
     <>
@@ -200,6 +222,14 @@ axios
 
         {userRole === "admin" && (
           <Stack direction="row" spacing={2}>
+            <Button
+          variant="contained"
+          endIcon={<RemoveCircleIcon />}
+          sx={{ width: "125px", height: "55px" ,bgcolor:"blueviolet"}}
+          onClick={() => setOpenResetDialog(true)}
+        >
+          تصفير الكمية
+        </Button>
             <Button
               variant="contained"
               endIcon={<AddIcon />}
@@ -340,6 +370,35 @@ axios
             استيراد Excel
           </Button>
         </Box>
+      </Dialog>
+       {/* Confirmation Dialog */}
+      <Dialog
+        open={openResetDialog}
+        onClose={() => setOpenResetDialog(false)}
+      >
+        <DialogTitle>تأكيد تصفير الكمية</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            هل أنت متأكد أنك تريد تصفير جميع الكميات وحذف جميع الباركودات؟
+            هذا الإجراء لا يمكن التراجع عنه.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setOpenResetDialog(false)}
+            disabled={loadingReset}
+          >
+            إلغاء
+          </Button>
+          <Button
+            onClick={handleResetQuantite}
+            variant="contained"
+            color="error"
+            disabled={loadingReset}
+          >
+            {loadingReset ? "جارٍ المعالجة..." : "تأكيد"}
+          </Button>
+        </DialogActions>
       </Dialog>
     </>
   );

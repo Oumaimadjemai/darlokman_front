@@ -1,14 +1,25 @@
-import { DataGrid } from "@mui/x-data-grid";
-import { Box, Typography, Paper } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
+} from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import IconButton from "@mui/material/IconButton";
 import axios from "../../api/axiosInstance";
 import { useState } from "react";
 import ConfirmationDialog from "../Cards/ConfirmationDialog";
+
 export default function FournisseurTable({ rows, setRows, onEditClick }) {
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
+
   const handleDelete = (id) => {
     setSelectedId(id);
     setConfirmationOpen(true);
@@ -32,62 +43,14 @@ export default function FournisseurTable({ rows, setRows, onEditClick }) {
         setSelectedId(null);
       });
   };
-  const columns = [
-    { field: "id", headerName: "الرقم", minWidth: 50 },
-    {
-      field: "nom",
-      headerName: "الإسم",
-      minWidth: 200,
-    },
-    {
-      field: "adresse",
-      headerName: "العنوان",
-      minWidth: 200,
-    },
-    {
-      field: "telephone",
-      headerName: "الهاتف",
-      minWidth: 150,
-    },
-    {
-      field: "wilaya_display",
-      headerName: "الولاية",
-      minWidth: 200,
-    },
-    {
-      field: "dettes_initiales",
-      headerName: "الديون الإبتدائية",
-      minWidth: 150,
-    },
 
-    {
-      field: "edit",
-      headerName: "تعديل",
-      width: 80,
-      sortable: false,
-      renderCell: (params) => (
-        <IconButton onClick={() => onEditClick(params.row)} color="primary">
-          <EditIcon />
-        </IconButton>
-      ),
-    },
-    {
-      field: "delete",
-      headerName: "حذف",
-      width: 80,
-      sortable: false,
-      renderCell: (params) => (
-        <IconButton onClick={() => handleDelete(params.row.id)} color="error">
-          <DeleteIcon />
-        </IconButton>
-      ),
-    },
-  ];
+  const sortedRows = [...rows].sort((a, b) => b.id - a.id);
+
   return (
     <>
       <Paper
         elevation={3}
-        sx={{ p: 3, borderRadius: 3, backgroundColor: "#fff"}}
+        sx={{ p: 3, borderRadius: 3, backgroundColor: "#fff" }}
       >
         <Typography
           variant="h4"
@@ -96,28 +59,59 @@ export default function FournisseurTable({ rows, setRows, onEditClick }) {
           قائمة الممونين
         </Typography>
 
-        <Box sx={{ height: 370, width: "100%", overflowY: "auto" }}>
-          <DataGrid
-            rows={[...rows].sort((a, b) => b.id - a.id)} // ✅ sort by ID descending
-            columns={columns}
-            hideFooter
-            getRowId={(row) => row.id}
-            sx={{
-              "& .MuiDataGrid-columnHeaders": {
-                backgroundColor: "primary.main",
-                fontWeight: "bold",
-                color: "black",
-                textAlign: "center",
-              },
-              "& .MuiDataGrid-row:hover": {
-                backgroundColor: "#f5f5f5",
-              },
-              border: "none",
-              fontFamily: 'Arial, "Noto Kufi Arabic", sans-serif',
-            }}
-          />
-        </Box>
+        <TableContainer sx={{ maxHeight: 370 }}>
+          <Table stickyHeader>
+            <TableHead>
+              <TableRow>
+                <TableCell align="center">الرقم</TableCell>
+                <TableCell align="center">الإسم</TableCell>
+                <TableCell align="center">العنوان</TableCell>
+                <TableCell align="center">الهاتف</TableCell>
+                <TableCell align="center">الولاية</TableCell>
+                <TableCell align="center">الديون الإبتدائية</TableCell>
+                <TableCell align="center">تعديل</TableCell>
+                <TableCell align="center">حذف</TableCell>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {sortedRows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  hover
+                  sx={{ "&:hover": { backgroundColor: "#f5f5f5" } }}
+                >
+                  <TableCell align="center">{row.id}</TableCell>
+                  <TableCell align="center">{row.nom}</TableCell>
+                  <TableCell align="center">{row.adresse}</TableCell>
+                  <TableCell align="center">{row.telephone}</TableCell>
+                  <TableCell align="center">{row.wilaya_display}</TableCell>
+                  <TableCell align="center">
+                    {row.dettes_initiales}
+                  </TableCell>
+                  <TableCell align="center">
+                    <IconButton
+                      color="primary"
+                      onClick={() => onEditClick(row)}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                  </TableCell>
+                  <TableCell align="center">
+                    <IconButton
+                      color="error"
+                      onClick={() => handleDelete(row.id)}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </Paper>
+
       <ConfirmationDialog
         open={confirmationOpen}
         onClose={() => setConfirmationOpen(false)}

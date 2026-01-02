@@ -1,26 +1,34 @@
-import { DataGrid } from "@mui/x-data-grid";
 import {
   Box,
   Typography,
   Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import IconButton from "@mui/material/IconButton";
+import CloseIcon from "@mui/icons-material/Close";
 import axios from "../../api/axiosInstance";
 import { useState } from "react";
 import ConfirmationDialog from "../Cards/ConfirmationDialog";
 import ProduitDetail from "./ProduitDEtail";
-import CloseIcon from "@mui/icons-material/Close";
+
 export default function ProduitTable({ rows, setRows, onEditClick }) {
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
-  const [selectedProduit, setSelectedPRoduit] = useState(null);
+  const [selectedProduit, setSelectedProduit] = useState(null);
   const [openDetailDialog, setOpenDetailDialog] = useState(false);
+
   const role = localStorage.getItem("role");
+
   const handleDelete = (id) => {
     setSelectedId(id);
     setConfirmationOpen(true);
@@ -36,296 +44,174 @@ export default function ProduitTable({ rows, setRows, onEditClick }) {
       .then(() => {
         setRows((prev) => prev.filter((row) => row.id !== selectedId));
       })
-      .catch((err) => {
-        console.error("Erreur de suppression :", err);
-      })
       .finally(() => {
         setConfirmationOpen(false);
         setSelectedId(null);
       });
   };
-  // const columns = [
-  //   { field: "id", headerName: "الرقم", minWidth: 50 },
-  //   {
-  //     field: "reference",
-  //     headerName: "المرجع",
-  //     minWidth: 150,
-  //   },
-  //   {
-  //     field: "nom",
-  //     headerName: "الإسم",
-  //     minWidth: 150,
-  //   },
-  //   {
-  //     field: "famille",
-  //     headerName: "العائلة",
-  //     minWidth: 150,
-  //   },
-  //   {
-  //     field: "taux_benefice_cache",
-  //     headerName: "ن.ف",
-  //     minWidth: 80,
-  //   },
-  //   {
-  //     field: "moyenne_pourcentage_facilite",
-  //     headerName: "ن.ف.ت",
-  //     minWidth: 80,
-  //   },
-  //   {
-  //     field: "prix_achat",
-  //     headerName: "سعر الشراء",
-  //     minWidth: 150,
-  //   },
-  //   {
-  //     field: "prix_vente_cache",
-  //     headerName: "سعر البيع كاش",
-  //     minWidth: 150,
-  //   },
-  //   {
-  //     field: "prix_vente_3",
-  //     headerName: "سعر 3",
-  //     minWidth: 100,
-  //   },
-  //   {
-  //     field: "prix_vente_5",
-  //     headerName: "سعر 5",
-  //     minWidth: 100,
-  //   },
-  //   {
-  //     field: "prix_vente_6",
-  //     headerName: "سعر 6",
-  //     minWidth: 100,
-  //   },
-  //   {
-  //     field: "prix_vente_8",
-  //     headerName: "سعر 8",
-  //     minWidth: 100,
-  //   },
-  //   {
-  //     field: "prix_vente_9",
-  //     headerName: "سعر 9",
-  //     minWidth: 100,
-  //   },
-  //   {
-  //     field: "prix_vente_10",
-  //     headerName: "سعر 10",
-  //     minWidth: 100,
-  //   },
-  //   {
-  //     field: "prix_vente_12",
-  //     headerName: "سعر 12",
-  //     minWidth: 100,
-  //   },
-  //   {
-  //     field: "prix_vente_15",
-  //     headerName: "سعر 15",
-  //     minWidth: 100,
-  //   },
-  //   {
-  //     field: "quantite",
-  //     headerName: "الكمية",
-  //     minWidth: 80,
-  //   },
-  //   {
-  //     field: "edit",
-  //     headerName: "تعديل",
-  //     width: 50,
-  //     sortable: false,
-  //     renderCell: (params) => (
-  //       <IconButton
-  //         onClick={(e) => {
-  //           e.stopPropagation(); // 🛑 Stop row click
-  //           onEditClick(params.row);
-  //         }}
-  //         color="primary"
-  //       >
-  //         <EditIcon />
-  //       </IconButton>
-  //     ),
-  //   },
-  //   {
-  //     field: "delete",
-  //     headerName: "حذف",
-  //     width: 50,
-  //     sortable: false,
-  //     renderCell: (params) => (
-  //       <IconButton
-  //         onClick={(e) => {
-  //           e.stopPropagation(); // 🛑 Stop row click
-  //           handleDelete(params.row.id);
-  //         }}
-  //         color="error"
-  //       >
-  //         <DeleteIcon />
-  //       </IconButton>
-  //     ),
-  //   },
-  // ];
-   const baseColumns = [
-    { field: "id", headerName: "الرقم", minWidth: 50 },
-    { field: "reference", headerName: "المرجع", minWidth: 150 },
-    { field: "nom", headerName: "الإسم", minWidth: 500 },
-    { field: "famille", headerName: "العائلة", minWidth: 150 },
-  ];
 
-  // ✅ Extra columns only for admin
-  const adminColumns = [
-    {
-      field: "taux_benefice_cache",
-      headerName: "ن.ف",
-      minWidth: 80,
-    },
-    {
-      field: "moyenne_pourcentage_facilite",
-      headerName: "ن.ف.ت",
-      minWidth: 80,
-      
-    },
-    {
-      field: "prix_achat",
-      headerName: "سعر الشراء",
-      minWidth: 150,
-    },
-  ];
+  /* 🔢 Format prices */
+  const formattedRows = (rows || []).map((row) => {
+    const priceFields = [
+      "prix_achat",
+      "prix_vente_cache",
+      "prix_vente_3",
+      "prix_vente_5",
+      "prix_vente_6",
+      "prix_vente_8",
+      "prix_vente_9",
+      "prix_vente_10",
+      "prix_vente_12",
+      "prix_vente_15",
+    ];
 
-  // ✅ Common columns for everyone (after conditional)
-  const commonColumns = [
-    { field: "prix_vente_cache", headerName: "سعر البيع كاش", minWidth: 150 },
-    { field: "prix_vente_3", headerName: "سعر 3", minWidth: 100 },
-    { field: "prix_vente_5", headerName: "سعر 5", minWidth: 100 },
-    { field: "prix_vente_6", headerName: "سعر 6", minWidth: 100 },
-    { field: "prix_vente_8", headerName: "سعر 8", minWidth: 100 },
-    { field: "prix_vente_9", headerName: "سعر 9", minWidth: 100 },
-    { field: "prix_vente_10", headerName: "سعر 10", minWidth: 100 },
-    { field: "prix_vente_12", headerName: "سعر 12", minWidth: 100 },
-    { field: "prix_vente_15", headerName: "سعر 15", minWidth: 100 },
-    { field: "quantite", headerName: "الكمية", minWidth: 80 },
-   
-    {
-      field: "delete",
-      headerName: "حذف",
-      width: 80,
-      sortable: false,
-      renderCell: (params) => (
-        <IconButton
-          onClick={(e) => {
-            e.stopPropagation();
-            handleDelete(params.row.id);
-          }}
-          color="error"
-        >
-          <DeleteIcon />
-        </IconButton>
-      ),
-    },
-  ];
-  const adminActionColumns = [
-  {
-    field: "edit",
-    headerName: "تعديل",
-    width: 80,
-    sortable: false,
-    renderCell: (params) => (
-      <IconButton
-        onClick={(e) => {
-          e.stopPropagation();
-          onEditClick(params.row);
-        }}
-        color="primary"
-      >
-        <EditIcon />
-      </IconButton>
-    ),
-  },]
+    const newRow = { ...row };
+    priceFields.forEach((f) => {
+      if (newRow[f] !== null && newRow[f] !== undefined) {
+        newRow[f] = Math.round(newRow[f]);
+      }
+    });
 
-  // ✅ Build final columns depending on role
-  const columns =
-    role === "admin"
-      ? [...baseColumns, ...adminColumns, ...commonColumns,...adminActionColumns]
-      : [...baseColumns, ...commonColumns];
-
-  const formattedRows = rows.map((row) => {
-  const priceFields = [
-    "prix_achat",
-    "prix_vente_cache",
-    "prix_vente_3",
-    "prix_vente_5",
-    "prix_vente_6",
-    "prix_vente_8",
-    "prix_vente_9",
-    "prix_vente_10",
-    "prix_vente_12",
-    "prix_vente_15",
-  ];
-
-  const newRow = { ...row };
-
-  // Convert all prices to integers (no dots, no decimals)
-  priceFields.forEach((field) => {
-    if (newRow[field] !== null && newRow[field] !== undefined) {
-      newRow[field] = Math.round(newRow[field]);
+    if (newRow.moyenne_pourcentage_facilite != null) {
+      newRow.moyenne_pourcentage_facilite =
+        Math.round(newRow.moyenne_pourcentage_facilite * 100) / 100;
     }
+
+    return newRow;
   });
-
-  // Optional: round moyenne_pourcentage_facilite to 2 decimals
-  if (
-    newRow.moyenne_pourcentage_facilite !== null &&
-    newRow.moyenne_pourcentage_facilite !== undefined
-  ) {
-    newRow.moyenne_pourcentage_facilite =
-      Math.round(newRow.moyenne_pourcentage_facilite * 100) / 100;
-  }
-
-  return newRow;
-});
 
   return (
     <>
       <Paper
-        elevation={3}
-        sx={{ p: 3, borderRadius: 3, backgroundColor: "#fff" }}
-      >
-        <Typography
-          variant="h4"
-          sx={{ mb: 2, color: "primary.main", textAlign: "center" }}
-        >
-          قائمة السلع
-        </Typography>
+  elevation={3}
+  sx={{
+    p: 3,
+    borderRadius: 3,
+    backgroundColor: "#fff",
+  }}
+>
+  <Typography
+    variant="h4"
+    sx={{ mb: 2, color: "primary.main", textAlign: "center" }}
+  >
+    قائمة السلع
+  </Typography>
 
-        <Box sx={{ height: 300, width: "100%", overflowY: "auto" }}>
-          <DataGrid
-            rows={formattedRows}
-            columns={columns}
-            hideFooter
-            getRowId={(row) => row.id} // 🔐 Important for correct ID handling
-            onRowClick={(params) => {
-              setSelectedPRoduit(params.row); // Save the clicked row
-              setOpenDetailDialog(true); // Open the dialog
-            }} // 🔐 Important for correct ID handling
-            sx={{
-              "& .MuiDataGrid-columnHeaders": {
-                backgroundColor: "primary.main",
-                fontWeight: "bold",
-                color: "black",
-                textAlign: "center",
-              },
-              "& .MuiDataGrid-row:hover": {
-                backgroundColor: "#f5f5f5",
-              },
-              border: "none",
+  {/* ✅ بدون height / overflow */}
+  <TableContainer component={Paper} elevation={0}>
+    <Table>
+      <TableHead sx={{bgcolor:"primary.main"}}>
+        <TableRow>
+          <TableCell align="center" sx={{color:"white"}}>الرقم</TableCell>
+          <TableCell align="center" sx={{color:"white"}}>المرجع</TableCell>
+          <TableCell align="center" sx={{color:"white"}}>الإسم</TableCell>
+          <TableCell align="center" sx={{color:"white"}}>العائلة</TableCell>
 
-              fontFamily: 'Arial, "Noto Kufi Arabic", sans-serif',
-              cursor: "pointer",
+          {role === "admin" && (
+            <>
+              <TableCell align="center" sx={{color:"white"}}>ن.ف</TableCell>
+              <TableCell align="center" sx={{color:"white"}}>ن.ف.ت</TableCell>
+              <TableCell align="center" sx={{color:"white"}}>سعر الشراء</TableCell>
+            </>
+          )}
+
+          <TableCell align="center" sx={{color:"white"}}>سعر كاش</TableCell>
+          <TableCell align="center" sx={{color:"white"}}>سعر 3</TableCell>
+          <TableCell align="center" sx={{color:"white"}}>سعر 5</TableCell>
+          <TableCell align="center" sx={{color:"white"}}>سعر 6</TableCell>
+          <TableCell align="center" sx={{color:"white"}}>سعر 8</TableCell>
+          <TableCell align="center" sx={{color:"white"}}>سعر 9</TableCell>
+          <TableCell align="center" sx={{color:"white"}}>سعر 10</TableCell>
+          <TableCell align="center" sx={{color:"white"}}>سعر 12</TableCell>
+          <TableCell align="center" sx={{color:"white"}}>سعر 15</TableCell>
+          <TableCell align="center" sx={{color:"white"}}>الكمية</TableCell>
+
+          {role === "admin" && (
+            <TableCell align="center" sx={{color:"white"}}>تعديل</TableCell>
+          )}
+          <TableCell align="center" sx={{color:"white"}}>حذف</TableCell>
+        </TableRow>
+      </TableHead>
+
+      <TableBody>
+        {formattedRows.map((row) => (
+          <TableRow
+            key={row.id}
+            hover
+            sx={{ cursor: "pointer" }}
+            onClick={() => {
+              setSelectedProduit(row);
+              setOpenDetailDialog(true);
             }}
-          />
-        </Box>
-      </Paper>
+          >
+            <TableCell align="center">{row.id}</TableCell>
+            <TableCell align="center">{row.reference}</TableCell>
+            <TableCell align="center">{row.nom}</TableCell>
+            <TableCell align="center">{row.famille}</TableCell>
+
+            {role === "admin" && (
+              <>
+                <TableCell align="center">
+                  {row.taux_benefice_cache}
+                </TableCell>
+                <TableCell align="center">
+                  {row.moyenne_pourcentage_facilite}
+                </TableCell>
+                <TableCell align="center">{row.prix_achat}</TableCell>
+              </>
+            )}
+
+            <TableCell align="center">{row.prix_vente_cache}</TableCell>
+            <TableCell align="center">{row.prix_vente_3}</TableCell>
+            <TableCell align="center">{row.prix_vente_5}</TableCell>
+            <TableCell align="center">{row.prix_vente_6}</TableCell>
+            <TableCell align="center">{row.prix_vente_8}</TableCell>
+            <TableCell align="center">{row.prix_vente_9}</TableCell>
+            <TableCell align="center">{row.prix_vente_10}</TableCell>
+            <TableCell align="center">{row.prix_vente_12}</TableCell>
+            <TableCell align="center">{row.prix_vente_15}</TableCell>
+            <TableCell align="center">{row.quantite}</TableCell>
+
+            {role === "admin" && (
+              <TableCell
+                align="center"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <IconButton
+                  color="primary"
+                  onClick={() => onEditClick(row)}
+                >
+                  <EditIcon />
+                </IconButton>
+              </TableCell>
+            )}
+
+            <TableCell
+              align="center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <IconButton
+                color="error"
+                onClick={() => handleDelete(row.id)}
+              >
+                <DeleteIcon />
+              </IconButton>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  </TableContainer>
+</Paper>
+
+
       <ConfirmationDialog
         open={confirmationOpen}
         onClose={() => setConfirmationOpen(false)}
         onConfirm={confirmDelete}
         text="هل أنت متأكد من حذف هذا المنتج؟"
       />
+
       <Dialog
         open={openDetailDialog}
         onClose={() => setOpenDetailDialog(false)}
@@ -340,7 +226,9 @@ export default function ProduitTable({ rows, setRows, onEditClick }) {
         </DialogTitle>
 
         <DialogContent>
-          {selectedProduit && <ProduitDetail produit={selectedProduit} />}
+          {selectedProduit && (
+            <ProduitDetail produit={selectedProduit} />
+          )}
         </DialogContent>
       </Dialog>
     </>

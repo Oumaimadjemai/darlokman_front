@@ -1,4 +1,3 @@
-import { DataGrid } from "@mui/x-data-grid";
 import {
   Box,
   Typography,
@@ -6,16 +5,23 @@ import {
   Dialog,
   DialogTitle,
   Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import IconButton from "@mui/material/IconButton";
 import InfoIcon from "@mui/icons-material/Info";
+import PrintIcon from "@mui/icons-material/Print";
 import axios from "../../../api/axiosInstance";
 import { useState } from "react";
 import ConfirmationDialog from "../../Cards/ConfirmationDialog";
-import PrintIcon from "@mui/icons-material/Print";
 import { saveAs } from "file-saver";
+
 export default function VenteTable({ rows, setRows, onDetailsClick }) {
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
@@ -30,121 +36,22 @@ export default function VenteTable({ rows, setRows, onDetailsClick }) {
   const confirmDelete = () => {
     axios
       .delete(`/vente/ventes-facilite/${selectedId}/`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        },
+        headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
       })
       .then(() => {
         setRows((prev) => prev.filter((row) => row.id !== selectedId));
       })
-      .catch((err) => {
-        console.error("Erreur de suppression :", err);
-      })
+      .catch((err) => console.error("Erreur de suppression :", err))
       .finally(() => {
         setConfirmationOpen(false);
         setSelectedId(null);
       });
   };
-  const columns = [
-    { field: "id", headerName: "الرقم", minWidth: 20 },
-    {
-      field: "date_formatee",
-      headerName: "التاريخ",
-      minWidth: 120,
-    },
-    {
-      field: "client",
-      headerName: "الزبون",
-      minWidth: 150,
-      renderCell: (params) => {
-        const client = params.row?.client_detail;
-        if (client && client.nom_famille_ar + " " + client.prenom_ar) {
-          return client.nom_famille_ar + " " + client.prenom_ar;
-        }
-        return "غير معروف";
-      },
-    },
-    {
-      field: "montant_total",
-      headerName: "القيمة",
-      minWidth: 150,
-    },
-
-    {
-      field: "nombre_mois",
-      headerName: "الأشهر",
-      minWidth: 150,
-    },
-    {
-      field: "montant_mensuel",
-      headerName: "المبلغ الشهري",
-      minWidth: 150,
-    },
-    {
-      field: "utilisateur",
-      headerName: "البائع",
-      minWidth: 150,
-      renderCell: (params) => {
-        const utilisateur = params.row?.utilisateur_detail;
-        if (utilisateur && utilisateur.username) {
-          return utilisateur.username;
-        }
-        return "غير معروف";
-      },
-    },
-    {
-      field: "delete",
-      headerName: "حذف",
-      width: 80,
-      sortable: false,
-      renderCell: (params) => (
-        <IconButton onClick={() => handleDelete(params.row.id)} color="error">
-          <DeleteIcon />
-        </IconButton>
-      ),
-    },
-    {
-      field: "details",
-      headerName: "تفاصيل",
-      width: 90,
-      sortable: false,
-      renderCell: (params) => (
-        <IconButton color="info" onClick={() => onDetailsClick(params.row)}>
-          <InfoIcon />
-        </IconButton>
-      ),
-    },
-    {
-      field: "print",
-      headerName: "طباعة",
-      width: 90,
-      sortable: false,
-      renderCell: (params) => (
-        <IconButton
-          color="primary"
-          onClick={() => {
-            setSelectedVente(params.row);
-            setPrintDialogOpen(true);
-          }}
-        >
-          <PrintIcon />
-        </IconButton>
-      ),
-    },
-  ];
 
   const downloadFile = async (url, filename) => {
     try {
       const token = localStorage.getItem("access_token");
-
-      const response = await axios.get(url, {
-        responseType: "blob", // Important to handle binary files
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      // Trigger download
+      const response = await axios.get(url, { responseType: "blob", headers: { Authorization: `Bearer ${token}` } });
       saveAs(response.data, filename);
     } catch (error) {
       console.error("Erreur lors du téléchargement du fichier :", error);
@@ -153,46 +60,72 @@ export default function VenteTable({ rows, setRows, onDetailsClick }) {
 
   return (
     <>
-      <Paper
-        elevation={3}
-        sx={{ p: 3, borderRadius: 3, backgroundColor: "#fff", mb: 2 }}
-      >
-        <Typography
-          variant="h4"
-          sx={{ mb: 2, color: "primary.main", textAlign: "center" }}
-        >
+      <Paper elevation={3} sx={{ p: 3, borderRadius: 3, backgroundColor: "#fff", mb: 2 }}>
+        <Typography variant="h4" sx={{ mb: 2, color: "primary.main", textAlign: "center" }}>
           قائمة المبيعات بالتقسيط
         </Typography>
 
-        <Box sx={{ height: 300, width: "100%", overflowY: "auto" }}>
-          <DataGrid
-            rows={rows || []}
-            columns={columns}
-            hideFooter
-            getRowId={(row) => row.id} // 🔐 Important for correct ID handling
-            sx={{
-              "& .MuiDataGrid-columnHeaders": {
-                backgroundColor: "primary.main",
-                fontWeight: "bold",
-                color: "black",
-                textAlign: "center",
-              },
-              "& .MuiDataGrid-row:hover": {
-                backgroundColor: "#f5f5f5",
-              },
-              border: "none",
-
-              fontFamily: 'Arial, "Noto Kufi Arabic", sans-serif',
-            }}
-          />
-        </Box>
+        <TableContainer component={Paper} sx={{ boxShadow: "none" }}>
+          <Table size="small">
+            <TableHead sx={{ backgroundColor: "primary.main" }}>
+              <TableRow >
+                <TableCell sx={{color:"white"}}>الرقم</TableCell>
+                <TableCell sx={{color:"white"}}>التاريخ</TableCell>
+                <TableCell sx={{color:"white"}}>الزبون</TableCell>
+                <TableCell sx={{color:"white"}}>القيمة</TableCell>
+                <TableCell sx={{color:"white"}}>الأشهر</TableCell>
+                <TableCell sx={{color:"white"}}>المبلغ الشهري</TableCell>
+                <TableCell sx={{color:"white"}}>البائع</TableCell>
+                <TableCell align="center" sx={{color:"white"}}>إجراءات</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center">لا توجد بيانات</TableCell>
+                </TableRow>
+              ) : (
+                rows.map((row) => (
+                  <TableRow key={row.id} hover>
+                    <TableCell>{row.id}</TableCell>
+                    <TableCell>{row.date_formatee}</TableCell>
+                    <TableCell>
+                      {row.client_detail
+                        ? `${row.client_detail.nom_famille_ar} ${row.client_detail.prenom_ar}`
+                        : "غير معروف"}
+                    </TableCell>
+                    <TableCell>{row.montant_total}</TableCell>
+                    <TableCell>{row.nombre_mois}</TableCell>
+                    <TableCell>{row.montant_mensuel}</TableCell>
+                    <TableCell>
+                      {row.utilisateur_detail ? row.utilisateur_detail.username : "غير معروف"}
+                    </TableCell>
+                    <TableCell align="center">
+                      <IconButton color="error" onClick={() => handleDelete(row.id)}>
+                        <DeleteIcon />
+                      </IconButton>
+                      <IconButton color="info" onClick={() => onDetailsClick(row)}>
+                        <InfoIcon />
+                      </IconButton>
+                      <IconButton color="primary" onClick={() => { setSelectedVente(row); setPrintDialogOpen(true); }}>
+                        <PrintIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </Paper>
+
       <ConfirmationDialog
         open={confirmationOpen}
         onClose={() => setConfirmationOpen(false)}
         onConfirm={confirmDelete}
         text="هل أنت متأكد من الحذف؟"
       />
+
       <Dialog open={printDialogOpen} onClose={() => setPrintDialogOpen(false)}>
         <DialogTitle>خيارات الطباعة</DialogTitle>
         <Box sx={{ px: 3, pb: 3 }}>
@@ -200,103 +133,76 @@ export default function VenteTable({ rows, setRows, onDetailsClick }) {
             اختر نوع الطباعة لعملية البيع رقم {selectedVente?.id}
           </Typography>
 
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              mb: 2,
-              flexDirection: "column",
+          <Button
+            variant="contained"
+            color="primary"
+            sx={{ mb: 2 }}
+            onClick={() => {
+              if (selectedVente) {
+                downloadFile(
+                  `/vente/ventes-facilite/${selectedVente.id}/acte/word/`,
+                  `Acte.docx`
+                );
+                setPrintDialogOpen(false);
+              }
             }}
           >
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                mb: 2,
-                flexDirection: "column",
-              }}
-            >
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={() => {
-                  if (selectedVente) {
-                    downloadFile(
-                      `/vente/ventes-facilite/${selectedVente.id}/acte/word/`,
-                      `Acte.docx`
-                    );
-                    setPrintDialogOpen(false);
-                  }
-                }}
-                sx={{ mb: 2 }}
-              >
-                عقد البيع بالتقسيط
-              </Button>
+            عقد البيع بالتقسيط
+          </Button>
 
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={() => {
-                  if (selectedVente) {
-                    downloadFile(
-                      `/vente/ventes-facilite/${selectedVente.id}/bon/word/`,
-                      `Bon.docx`
-                    );
-                    setPrintDialogOpen(false);
-                  }
-                }}
-                sx={{ mb: 2 }}
-              >
-                وصل البيع
-              </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            sx={{ mb: 2 }}
+            onClick={() => {
+              if (selectedVente) {
+                downloadFile(
+                  `/vente/ventes-facilite/${selectedVente.id}/bon/word/`,
+                  `Bon.docx`
+                );
+                setPrintDialogOpen(false);
+              }
+            }}
+          >
+            وصل البيع
+          </Button>
 
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={() => {
-                  if (selectedVente) {
-                    downloadFile(
-                      `/vente/ventes-facilite/${selectedVente.id}/depot/word/`,
-                      `Depot.docx`
-                    );
-                    setPrintDialogOpen(false);
-                  }
-                }}
-              >
-                وصل المخزن
-              </Button>
-            </Box>
-          </Box>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => {
+              if (selectedVente) {
+                downloadFile(
+                  `/vente/ventes-facilite/${selectedVente.id}/depot/word/`,
+                  `Depot.docx`
+                );
+                setPrintDialogOpen(false);
+              }
+            }}
+          >
+            وصل المخزن
+          </Button>
 
-          {/* ✅ Liste dynamique des montants mensuels */}
+          {/* Liste des montants par mois */}
           {Array.isArray(selectedVente?.montants_par_mois) &&
             selectedVente.montants_par_mois.length > 0 && (
-              <Box sx={{ mt: 2 }}>
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 1,
-                  }}
-                >
-                  {selectedVente.montants_par_mois.map((montant, index) => (
-                    <Button
-                      key={index}
-                      variant="outlined"
-                      color="success"
-                      onClick={() => {
-                        // Télécharger directement le fichier CCP pour ce montant
-                        downloadFile(
-                          `/vente/ventes-facilite/${selectedVente.id}/ccp/word/?prelevement=${montant}`,
-                          `CCP.docx`
-                        );
-                        setPrintDialogOpen(false);
-                      }}
-                    >
-                      {` ${montant} دج`}
-                    </Button>
-                  ))}
-                </Box>
+              <Box sx={{ mt: 2, display: "flex", flexWrap: "wrap", gap: 1 }}>
+                {selectedVente.montants_par_mois.map((montant, index) => (
+                  <Button
+                    key={index}
+                    variant="outlined"
+                    color="success"
+                    onClick={() => {
+                      downloadFile(
+                        `/vente/ventes-facilite/${selectedVente.id}/ccp/word/?prelevement=${montant}`,
+                        `CCP.docx`
+                      );
+                      setPrintDialogOpen(false);
+                    }}
+                  >
+                    {montant} دج
+                  </Button>
+                ))}
               </Box>
             )}
         </Box>

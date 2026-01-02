@@ -1,14 +1,25 @@
-import { DataGrid } from "@mui/x-data-grid";
-import { Box, Typography, Paper } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
+} from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import IconButton from "@mui/material/IconButton";
 import axios from "../../api/axiosInstance";
 import { useState } from "react";
 import ConfirmationDialog from "../Cards/ConfirmationDialog";
+
 export default function DepenseTable({ rows, setRows, onEditClick }) {
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
+
   const handleDelete = (id) => {
     setSelectedId(id);
     setConfirmationOpen(true);
@@ -32,68 +43,7 @@ export default function DepenseTable({ rows, setRows, onEditClick }) {
         setSelectedId(null);
       });
   };
-  const columns = [
-    { field: "id", headerName: "الرقم", minWidth: 30 },
-    {
-      field: "date",
-      headerName: "التاريخ",
-      minWidth: 150,
-    },
-    {
-      field: "mode_paiement",
-      headerName: "السداد",
-      minWidth: 150,
-    },
-    {
-      field: "type_depense",
-      headerName: "النوع",
-      minWidth: 150,
-    },
-    {
-      field: "libelle",
-      headerName: "المصاريف",
-      minWidth: 150,
-    },
-    {
-      field: "montant",
-      headerName: "القيمة",
-      minWidth: 150,
-    },
-    {
-      field: "utilisateur",
-      headerName: "المستخدم",
-      minWidth: 150,
-      renderCell: (params) => {
-        const utilisateur = params.row?.utilisateur;
-        if (utilisateur && utilisateur.username) {
-          return utilisateur.username;
-        }
-        return "غير معروف";
-      },
-    },
-    {
-      field: "edit",
-      headerName: "تعديل",
-      width: 80,
-      sortable: false,
-      renderCell: (params) => (
-        <IconButton onClick={() => onEditClick(params.row)} color="primary">
-          <EditIcon />
-        </IconButton>
-      ),
-    },
-    {
-      field: "delete",
-      headerName: "حذف",
-      width: 80,
-      sortable: false,
-      renderCell: (params) => (
-        <IconButton onClick={() => handleDelete(params.row.id)} color="error">
-          <DeleteIcon />
-        </IconButton>
-      ),
-    },
-  ];
+
   return (
     <>
       <Paper
@@ -107,29 +57,61 @@ export default function DepenseTable({ rows, setRows, onEditClick }) {
           قائمة المصاريف
         </Typography>
 
-        <Box sx={{ height: 300, width: "100%", overflowY: "auto" }}>
-          <DataGrid
-            rows={rows || []}
-            columns={columns}
-            hideFooter
-            getRowId={(row) => row.id} // 🔐 Important for correct ID handling
-            sx={{
-              "& .MuiDataGrid-columnHeaders": {
-                backgroundColor: "primary.main",
-                fontWeight: "bold",
-                color: "black",
-                textAlign: "center",
-              },
-              "& .MuiDataGrid-row:hover": {
-                backgroundColor: "#f5f5f5",
-              },
-              border: "none",
+        <TableContainer sx={{ maxHeight: 300 }}>
+          <Table stickyHeader>
+            <TableHead>
+              <TableRow>
+                <TableCell align="center">الرقم</TableCell>
+                <TableCell align="center">التاريخ</TableCell>
+                <TableCell align="center">السداد</TableCell>
+                <TableCell align="center">النوع</TableCell>
+                <TableCell align="center">المصاريف</TableCell>
+                <TableCell align="center">القيمة</TableCell>
+                <TableCell align="center">المستخدم</TableCell>
+                <TableCell align="center">تعديل</TableCell>
+                <TableCell align="center">حذف</TableCell>
+              </TableRow>
+            </TableHead>
 
-              fontFamily: 'Arial, "Noto Kufi Arabic", sans-serif',
-            }}
-          />
-        </Box>
+            <TableBody>
+              {(rows || []).map((row) => (
+                <TableRow
+                  key={row.id}
+                  hover
+                  sx={{ "&:hover": { backgroundColor: "#f5f5f5" } }}
+                >
+                  <TableCell align="center">{row.id}</TableCell>
+                  <TableCell align="center">{row.date}</TableCell>
+                  <TableCell align="center">{row.mode_paiement}</TableCell>
+                  <TableCell align="center">{row.type_depense}</TableCell>
+                  <TableCell align="center">{row.libelle}</TableCell>
+                  <TableCell align="center">{row.montant}</TableCell>
+                  <TableCell align="center">
+                    {row.utilisateur?.username || "غير معروف"}
+                  </TableCell>
+                  <TableCell align="center">
+                    <IconButton
+                      color="primary"
+                      onClick={() => onEditClick(row)}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                  </TableCell>
+                  <TableCell align="center">
+                    <IconButton
+                      color="error"
+                      onClick={() => handleDelete(row.id)}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </Paper>
+
       <ConfirmationDialog
         open={confirmationOpen}
         onClose={() => setConfirmationOpen(false)}

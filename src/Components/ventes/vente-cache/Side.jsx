@@ -20,6 +20,10 @@ export default function Side({
 }) {
   const [clientList, setClientList] = useState([]);
   const [total, setTotal] = useState(0);
+  const [selectedClient, setSelectedClient] = useState(
+  clientList.find((c) => c.id === clientId) || null
+);
+
 
   useEffect(() => {
     const totalAmount = rows.reduce((acc, row) => acc + row.total, 0);
@@ -44,12 +48,14 @@ export default function Side({
   getOptionLabel={(option) =>
     `${option.nom_famille_ar || ""} ${option.prenom_ar || ""} ${option.ccp || ""}`
   }
-  value={clientList.find((c) => c.id === clientId) || null}
+  value={selectedClient}
+
   onChange={(event, newValue) => {
-    const client = newValue || null;
-    setSelectedClient(client);
-    onclientChange(client ? client.id : "");
-  }}
+  const client = newValue || null;
+  setSelectedClient(client); // ✅ Maintenant défini
+  onclientChange(client ? client.id : "");
+}}
+
   onInputChange={(event, newInputValue) => {
     // fetch filtered results dynamically
     if (newInputValue && newInputValue.length >= 2) {

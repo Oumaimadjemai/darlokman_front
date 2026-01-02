@@ -1,25 +1,43 @@
-import { DataGrid } from "@mui/x-data-grid";
-import { Box, Typography, Paper, Dialog, DialogTitle, DialogContent } from "@mui/material";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Typography,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  Box,
+} from "@mui/material";
+
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import IconButton from "@mui/material/IconButton";
-import axios from "../../api/axiosInstance";
+import CloseIcon from "@mui/icons-material/Close";
 import { useState } from "react";
+import axios from "../../api/axiosInstance";
 import ConfirmationDialog from "../Cards/ConfirmationDialog";
 import ClientDetail from "./ClientDetail";
-import CloseIcon from "@mui/icons-material/Close";
-export default function ClientTable({ rows,
+
+export default function ClientTable({
+  rows = [],
   setRows,
   onEditClick,
-  onSelectClient, }) {
+  onSelectClient,
+}) {
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
+
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [openDetailDialog, setOpenDetailDialog] = useState(false);
+
   const handleDelete = (id) => {
     setSelectedId(id);
     setConfirmationOpen(true);
   };
-  const [selectedClient, setSelectedClient] = useState(null);
-  const [openDetailDialog, setOpenDetailDialog] = useState(false);
 
   const confirmDelete = () => {
     axios
@@ -31,171 +49,121 @@ export default function ClientTable({ rows,
       .then(() => {
         setRows((prev) => prev.filter((row) => row.id !== selectedId));
       })
-      .catch((err) => {
-        console.error("Erreur de suppression :", err);
-      })
       .finally(() => {
         setConfirmationOpen(false);
         setSelectedId(null);
       });
   };
-  const columns = [
-    { field: "id", headerName: "الرقم", width: 10 },
-    {
-      field: "prenom_ar",
-      headerName: "الإسم",
-      minWidth: 200,
-    },
-    {
-      field: "nom_famille_ar",
-      headerName: "اللقب",
-      minWidth: 200,
-    },
-    {
-      field: "adresse",
-      headerName: "العنوان",
-      minWidth: 200,
-    },
-    {
-      field: "telephone",
-      headerName: "الهاتف",
-      minWidth: 200,
-    },
-    {
-      field: "ccp",
-      headerName: "الحساب",
-      minWidth: 200,
-    },
-    {
-      field: "date_debut",
-      headerName: "بداية التقسيط",
-      minWidth: 200,
-    },
-
-    {
-      field: "date_fin",
-      headerName: "نهاية التقسيط",
-      minWidth: 200,
-    },
-    {
-      field: "last_payment_date",
-      headerName: "أخر تسديد",
-      minWidth: 200,
-    },
-    {
-      field: "dette_totale_client",
-      headerName: "الدين الإجمالي",
-      minWidth: 200,
-    },
-    {
-      field: "dette_actuelle_client",
-      headerName: "الدين الساري",
-      minWidth: 200,
-    },
-    {
-      field: "montant_verse",
-      headerName: "دفعات إضافية",
-      minWidth: 200,
-    },
-    {
-      field: "total-jsp",
-      headerName: "م.م",
-      minWidth: 200,
-    },
-  {
-      field: "edit",
-      headerName: "تعديل",
-      width: 80,
-      sortable: false,
-      renderCell: (params) => (
-        <IconButton
-          onClick={(e) => {
-            e.stopPropagation(); // 🛑 Stop row click
-            onEditClick(params.row);
-          }}
-          color="primary"
-        >
-          <EditIcon />
-        </IconButton>
-      ),
-    },
-    {
-      field: "delete",
-      headerName: "حذف",
-      width: 80,
-      sortable: false,
-      renderCell: (params) => (
-        <IconButton
-          onClick={(e) => {
-            e.stopPropagation(); // 🛑 Stop row click
-            handleDelete(params.row.id);
-          }}
-          color="error"
-        >
-          <DeleteIcon />
-        </IconButton>
-      ),
-    },
-  
-  ];
 
   return (
     <>
-      <Paper
-        elevation={3}
-        sx={{ p: 3, borderRadius: 3, backgroundColor: "#fff", mb: 2 }}
-      >
-        <Typography
-          variant="h4"
-          sx={{ mb: 2, color: "primary.main", textAlign: "center" }}
-        >
-          قائمة العملاء
-        </Typography>
+      <Paper sx={{ p: 3, borderRadius: 3, mb: 2 }}>
+  <Typography
+    variant="h4"
+    sx={{ mb: 2, color: "primary.main", textAlign: "center" }}
+  >
+    قائمة العملاء
+  </Typography>
 
-        <Box sx={{ height: 300, width: "100%", overflowY: "auto" }}>
-          <DataGrid
-            rows={rows}
-            columns={columns}
-            hideFooter
-            getRowId={(row) => row.id}
-            onRowClick={(params) => {
-              onSelectClient(params.row); // Save the clicked row
-            }} // 🔐 Important for correct ID handling
-            onRowDoubleClick={(params) => {
-    setSelectedClient(params.row);
-    setOpenDetailDialog(true); // ✅ details only
-  }}
-            sx={{
-              "& .MuiDataGrid-columnHeaders": {
-                backgroundColor: "primary.main",
-                fontWeight: "bold",
-                color: "black",
-                textAlign: "center",
-              },
-              "& .MuiDataGrid-row:hover": {
-                backgroundColor: "#f5f5f5",
-              },
-              border: "none",
+  {/* TableContainer sans maxHeight pour afficher tout le contenu */}
+  <TableContainer component={Paper} elevation={0} sx={{ backgroundColor: "#f9f9f9" }}>
+    <Table size="small">
+      <TableHead sx={{bgcolor:"primary.main"}}>
+        <TableRow>
+          <TableCell sx={{color:"white"}}>الرقم</TableCell>
+          <TableCell sx={{color:"white"}}>الإسم</TableCell>
+          <TableCell sx={{color:"white"}}>اللقب</TableCell>
+          <TableCell sx={{color:"white"}}>العنوان</TableCell>
+          <TableCell sx={{color:"white"}}>الهاتف</TableCell>
+          <TableCell sx={{color:"white"}}>الحساب</TableCell>
+          <TableCell sx={{color:"white"}}>بداية التقسيط</TableCell>
+          <TableCell sx={{color:"white"}}>نهاية التقسيط</TableCell>
+          <TableCell sx={{color:"white"}}>آخر تسديد</TableCell>
+          <TableCell sx={{color:"white"}}>الدين الإجمالي</TableCell>
+          <TableCell sx={{color:"white"}}>الدين الساري</TableCell>
+          <TableCell sx={{color:"white"}}>دفعات إضافية</TableCell>
+          <TableCell align="center" sx={{color:"white"}}>إجراءات</TableCell>
+        </TableRow>
+      </TableHead>
 
-              fontFamily: 'Arial, "Noto Kufi Arabic", sans-serif',
-              cursor:"pointer"
-            }}
-          />
-        </Box>
-      </Paper>
+      <TableBody>
+        {rows.length === 0 ? (
+          <TableRow>
+            <TableCell colSpan={13} align="center">
+              لا توجد بيانات
+            </TableCell>
+          </TableRow>
+        ) : (
+          rows.map((row) => (
+            <TableRow
+              key={row.id}
+              hover
+              sx={{ cursor: "pointer" }}
+              onClick={() => onSelectClient(row)}
+              onDoubleClick={() => {
+                setSelectedClient(row);
+                setOpenDetailDialog(true);
+              }}
+            >
+              <TableCell>{row.id}</TableCell>
+              <TableCell>{row.prenom_ar}</TableCell>
+              <TableCell>{row.nom_famille_ar}</TableCell>
+              <TableCell>{row.adresse}</TableCell>
+              <TableCell>{row.telephone}</TableCell>
+              <TableCell>{row.ccp}</TableCell>
+              <TableCell>{row.date_debut}</TableCell>
+              <TableCell>{row.date_fin}</TableCell>
+              <TableCell>{row.last_payment_date}</TableCell>
+              <TableCell>{row.dette_totale_client}</TableCell>
+              <TableCell>{row.dette_actuelle_client}</TableCell>
+              <TableCell>{row.montant_verse}</TableCell>
+              <TableCell align="center">
+                <IconButton
+                  color="primary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditClick(row);
+                  }}
+                >
+                  <EditIcon />
+                </IconButton>
+                <IconButton
+                  color="error"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(row.id);
+                  }}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </TableCell>
+            </TableRow>
+          ))
+        )}
+      </TableBody>
+    </Table>
+  </TableContainer>
+</Paper>
+
+
+      {/* Confirmation */}
       <ConfirmationDialog
         open={confirmationOpen}
         onClose={() => setConfirmationOpen(false)}
         onConfirm={confirmDelete}
         text="هل أنت متأكد من حذف هذا الزبون؟"
       />
+
+      {/* Detail Dialog */}
       <Dialog
         open={openDetailDialog}
         onClose={() => setOpenDetailDialog(false)}
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle sx={{ display: "flex", justifyContent: "space-between" }}>
+        <DialogTitle
+          sx={{ display: "flex", justifyContent: "space-between" }}
+        >
           تفاصيل العميل
           <IconButton onClick={() => setOpenDetailDialog(false)} color="error">
             <CloseIcon />

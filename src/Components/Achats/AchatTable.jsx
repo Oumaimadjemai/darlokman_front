@@ -1,20 +1,32 @@
-import { DataGrid } from "@mui/x-data-grid";
-import { Box, Typography, Paper } from "@mui/material";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  Typography,
+  Box,
+} from "@mui/material";
+
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import IconButton from "@mui/material/IconButton";
 import InfoIcon from "@mui/icons-material/Info";
-import axios from "../../api/axiosInstance";
 import { useState } from "react";
+import axios from "../../api/axiosInstance";
 import ConfirmationDialog from "../Cards/ConfirmationDialog";
+
 export default function AchatTable({
-  rows,
+  rows = [],
   setRows,
   onEditClick,
   onDetailsClick,
 }) {
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
+
   const handleDelete = (id) => {
     setSelectedId(id);
     setConfirmationOpen(true);
@@ -30,135 +42,86 @@ export default function AchatTable({
       .then(() => {
         setRows((prev) => prev.filter((row) => row.id !== selectedId));
       })
-      .catch((err) => {
-        console.error("Erreur de suppression :", err);
-      })
       .finally(() => {
         setConfirmationOpen(false);
         setSelectedId(null);
       });
   };
-  // And implement the handlers:
-  const handleEditRow = (row) => {
-    // Find the row in the rows array and update it
-    const updatedRows = rows.map((r) => (r.id === row.id ? row : r));
-    setRows(updatedRows);
-  };
-  const columns = [
-    { field: "id", headerName: "الرقم", minWidth: 20 },
-    {
-      field: "date_formatee",
-      headerName: "التاريخ",
-      minWidth: 150,
-    },
-    {
-      field: "fournisseur",
-      headerName: "الممون",
-      minWidth: 170,
-      renderCell: (params) => {
-        const fournisseur = params.row?.fournisseur_detail;
-        if (fournisseur && fournisseur.nom) {
-          return fournisseur.nom;
-        }
-        return "غير معروف";
-      },
-    },
-    {
-      field: "total",
-      headerName: "القيمة",
-      minWidth: 100,
-    },
-    {
-      field: "somme_payee",
-      headerName: "المبلغ المدفوع",
-      minWidth: 150,
-    },
-    {
-      field: "somme_restante",
-      headerName: "المبلغ المتبقي",
-      minWidth: 150,
-    },
-    {
-      field: "utilisateur",
-      headerName: "المستخدم",
-      minWidth: 150,
-      renderCell: (params) => {
-        const utilisateur = params.row?.utilisateur_detail;
-        if (utilisateur && utilisateur.username) {
-          return utilisateur.username;
-        }
-        return "غير معروف";
-      },
-    },
-    {
-      field: "edit",
-      headerName: "تعديل",
-      width: 80,
-      renderCell: (params) => (
-        <IconButton onClick={() => onEditClick(params.row)} color="primary">
-          <EditIcon />
-        </IconButton>
-      ),
-    },
-    {
-      field: "delete",
-      headerName: "حذف",
-      width: 80,
-      sortable: false,
-      renderCell: (params) => (
-        <IconButton onClick={() => handleDelete(params.row.id)} color="error">
-          <DeleteIcon />
-        </IconButton>
-      ),
-    },
-    {
-      field: "details",
-      headerName: "تفاصيل",
-      width: 50,
-      sortable: false,
-      renderCell: (params) => (
-        <IconButton color="info" onClick={() => onDetailsClick(params.row)}>
-          <InfoIcon />
-        </IconButton>
-      ),
-    },
-  ];
+
   return (
     <>
-      <Paper
-        elevation={3}
-        sx={{ p: 3, borderRadius: 3, backgroundColor: "#fff", mb: 2 }}
-      >
+      <Paper sx={{ p: 3, borderRadius: 3 }}>
         <Typography
-          variant="h4"
-          sx={{ mb: 2, color: "primary.main", textAlign: "center" }}
+          variant="h5"
+          sx={{ mb: 2, textAlign: "center", color: "primary.main" }}
         >
           قائمة المشتريات
         </Typography>
 
-        <Box sx={{ height: 300, width: "100%", overflowY: "auto" }}>
-          <DataGrid
-            rows={rows || []}
-            columns={columns}
-            hideFooter
-            getRowId={(row) => row.id} // 🔐 Important for correct ID handling
-            sx={{
-              "& .MuiDataGrid-columnHeaders": {
-                backgroundColor: "primary.main",
-                fontWeight: "bold",
-                color: "black",
-                textAlign: "center",
-              },
-              "& .MuiDataGrid-row:hover": {
-                backgroundColor: "#f5f5f5",
-              },
-              border: "none",
+        <TableContainer>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>الرقم</TableCell>
+                <TableCell>التاريخ</TableCell>
+                <TableCell>الممون</TableCell>
+                <TableCell>القيمة</TableCell>
+                <TableCell>المدفوع</TableCell>
+                <TableCell>المتبقي</TableCell>
+                <TableCell>المستخدم</TableCell>
+                <TableCell align="center">إجراءات</TableCell>
+              </TableRow>
+            </TableHead>
 
-              fontFamily: 'Arial, "Noto Kufi Arabic", sans-serif',
-            }}
-          />
-        </Box>
+            <TableBody>
+              {rows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center">
+                    لا توجد بيانات
+                  </TableCell>
+                </TableRow>
+              ) : (
+                rows.map((row) => (
+                  <TableRow key={row.id} hover>
+                    <TableCell>{row.id}</TableCell>
+                    <TableCell>{row.date_formatee}</TableCell>
+                    <TableCell>
+                      {row.fournisseur_detail?.nom || "غير معروف"}
+                    </TableCell>
+                    <TableCell>{row.total}</TableCell>
+                    <TableCell>{row.somme_payee}</TableCell>
+                    <TableCell>{row.somme_restante}</TableCell>
+                    <TableCell>
+                      {row.utilisateur_detail?.username || "—"}
+                    </TableCell>
+                    <TableCell align="center">
+                      <IconButton
+                        color="primary"
+                        onClick={() => onEditClick(row)}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        color="error"
+                        onClick={() => handleDelete(row.id)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                      <IconButton
+                        color="info"
+                        onClick={() => onDetailsClick(row)}
+                      >
+                        <InfoIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </Paper>
+
       <ConfirmationDialog
         open={confirmationOpen}
         onClose={() => setConfirmationOpen(false)}

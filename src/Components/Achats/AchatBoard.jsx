@@ -62,12 +62,13 @@ export default function AchatBoard({ setActiveComponent }) {
     axios
       .get("/achat/par-group/", { headers, params })
       .then((response) => {
-        setRows(response.data.achats_groupes);
+         const result = response.data.results;
+        setRows(result.achats_groupes || []);
         setTotaux({
-          nombre_achats: response.data.nombre_achats,
-          somme_totale: response.data.somme_totale,
-          somme_payee: response.data.somme_payee,
-          somme_restante: response.data.somme_restante,
+          nombre_achats: result.nombre_achats,
+          somme_totale: result.somme_totale,
+          somme_payee: result.somme_payee,
+          somme_restante: result.somme_restante,
         });
       })
       .catch((err) =>

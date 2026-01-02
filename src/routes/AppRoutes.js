@@ -51,7 +51,7 @@ export default function AppRoutes({ isLoggedIn, userRole,handleLogout }) {
         path="/vendeur"
         element={
           isLoggedIn && userRole === "vendeur" ? (
-            <AdminDashboard />
+            <AdminDashboard handleLogout={handleLogout}/>
           ) : (
             <Navigate to="/login" replace />
           )
@@ -63,7 +63,7 @@ export default function AppRoutes({ isLoggedIn, userRole,handleLogout }) {
         path="/magasinier"
         element={
           isLoggedIn && userRole === "magasinier" ? (
-            <AdminDashboard />
+            <AdminDashboard handleLogout={handleLogout}/>
           ) : (
             <Navigate to="/login" replace />
           )

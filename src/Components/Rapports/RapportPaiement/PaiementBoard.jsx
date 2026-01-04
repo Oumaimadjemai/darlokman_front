@@ -25,29 +25,32 @@ export default function PaymentDashboard() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("الكل");
   const [rows, setRows] = useState([]);
-  const [messages, setMessages] = useState([]); // <-- success/error messages
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const [selectedYear, setSelectedYear] = useState("الكل");
-  const currentMonthIndex = new Date().getMonth(); // 0=Jan, 11=Dec
+  const currentMonthIndex = new Date().getMonth();
   const [selectedMonth, setSelectedMonth] = useState(currentMonthIndex);
 
   const lockedStatus = ["suspendu", "perdu", "banque_bloquee"];
 
   const arabicMonths = [
-    "",
-    "جانفي",
-    "فيفري",
-    "مارس",
-    "أفريل",
-    "ماي",
-    "جوان",
-    "جويلية",
-    "أوت",
-    "سبتمبر",
-    "أكتوبر",
-    "نوفمبر",
-    "ديسمبر",
+    "", "جانفي", "فيفري", "مارس", "أفريل", "ماي", "جوان",
+    "جويلية", "أوت", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"
   ];
+
+  const mapStatusToArabic = (apiStatus) => {
+    switch (apiStatus) {
+      case "paid":
+        return "مدفوع";
+      case "pending":
+        return "قيد الانتظار";
+      case "unpaid":
+        return "غير مدفوع";
+      default:
+        return apiStatus;
+    }
+  };
 
   const mapArabicToStatus = (arabicStatus) => {
     switch (arabicStatus) {
@@ -80,16 +83,13 @@ export default function PaymentDashboard() {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      setMessages([
-        { type: "success", text: "تم تحميل الملف بنجاح" },
-      ]);
-
-      // Optionnel : refresh table data ici
+      setMessages([{ type: "success", text: "تم تحميل الملف بنجاح" }]);
+      fetchData(); // Refresh data after upload
     } catch (err) {
       setMessages([
         {
           type: "error",
-          text: err.response?.data || err.message || "Erreur inconnue",
+          text: err.response?.data?.detail || err.response?.data || err.message || "Erreur inconnue",
         },
       ]);
     } finally {
@@ -99,82 +99,89 @@ export default function PaymentDashboard() {
 
   const isClientLocked = (clientStatus) => lockedStatus.includes(clientStatus);
 
-  // --- Fetch rows (table data) ---
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const clientsRes = await axios.get("/auth/clients/");
-        const clients = clientsRes.data.results || [];
-        let allRows = [];
+  // Fetch data from the new endpoint
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const params = {};
+      
+      if (selectedYear !== "الكل") params.year = selectedYear;
+      if (selectedMonth !== "الكل") params.month = selectedMonth;
+      if (status !== "الكل") params.status = mapArabicToStatus(status);
 
-        for (let client of clients) {
-          const ventesRes = await axios.get(
-            `/vente/ventes-facilite/?client=${client.id}`
-          );
-          const ventes = ventesRes.data.ventes || [];
-
-          for (let v of ventes) {
-            const payerRes = await axios.get(`/vente/vente/payer/${v.id}/`);
-            const venteDetail = payerRes.data[0] || v;
-
-            const filteredPaiements = (venteDetail.paiements || []).filter(
-              (p) => {
-                const matchesYear =
-                  selectedYear === "الكل" ||
-                  new Date(p.date_paiement).getFullYear() ===
-                    parseInt(selectedYear);
-
-                const matchesMonth =
-                  selectedMonth === "الكل" ||
-                  p.month_index === parseInt(selectedMonth);
-
-                const matchesStatus =
-                  status === "الكل" || p.status === mapArabicToStatus(status);
-
-                return matchesYear && matchesMonth && matchesStatus;
-              }
-            );
-
-            if (filteredPaiements.length === 0) continue;
-
-            let rowStatus = "مدفوع";
-            if (filteredPaiements.some((p) => p.status === "pending"))
-              rowStatus = "قيد الانتظار";
-            if (filteredPaiements.some((p) => p.status === "unpaid"))
-              rowStatus = "غير مدفوع";
-
-            const restant = parseFloat(venteDetail.reste_vente || 0);
-
-            const allPaymentDates = filteredPaiements
-              .map((p) => new Date(p.date_paiement).toLocaleDateString("fr-FR"))
-              .join(" , ");
-
-            allRows.push({
-              name: `${client.nom_famille_ar} ${client.prenom_ar}`,
-              account: `${client.ccp || ""}/${client.cle || ""}`,
-              date: allPaymentDates,
-              year: new Date(venteDetail.date_debut).getFullYear(),
-              month_index: filteredPaiements[0].month_index,
-              amount: parseFloat(venteDetail.montant_mensuel || 0),
-              pending: restant,
-              status: rowStatus,
-              clientStatus: client.statut,
-              montant_mois: (venteDetail.montant_par_mois || []).join(", "),
-            });
-          }
+      const response = await axios.get("/vente/dashboard-paiements/", { params });
+      
+      // Transform API data to match frontend format
+      const transformedData = response.data.map((item) => {
+        // Group payments by client and month
+        const paymentDate = new Date(item.date).toLocaleDateString("fr-FR");
+        
+        return {
+          name: item.name,
+          account: item.account,
+          date: paymentDate,
+          year: item.year,
+          month_index: item.month_index,
+          amount: item.amount,
+          status: mapStatusToArabic(item.status),
+          clientStatus: item.clientStatus,
+          // These fields might not be available from the new endpoint
+          pending: 0, // You might need to calculate this differently
+          montant_mois: item.amount.toString(), // Default to amount if not available
+        };
+      });
+      
+      // Group by name, month_index, and year to combine multiple payments
+      const groupedData = transformedData.reduce((acc, item) => {
+        const key = `${item.name}_${item.month_index}_${item.year}`;
+        if (!acc[key]) {
+          acc[key] = {
+            ...item,
+            paymentDates: [item.date],
+            totalAmount: item.amount,
+            statuses: [item.status]
+          };
+        } else {
+          acc[key].paymentDates.push(item.date);
+          acc[key].totalAmount += item.amount;
+          acc[key].statuses.push(item.status);
         }
+        return acc;
+      }, {});
+      
+      // Convert grouped object to array and calculate final status
+      const finalRows = Object.values(groupedData).map((group) => {
+        // Determine overall status (if any payment is pending/unpaid)
+        let finalStatus = "مدفوع";
+        if (group.statuses.includes("قيد الانتظار")) finalStatus = "قيد الانتظار";
+        if (group.statuses.includes("غير مدفوع")) finalStatus = "غير مدفوع";
+        
+        return {
+          ...group,
+          date: group.paymentDates.join(" , "),
+          amount: group.totalAmount,
+          status: finalStatus,
+          // Remove temporary fields
+          paymentDates: undefined,
+          totalAmount: undefined,
+          statuses: undefined
+        };
+      });
+      
+      setRows(finalRows);
+    } catch (err) {
+      setMessages([
+        {
+          type: "error",
+          text: err.response?.data?.detail || err.message || "Erreur de chargement",
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        setRows(allRows);
-      } catch (err) {
-        setMessages([
-          {
-            type: "error",
-            text: err.response?.data || err.message || "Erreur de chargement",
-          },
-        ]);
-      }
-    };
-
+  useEffect(() => {
     fetchData();
   }, [selectedYear, selectedMonth, status]);
 
@@ -210,6 +217,7 @@ export default function PaymentDashboard() {
     return "#f44336";
   };
 
+  // Extract unique years from data
   const uniqueYears = [
     "الكل",
     ...Array.from(new Set(rows.map((row) => row.year).filter(Boolean))),
@@ -282,15 +290,13 @@ export default function PaymentDashboard() {
             </Grid>
 
             <Grid item sx={{ ml: "auto" }}>
-              {/* <Button variant="contained" sx={{ bgcolor: "green", color: "white" }}>
-                Excel
-              </Button> */}
               <Button
                 variant="contained"
                 sx={{ color: "white", ml: 2 }}
                 onClick={handleFileUploadClick}
+                disabled={loading}
               >
-                تحميل ملف البريد
+                {loading ? "جار التحميل..." : "تحميل ملف البريد"}
               </Button>
               <input
                 type="file"
@@ -303,25 +309,27 @@ export default function PaymentDashboard() {
           </Grid>
 
           {/* Messages Cards (success/error) */}
-          
-            {messages.map((msg, idx) => (
-              
+          {messages.length > 0 && (
+            <Box mb={2}>
+              {messages.map((msg, idx) => (
                 <Card
+                  key={idx}
                   sx={{
                     bgcolor: msg.type === "success" ? "#4caf50" : "#f44336",
                     color: "white",
                     borderRadius: 1,
-                    width:"100%"
+                    width: "100%",
                   }}
-                  
                 >
                   <CardContent>
-                    <Typography variant="body1" sx={{textAlign:"center"}}>{msg.text}</Typography>
+                    <Typography variant="body1" sx={{ textAlign: "center" }}>
+                      {msg.text}
+                    </Typography>
                   </CardContent>
                 </Card>
-             
-            ))}
-          
+              ))}
+            </Box>
+          )}
 
           {/* Status Totals Cards */}
           <Grid container spacing={2} mt={2}>
@@ -352,7 +360,10 @@ export default function PaymentDashboard() {
           </Grid>
 
           {/* Table */}
-          <TableContainer component={Paper} sx={{ maxHeight: 500, overflowY: "auto", mt: 2 }}>
+          <TableContainer
+            component={Paper}
+            sx={{ maxHeight: 500, overflowY: "auto", mt: 2 }}
+          >
             <Table stickyHeader size="medium">
               <TableHead>
                 <TableRow>
@@ -366,32 +377,48 @@ export default function PaymentDashboard() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredRows.map((row, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{row.name}</TableCell>
-                    <TableCell>{row.account}</TableCell>
-                    <TableCell>{row.date}</TableCell>
-                    <TableCell>{row.amount}</TableCell>
-                    <TableCell>{row.montant_mois}</TableCell>
-                    <TableCell align="center">
-                      {isClientLocked(row.clientStatus) && <LockIcon sx={{ color: "red" }} />}
-                    </TableCell>
-                    <TableCell align="center">
-                      <Box
-                        sx={{
-                          bgcolor: getStatusColor(row.status),
-                          color: "white",
-                          px: 1,
-                          py: 0.3,
-                          borderRadius: "4px",
-                          fontSize: "0.85rem",
-                        }}
-                      >
-                        {row.status}
-                      </Box>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center">
+                      <Typography>جار التحميل...</Typography>
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : filteredRows.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center">
+                      <Typography>لا توجد بيانات</Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredRows.map((row, index) => (
+                    <TableRow key={index}>
+                      <TableCell>{row.name}</TableCell>
+                      <TableCell>{row.account}</TableCell>
+                      <TableCell>{row.date}</TableCell>
+                      <TableCell>{row.amount}</TableCell>
+                      <TableCell>{row.montant_mois}</TableCell>
+                      <TableCell align="center">
+                        {isClientLocked(row.clientStatus) && (
+                          <LockIcon sx={{ color: "red" }} />
+                        )}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Box
+                          sx={{
+                            bgcolor: getStatusColor(row.status),
+                            color: "white",
+                            px: 1,
+                            py: 0.3,
+                            borderRadius: "4px",
+                            fontSize: "0.85rem",
+                          }}
+                        >
+                          {row.status}
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </TableContainer>

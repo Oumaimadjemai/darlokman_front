@@ -14,44 +14,72 @@ import Button from "@mui/material/Button";
 import { useState } from "react";
 import axios from "../../api/axiosInstance";
 import FeedbackCard from "../Cards/FeedbackCard";
+import { useEffect } from "react";
+
 export default function AddUser({ setOpenAddUSerDialog, fetchUser }) {
   const [UserInfos, setUserInfos] = useState({
     username: "",
     password: "",
     role: "admin",
+    magasin: "", 
   });
+  const [magasins, setMagasins] = useState([]);
+
   const [feedback, setFeedback] = useState({
     open: false,
     severity: "success", // or "error"
     message: "",
   });
-  const handleAddClick = async () => {
+  useEffect(() => {
+  const fetchMagasins = async () => {
     try {
-      const access_token = localStorage.getItem("access_token");
-      const response = await axios.post("auth/register/", UserInfos, {
-        headers: {
-          Authorization: `Bearer ${access_token}`,
-          "Content-Type": "application/json",
-        },
-      });
-      console.log(response.data);
-      // Show success feedback
-      setFeedback({
-        open: true,
-        severity: "success",
-        message: "✅ User enregistré avec succès",
-      });
-      fetchUser();
+      const res = await axios.get("param/magasins/");
+      setMagasins(res.data.results || res.data);
     } catch (error) {
-      console.error("ajout failed", error);
-      let message = "❌ Une erreur est survenue.";
-      setFeedback({
-        open: true,
-        severity: "error",
-        message,
-      });
+      console.error("Erreur chargement magasins", error);
     }
   };
+
+  fetchMagasins();
+}, []);
+
+  const handleAddClick = async () => {
+  try {
+    const access_token = localStorage.getItem("access_token");
+
+    const payload = { ...UserInfos };
+
+    // 🔐 si admin → ne pas envoyer magasin
+    if (payload.role === "admin") {
+      delete payload.magasin;
+    }
+
+    const response = await axios.post("auth/register/", payload, {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    setFeedback({
+      open: true,
+      severity: "success",
+      message: "✅ User enregistré avec succès",
+    });
+
+    fetchUser();
+  } catch (error) {
+    console.error("ajout failed", error);
+    setFeedback({
+      open: true,
+      severity: "error",
+      message:
+        error.response?.data?.detail ||
+        "❌ Une erreur est survenue.",
+    });
+  }
+};
+
 
   return (
     <>
@@ -102,6 +130,30 @@ export default function AddUser({ setOpenAddUSerDialog, fetchUser }) {
                 setUserInfos({ ...UserInfos, username: e.target.value });
               }}
             />
+            {UserInfos.role !== "admin" && (
+  <FormControl
+    size="small"
+    sx={{ width: "95%", mb: "10px", height: "55px" }}
+  >
+    <InputLabel id="magasin-select-label">المحل</InputLabel>
+    <Select
+      labelId="magasin-select-label"
+      value={UserInfos.magasin}
+      label="المحل"
+      sx={{ height: "100%" }}
+      onChange={(e) =>
+        setUserInfos({ ...UserInfos, magasin: e.target.value })
+      }
+    >
+      {magasins.map((magasin) => (
+        <MenuItem key={magasin.id} value={magasin.id}>
+          {magasin.nom}
+        </MenuItem>
+      ))}
+    </Select>
+  </FormControl>
+)}
+
 
             <TextField
               label="كلمة السر"

@@ -40,6 +40,7 @@ export default function ProduitBoard() {
   const [totaux, setTotaux] = useState(null);
   const [openResetDialog, setOpenResetDialog] = useState(false);
   const [loadingReset, setLoadingReset] = useState(false);
+  const userMagasin = localStorage.getItem("magasin_id"); // e.g., 3
 
   // 🔹 Récupère le rôle depuis localStorage
   const userRole = localStorage.getItem("role"); // "admin", "vendeur", "magasinier"
@@ -50,24 +51,31 @@ export default function ProduitBoard() {
   };
 
   const fetchProduit = (search = searchTerm, appliedFilters = filters) => {
-    const params = new URLSearchParams();
+  const params = new URLSearchParams();
 
-    if (search) params.append("search", search);
-    if (appliedFilters.magasin)
-      params.append("magasin", appliedFilters.magasin);
-    if (appliedFilters.famille)
-      params.append("famille", appliedFilters.famille);
+  if (search) params.append("search", search);
 
-    axios
-      .get(`prod/produits/?${params.toString()}`, { headers })
-      .then((response) => {
-        setRows(response.data.results);
-        setTotaux(response.data.totaux);
-      })
-      .catch((err) =>
-        console.error("Erreur lors du chargement des produits :", err)
-      );
-  };
+  // 🔹 Filter by magasin only if user is not admin
+  if (userRole !== "admin") {
+    params.append("magasin", userMagasin);
+  } else if (appliedFilters.magasin) {
+    // Admin can filter by any magasin
+    params.append("magasin", appliedFilters.magasin);
+  }
+
+  if (appliedFilters.famille) params.append("famille", appliedFilters.famille);
+
+  axios
+    .get(`prod/produits/?${params.toString()}`, { headers })
+    .then((response) => {
+      setRows(response.data.results);
+      setTotaux(response.data.totaux);
+    })
+    .catch((err) =>
+      console.error("Erreur lors du chargement des produits :", err)
+    );
+};
+
 
   useEffect(() => {
     // 🔹 Charger les magasins
@@ -119,10 +127,16 @@ axios
     setFilters(newFilters);
   };
 
-  const filterConfig = [
-    { name: "magasin", label: "المخزن", options: magasinsOptions },
-    { name: "famille", label: "الفئة", options: famillesOptions },
-  ];
+ const filterConfig = [
+  {
+    name: "magasin",
+    label: "المخزن",
+    options: userRole === "admin" ? magasinsOptions : [],
+    disabled: userRole !== "admin",
+  },
+  { name: "famille", label: "الفئة", options: famillesOptions },
+];
+
 
   const handleEditClick = (produit) => {
     setSelectedProduit(produit);

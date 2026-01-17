@@ -76,6 +76,7 @@ export default function UsersTable({ rows = [], setRows, onEditClick }) {
                 <TableCell>الرقم</TableCell>
                 <TableCell>إسم المستخدم</TableCell>
                 <TableCell>الصلاحية</TableCell>
+                <TableCell>المحل</TableCell>
                 <TableCell>تعديل</TableCell>
                 <TableCell>كلمة السر</TableCell>
                 <TableCell>المهام</TableCell>
@@ -96,6 +97,7 @@ export default function UsersTable({ rows = [], setRows, onEditClick }) {
                     <TableCell>{row.id}</TableCell>
                     <TableCell>{row.username}</TableCell>
                     <TableCell>{row.role}</TableCell>
+                    <TableCell>{row.magasin_detail?.nom ||"لا يوجد"}</TableCell>
                     <TableCell>
                       <IconButton color="primary" onClick={() => onEditClick(row)}>
                         <EditIcon />

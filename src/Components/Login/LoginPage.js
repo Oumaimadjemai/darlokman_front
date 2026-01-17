@@ -54,6 +54,7 @@ export default function LoginPage() {
       localStorage.setItem("username", user.username);
       localStorage.setItem("role", user.role);
       localStorage.setItem("features", JSON.stringify(user.features));
+      localStorage.setItem("magasin_id",user.magasin);
 
       setPassword("");
 

@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 
 export default function InventaireStock() {
   const [magasins, setMagasins] = useState([]);
-  const [selectedMagasin, setSelectedMagasin] = useState("");
+  const [selectedMagasin, setSelectedMagasin] = useState(null);
   const [produits, setProduits] = useState([]);
   const [totaux, setTotaux] = useState({ quantite: 0, valeur_des_produits: 0, capital: 0 });
   const [scannedBarcodes, setScannedBarcodes] = useState([]);
@@ -49,14 +49,28 @@ export default function InventaireStock() {
   });
 
   // Filter products by selected store
-  const filteredProduits = produits.filter(
-    (p) => p.magasin_detail?.id === selectedMagasin
-  );
+  // const filteredProduits = produits.filter(
+  //   (p) => p.magasin_detail?.id === selectedMagasin
+  // );
+useEffect(() => {
+  if (!selectedMagasin) return;
 
-  const totalQuantite = filteredProduits.reduce(
-    (total, p) => total + p.quantite,
-    0
-  );
+  axios
+    .get(`/prod/produits/?magasin=${selectedMagasin}`)
+    .then((res) => {
+      setProduits(res.data.results);
+      if (res.data.totaux) {
+        setTotaux(res.data.totaux);
+      }
+    })
+    .catch(console.error);
+}, [selectedMagasin]);
+
+  // const totalQuantite = filteredProduits.reduce(
+  //   (total, p) => total + p.quantite,
+  //   0
+  // );
+const totalQuantite = totaux.quantite;
 
   const readCount = scannedBarcodes.length;
   const unconfirmedCount = totalQuantite - confirmedCount;

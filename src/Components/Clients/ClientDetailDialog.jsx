@@ -213,19 +213,62 @@ const VenteDetailFacilite = ({ clientId }) => {
   useEffect(() => {
     if (!clientId) return;
     setLoading(true);
-    axios
-      .get(`/vente/ventes-facilite/?client=${clientId}`)
-      .then((res) => {
-        const ventesData = res.data.ventes || [];
-        const sortedVentes = ventesData.sort((a, b) => {
-          const dateA = new Date(a.date_vente || a.date_formatee);
-          const dateB = new Date(b.date_vente || b.date_formatee);
+    
+    // Add the client filter parameter
+    const fetchVentes = async () => {
+      try {
+        const res = await axios.get(`/vente/ventes-facilite/?client=${clientId}`);
+        
+        // ✅ FIX: Access the ventes array from results.ventes
+        let ventesData = [];
+        
+        if (res.data && res.data.results) {
+          // If results is an object with ventes property
+          if (res.data.results.ventes && Array.isArray(res.data.results.ventes)) {
+            ventesData = res.data.results.ventes;
+          } 
+          // If results is directly the array
+          else if (Array.isArray(res.data.results)) {
+            ventesData = res.data.results;
+          }
+        } 
+        // Fallback: if results structure is different
+        else if (res.data.ventes && Array.isArray(res.data.ventes)) {
+          ventesData = res.data.ventes;
+        }
+        
+        // For each vente, fetch the full details to get lignes_detail
+        const ventesWithDetails = await Promise.all(
+          ventesData.map(async (vente) => {
+            try {
+              // Fetch full details for this vente
+              const detailRes = await axios.get(`/vente/ventes-facilite/${vente.id}/`);
+              return detailRes.data;
+            } catch (err) {
+              console.error(`Error fetching details for vente ${vente.id}:`, err);
+              // Return basic info if detail fetch fails
+              return vente;
+            }
+          })
+        );
+        
+        // Sort by date (newest first)
+        const sortedVentes = ventesWithDetails.sort((a, b) => {
+          const dateA = new Date(a.date_creation || a.date_formatee);
+          const dateB = new Date(b.date_creation || b.date_formatee);
           return dateB - dateA;
         });
+        
         setVentes(sortedVentes);
-      })
-      .catch((err) => console.error("Error fetching ventes:", err))
-      .finally(() => setLoading(false));
+      } catch (err) {
+        console.error("Error fetching ventes:", err);
+        toast.error("فشل تحميل مشتريات العميل");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchVentes();
   }, [clientId]);
 
   if (loading) {
@@ -281,22 +324,52 @@ const VenteDetailFacilite = ({ clientId }) => {
                   <th className="px-4 py-2 text-right">الكمية</th>
                   <th className="px-4 py-2 text-right">المحل</th>
                   <th className="px-4 py-2 text-right">المجموع</th>
-                 </tr>
+                </tr>
               </thead>
               <tbody>
-                {vente.lignes_detail?.map((ligne) => (
-                  <tr key={ligne.id} className="border-b border-slate-700">
-                    <td className="px-4 py-2 text-slate-300">{ligne.produit}</td>
-                    <td className="px-4 py-2 text-slate-300">{ligne.produit_detail?.reference || ""}</td>
-                    <td className="px-4 py-2 text-slate-300">{ligne.produit_detail?.nom || ""}</td>
-                    <td className="px-4 py-2 text-slate-300">{parseFloat(ligne.prix_unitaire || 0)}</td>
-                    <td className="px-4 py-2 text-slate-300">{ligne.quantite || 0}</td>
-                    <td className="px-4 py-2 text-slate-300">{ligne.produit_detail?.magasin_detail?.nom || ""}</td>
-                    <td className="px-4 py-2 text-slate-300">{parseFloat(ligne.sous_total || 0)}</td>
+                {vente.lignes_detail && vente.lignes_detail.length > 0 ? (
+                  vente.lignes_detail.map((ligne, idx) => (
+                    <tr key={ligne.id || idx} className="border-b border-slate-700">
+                      <td className="px-4 py-2 text-slate-300">{ligne.produit || idx + 1}</td>
+                      <td className="px-4 py-2 text-slate-300">
+                        {ligne.produit_detail?.reference || ligne.reference || ""}
+                      </td>
+                      <td className="px-4 py-2 text-slate-300">
+                        {ligne.produit_detail?.nom || ligne.nom || ""}
+                      </td>
+                      <td className="px-4 py-2 text-slate-300">
+                        {parseFloat(ligne.prix_unitaire || 0)}
+                      </td>
+                      <td className="px-4 py-2 text-slate-300">{ligne.quantite || 0}</td>
+                      <td className="px-4 py-2 text-slate-300">
+                        {vente.magasin?.nom || ligne.magasin_detail?.nom || "--"}
+                      </td>
+                      <td className="px-4 py-2 text-slate-300">
+                        {parseFloat(ligne.sous_total || 0)}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-4 text-center text-slate-400">
+                      لا توجد تفاصيل للمنتجات
+                    </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
+          </div>
+          
+          {/* Payment summary */}
+          <div className="p-4 bg-slate-800/50 flex justify-between items-center">
+            <div className="text-sm">
+              <span className="text-slate-400">المبلغ المدفوع:</span>{" "}
+              <span className="text-green-400">{parseFloat(vente.montant_verse || 0)} د.ج</span>
+            </div>
+            <div className="text-sm">
+              <span className="text-slate-400">المبلغ المتبقي:</span>{" "}
+              <span className="text-red-400">{parseFloat(vente.montant_restant || 0)} د.ج</span>
+            </div>
           </div>
         </div>
       ))}
@@ -312,19 +385,55 @@ const VenteDetailCash = ({ clientId }) => {
   useEffect(() => {
     if (!clientId) return;
     setLoading(true);
-    axios
-      .get(`vente/liste/?client=${clientId}`)
-      .then((res) => {
-        const ventesData = res.data.ventes || [];
-        const sortedVentes = ventesData.sort((a, b) => {
+    
+    const fetchVentes = async () => {
+      try {
+        const res = await axios.get(`/vente/liste/?client=${clientId}`);
+        
+        // Handle the response structure
+        let ventesData = [];
+        
+        if (res.data && res.data.results) {
+          if (Array.isArray(res.data.results)) {
+            ventesData = res.data.results;
+          } else if (res.data.results.ventes && Array.isArray(res.data.results.ventes)) {
+            ventesData = res.data.results.ventes;
+          }
+        } else if (res.data.ventes && Array.isArray(res.data.ventes)) {
+          ventesData = res.data.ventes;
+        } else if (Array.isArray(res.data)) {
+          ventesData = res.data;
+        }
+        
+        // For each vente, fetch full details
+        const ventesWithDetails = await Promise.all(
+          ventesData.map(async (vente) => {
+            try {
+              const detailRes = await axios.get(`/vente/liste/${vente.id}/`);
+              return detailRes.data;
+            } catch (err) {
+              console.error(`Error fetching details for vente ${vente.id}:`, err);
+              return vente;
+            }
+          })
+        );
+        
+        const sortedVentes = ventesWithDetails.sort((a, b) => {
           const dateA = new Date(a.date_vente || a.date_formatee);
           const dateB = new Date(b.date_vente || b.date_formatee);
           return dateB - dateA;
         });
+        
         setVentes(sortedVentes);
-      })
-      .catch((err) => console.error("Error fetching ventes:", err))
-      .finally(() => setLoading(false));
+      } catch (error) {
+        console.error("Error fetching ventes:", error);
+        toast.error("فشل تحميل مشتريات العميل");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchVentes();
   }, [clientId]);
 
   if (loading) {
@@ -350,11 +459,11 @@ const VenteDetailCash = ({ clientId }) => {
                   <span className="text-amber-400">رقم البيع:</span> #{vente.id}
                 </div>
                 <div className="text-sm text-slate-400">
-                  <span className="text-amber-400">التاريخ:</span> {vente.date_formatee}
+                  <span className="text-amber-400">التاريخ:</span> {vente.date_formatee || vente.date_vente}
                 </div>
               </div>
               <div className="text-lg font-bold text-amber-400">
-                الإجمالي: {parseFloat(vente.montant_total)} د.ج
+                الإجمالي: {parseFloat(vente.montant_total || 0)} د.ج
               </div>
             </div>
           </div>
@@ -370,20 +479,38 @@ const VenteDetailCash = ({ clientId }) => {
                   <th className="px-4 py-2 text-right">الكمية</th>
                   <th className="px-4 py-2 text-right">المحل</th>
                   <th className="px-4 py-2 text-right">المجموع</th>
-                 </tr>
+                </tr>
               </thead>
               <tbody>
-                {vente.lignes_detail?.map((ligne) => (
-                  <tr key={ligne.id} className="border-b border-slate-700">
-                    <td className="px-4 py-2 text-slate-300">{ligne.produit}</td>
-                    <td className="px-4 py-2 text-slate-300">{ligne.produit_reference || ""}</td>
-                    <td className="px-4 py-2 text-slate-300">{ligne.produit_nom || ""}</td>
-                    <td className="px-4 py-2 text-slate-300">{parseFloat(ligne.prix_unitaire || 0)}</td>
-                    <td className="px-4 py-2 text-slate-300">{ligne.quantite || 0}</td>
-                    <td className="px-4 py-2 text-slate-300">{ligne.magasin_detail?.nom || ""}</td>
-                    <td className="px-4 py-2 text-slate-300">{parseFloat(ligne.sous_total || 0)}</td>
+                {vente.lignes_detail && vente.lignes_detail.length > 0 ? (
+                  vente.lignes_detail.map((ligne, idx) => (
+                    <tr key={ligne.id || idx} className="border-b border-slate-700">
+                      <td className="px-4 py-2 text-slate-300">{ligne.produit || idx + 1}</td>
+                      <td className="px-4 py-2 text-slate-300">
+                        {ligne.produit_detail?.reference || ligne.produit_reference || ""}
+                      </td>
+                      <td className="px-4 py-2 text-slate-300">
+                        {ligne.produit_detail?.nom || ligne.produit_nom || ""}
+                      </td>
+                      <td className="px-4 py-2 text-slate-300">
+                        {parseFloat(ligne.prix_unitaire || 0)}
+                      </td>
+                      <td className="px-4 py-2 text-slate-300">{ligne.quantite || 0}</td>
+                      <td className="px-4 py-2 text-slate-300">
+                        {vente.magasin?.nom || ligne.magasin_detail?.nom || "--"}
+                      </td>
+                      <td className="px-4 py-2 text-slate-300">
+                        {parseFloat(ligne.sous_total || 0)}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-4 text-center text-slate-400">
+                      لا توجد تفاصيل للمنتجات
+                    </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -392,7 +519,6 @@ const VenteDetailCash = ({ clientId }) => {
     </div>
   );
 };
-
 // Client Paiement Info Component
 const ClientPaiementInfo = ({ clientId }) => {
   const [ventes, setVentes] = useState([]);
@@ -400,59 +526,138 @@ const ClientPaiementInfo = ({ clientId }) => {
 
   useEffect(() => {
     if (!clientId) return;
-    setLoading(true);
+    
     const fetchPaiements = async () => {
+      setLoading(true);
       try {
+        // First, fetch all installment sales for this client
         const res = await axios.get(`/vente/ventes-facilite/?client=${clientId}`);
-        const ventesData = res.data.ventes || [];
-
+        
+        // Extract ventes from the response structure
+        let ventesData = [];
+        if (res.data && res.data.results) {
+          if (res.data.results.ventes && Array.isArray(res.data.results.ventes)) {
+            ventesData = res.data.results.ventes;
+          } else if (Array.isArray(res.data.results)) {
+            ventesData = res.data.results;
+          }
+        } else if (res.data.ventes && Array.isArray(res.data.ventes)) {
+          ventesData = res.data.ventes;
+        }
+        
+        if (ventesData.length === 0) {
+          setVentes([]);
+          setLoading(false);
+          return;
+        }
+        
+        // For each vente, fetch payment details
         const ventesWithPaiements = await Promise.all(
           ventesData.map(async (vente) => {
             try {
+              // Fetch payment details for this vente
               const paiementRes = await axios.get(`/vente/vente/payer/${vente.id}/`);
-              const paiementData = Array.isArray(paiementRes.data)
-                ? paiementRes.data[0]
-                : paiementRes.data;
-
+              
+              // Handle different response structures
+              let paiementData = [];
+              if (paiementRes.data) {
+                if (Array.isArray(paiementRes.data)) {
+                  paiementData = paiementRes.data;
+                } else if (paiementRes.data.results && Array.isArray(paiementRes.data.results)) {
+                  paiementData = paiementRes.data.results;
+                } else if (paiementRes.data.paiements && Array.isArray(paiementRes.data.paiements)) {
+                  paiementData = paiementRes.data.paiements;
+                } else {
+                  paiementData = [paiementRes.data];
+                }
+              }
+              
+              // Filter out null/undefined
+              paiementData = paiementData.filter(p => p != null);
+              
+              // Calculate totals
+              const totalPaid = paiementData.reduce((sum, p) => sum + (parseFloat(p.montant) || 0), 0);
+              const totalDue = parseFloat(vente.montant_total) || 0;
+              const remaining = totalDue - totalPaid;
+              
               return {
-                ...paiementData,
+                vente_id: vente.id,
                 date_debut: vente.date_debut,
                 date_fin: vente.date_fin,
-                montant_mensuel: Number(vente.montant_mensuel),
-                total_verse_effectif: Number(vente.montant_paye_effectif),
-                reste_vente: Number(vente.montant_restant),
+                montant_total: totalDue,
+                montant_mensuel: parseFloat(vente.montant_mensuel) || 0,
+                montant_verse: parseFloat(vente.montant_verse) || 0,
+                montant_restant: parseFloat(vente.montant_restant) || 0,
+                total_verse_effectif: totalPaid,
+                reste_vente: remaining,
+                paiements: paiementData.map(p => ({
+                  id: p.id,
+                  montant: parseFloat(p.montant) || 0,
+                  date_paiement: p.date_paiement,
+                  status: p.status || (p.montant > 0 ? "paid" : "pending"),
+                  month_index: p.month_index,
+                  year: p.year
+                }))
               };
             } catch (err) {
-              console.error(`Error fetching paiements for vente ${vente.id}`, err);
-              return null;
+              console.error(`Error fetching paiements for vente ${vente.id}:`, err);
+              // Return basic info without payments
+              return {
+                vente_id: vente.id,
+                date_debut: vente.date_debut,
+                date_fin: vente.date_fin,
+                montant_total: parseFloat(vente.montant_total) || 0,
+                montant_mensuel: parseFloat(vente.montant_mensuel) || 0,
+                montant_verse: parseFloat(vente.montant_verse) || 0,
+                montant_restant: parseFloat(vente.montant_restant) || 0,
+                total_verse_effectif: parseFloat(vente.montant_verse) || 0,
+                reste_vente: parseFloat(vente.montant_restant) || 0,
+                paiements: []
+              };
             }
           })
         );
-
-        setVentes(ventesWithPaiements.filter(Boolean));
+        
+        // Sort by date (newest first)
+        const sortedVentes = ventesWithPaiements.sort((a, b) => {
+          const dateA = a.date_debut ? new Date(a.date_debut) : 0;
+          const dateB = b.date_debut ? new Date(b.date_debut) : 0;
+          return dateB - dateA;
+        });
+        
+        setVentes(sortedVentes);
       } catch (error) {
-        console.error("Error fetching ventes:", error);
+        console.error("Error fetching client payment info:", error);
+        toast.error("فشل تحميل معلومات الدفع");
       } finally {
         setLoading(false);
       }
     };
+    
     fetchPaiements();
   }, [clientId]);
 
   if (loading) {
-    return <div className="text-center py-8 text-slate-400">جاري التحميل...</div>;
+    return (
+      <div className="text-center py-8">
+        <div className="inline-block w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-slate-400 mt-2">جاري تحميل معلومات الدفع...</p>
+      </div>
+    );
   }
 
   if (ventes.length === 0) {
     return (
       <div className="text-center py-8 text-slate-400">
-        لا توجد بيانات دفع حالياً
+        <CreditCard className="w-12 h-12 mx-auto mb-3 text-slate-500" />
+        <p>لا توجد بيانات دفع حالياً</p>
+        <p className="text-sm mt-2">لا توجد مشتريات بالتقسيط مسجلة لهذا العميل</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {ventes.map((vente) => (
         <div key={vente.vente_id} className="bg-slate-700/30 rounded-lg overflow-hidden">
           <div className="bg-gradient-to-r from-amber-500/20 to-yellow-600/20 p-4 border-b border-amber-500/30">
@@ -463,12 +668,21 @@ const ClientPaiementInfo = ({ clientId }) => {
                 </div>
                 <div className="text-sm text-slate-400">
                   <span className="text-amber-400">الفترة:</span>{" "}
-                  {dayjs(vente.date_debut).format("DD/MM/YYYY")} -{" "}
-                  {dayjs(vente.date_fin).format("DD/MM/YYYY")}
+                  {vente.date_debut ? dayjs(vente.date_debut).format("DD/MM/YYYY") : "--"} -{" "}
+                  {vente.date_fin ? dayjs(vente.date_fin).format("DD/MM/YYYY") : "--"}
                 </div>
               </div>
-              <div className="text-sm text-amber-400">
-                الدفعة الشهرية: {vente.montant_mensuel} د.ج
+              <div className="text-center">
+                <div className="text-sm text-slate-400">الدفعة الشهرية</div>
+                <div className="text-lg font-bold text-amber-400">
+                  {vente.montant_mensuel} د.ج
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm text-slate-400">المبلغ الإجمالي</div>
+                <div className="text-lg font-bold text-white">
+                  {vente.montant_total} د.ج
+                </div>
               </div>
             </div>
           </div>
@@ -477,34 +691,48 @@ const ClientPaiementInfo = ({ clientId }) => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-600/30 text-slate-300">
-                  <th className="px-4 py-2 text-right">تاريخ الدفع</th>
-                  <th className="px-4 py-2 text-right">المبلغ (دج)</th>
-                  <th className="px-4 py-2 text-right">الحالة</th>
+                  <th className="px-4 py-3 text-right">تاريخ الدفع</th>
+                  <th className="px-4 py-3 text-right">المبلغ (دج)</th>
+                  <th className="px-4 py-3 text-right">الشهر</th>
+                  <th className="px-4 py-3 text-right">الحالة</th>
                  </tr>
               </thead>
               <tbody>
-                {vente.paiements?.length > 0 ? (
-                  vente.paiements.map((p) => (
-                    <tr key={p.id} className="border-b border-slate-700">
-                      <td className="px-4 py-2 text-slate-300">
-                        {dayjs(p.date_paiement).format("DD/MM/YYYY")}
+                {vente.paiements && vente.paiements.length > 0 ? (
+                  vente.paiements.map((p, index) => (
+                    <tr key={p.id || index} className="border-b border-slate-700">
+                      <td className="px-4 py-3 text-slate-300">
+                        {p.date_paiement ? dayjs(p.date_paiement).format("DD/MM/YYYY") : "--"}
                       </td>
-                      <td className="px-4 py-2 text-slate-300">{p.montant} د.ج</td>
-                      <td className="px-4 py-2">
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          p.status === "paid" 
+                      <td className="px-4 py-3 text-slate-300 font-medium">
+                        {p.montant} د.ج
+                      </td>
+                      <td className="px-4 py-3 text-slate-300">
+                        {p.month_index ? `الدفعة ${p.month_index}` : "--"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
+                          p.status === "paid" || p.status === "PAID" || p.montant > 0
                             ? "bg-green-500/20 text-green-400" 
                             : "bg-yellow-500/20 text-yellow-400"
                         }`}>
-                          {p.status === "paid" ? "✔ مدفوع" : "⏳ قيد الانتظار"}
+                          {p.status === "paid" || p.status === "PAID" || p.montant > 0 ? (
+                            <>✔ مدفوع</>
+                          ) : (
+                            <>⏳ قيد الانتظار</>
+                          )}
                         </span>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={3} className="px-4 py-4 text-center text-slate-400">
-                      لا توجد أي دفعات مسجلة
+                    <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
+                      <div className="flex flex-col items-center gap-2">
+                        <AlertCircle className="w-8 h-8 text-slate-500" />
+                        <p>لا توجد أي دفعات مسجلة</p>
+                        <p className="text-xs">سيتم تسجيل الدفعات عند دفع الأقساط</p>
+                      </div>
                     </td>
                   </tr>
                 )}
@@ -512,18 +740,69 @@ const ClientPaiementInfo = ({ clientId }) => {
             </table>
           </div>
 
-          <div className="p-4 bg-slate-800/50 flex justify-between items-center">
-            <div className="text-sm">
-              <span className="text-slate-400">المجموع المدفوع:</span>{" "}
-              <span className="text-green-400">{vente.total_verse_effectif} د.ج</span>
+          {/* Payment Summary */}
+          <div className="p-4 bg-slate-800/50 grid grid-cols-2 gap-4">
+            <div className="text-center">
+              <div className="text-sm text-slate-400">المجموع المدفوع</div>
+              <div className="text-lg font-bold text-green-400">
+                {vente.total_verse_effectif} د.ج
+              </div>
+              <div className="text-xs text-slate-500 mt-1">
+                {vente.montant_verse > 0 ? `(مقدم: ${vente.montant_verse})` : ""}
+              </div>
             </div>
-            <div className="text-sm">
-              <span className="text-slate-400">الباقي:</span>{" "}
-              <span className="text-red-400">{vente.reste_vente} د.ج</span>
+            <div className="text-center">
+              <div className="text-sm text-slate-400">المبلغ المتبقي</div>
+              <div className="text-lg font-bold text-red-400">
+                {vente.reste_vente} د.ج
+              </div>
+              <div className="text-xs text-slate-500 mt-1">
+                {vente.paiements && vente.paiements.length > 0 
+                  ? `تم دفع ${vente.paiements.length} قسط` 
+                  : "لم يتم دفع أي قسط بعد"}
+              </div>
+            </div>
+          </div>
+          
+          {/* Progress Bar */}
+          {vente.montant_total > 0 && (
+            <div className="px-4 pb-4">
+              <div className="w-full bg-slate-700 rounded-full h-2">
+                <div 
+                  className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${(vente.total_verse_effectif / vente.montant_total) * 100}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-slate-400 mt-1">
+                <span>0%</span>
+                <span>{Math.round((vente.total_verse_effectif / vente.montant_total) * 100)}%</span>
+                <span>100%</span>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+      
+      {/* Overall Summary */}
+      {ventes.length > 1 && (
+        <div className="bg-gradient-to-r from-amber-500/10 to-yellow-600/10 border border-amber-500/30 rounded-lg p-4">
+          <h3 className="text-amber-400 font-semibold mb-3">ملخص عام</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="text-center">
+              <div className="text-sm text-slate-400">إجمالي المشتريات</div>
+              <div className="text-xl font-bold text-white">
+                {ventes.reduce((sum, v) => sum + v.montant_total, 0)} د.ج
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-sm text-slate-400">إجمالي المدفوع</div>
+              <div className="text-xl font-bold text-green-400">
+                {ventes.reduce((sum, v) => sum + v.total_verse_effectif, 0)} د.ج
+              </div>
             </div>
           </div>
         </div>
-      ))}
+      )}
     </div>
   );
 };

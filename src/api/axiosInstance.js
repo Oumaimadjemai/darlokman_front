@@ -1,8 +1,8 @@
 // api/axiosInstance.js
 import axios from "axios";
-//
+//"https://gestionstock-production.up.railway.app/"
 const axiosInstance = axios.create({
-  baseURL: "https://gestionstock-production.up.railway.app/",
+  baseURL:"http://localhost:8000/",
   timeout: 60000,
   headers: {
     "Content-Type": "application/json",

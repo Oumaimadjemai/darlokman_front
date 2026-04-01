@@ -142,11 +142,7 @@ export default function NewSidebar({ isOpen, onLogout }) {
       gradient: 'from-amber-500 to-amber-600',
       textColor: 'text-amber-500',
       hoverColor: 'amber',
-      subItems: [
-        { id: 'magasins', label: "المحلات", path: '/New/settings' },
-        { id: 'users', label: "المستخدمين", path: '/New/settings' },
-        { id: 'profil', label: "الملف الشخصي", path: '/New/settings' },
-      ],
+     path: '/New/settings',
     }
   ];
 

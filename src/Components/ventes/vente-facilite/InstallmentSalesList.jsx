@@ -24,6 +24,12 @@ import axios from "../../../api/axiosInstance";
 import ConfirmationDialog from "../../Cards/ConfirmationDialog";
 import { saveAs } from "file-saver";
 
+// Check if running in Tauri
+const isTauri = () => {
+  return typeof window !== 'undefined' && 
+         (window.__TAURI__ !== undefined || window.__TAURI_INTERNALS__ !== undefined);
+};
+
 export function InstallmentSalesList() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
@@ -60,13 +66,15 @@ export function InstallmentSalesList() {
   const [userMagasinAccessType, setUserMagasinAccessType] = useState('assigned_only');
   const [currentUserId, setCurrentUserId] = useState(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState(null); // For admin user filter
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [downloadProgress, setDownloadProgress] = useState(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const [filters, setFilters] = useState({
     periode: "",
     date_from: null,
     date_to: null,
-    user: null, // Add user filter
+    user: null,
   });
 
   const initialLoadDone = useRef(false);
@@ -116,7 +124,6 @@ export function InstallmentSalesList() {
 
   // Function to fetch current user ID from API if not in localStorage
   const fetchCurrentUserId = useCallback(async () => {
-    // First check localStorage
     let userId = localStorage.getItem("user_id");
     if (userId) {
       userIdRef.current = userId;
@@ -124,7 +131,6 @@ export function InstallmentSalesList() {
       return userId;
     }
     
-    // Try to decode from token
     try {
       const token = localStorage.getItem("access_token");
       if (token) {
@@ -141,7 +147,6 @@ export function InstallmentSalesList() {
       console.error("Failed to decode token", e);
     }
     
-    // If still no user_id, try to get from the users list using username
     if (currentUsername) {
       try {
         const token = localStorage.getItem("access_token");
@@ -180,7 +185,6 @@ export function InstallmentSalesList() {
         return;
       }
       
-      // For admin, we might want all magasins or none
       if (role === 'admin') {
         setUserAccessibleMagasins([]);
         return;
@@ -254,7 +258,6 @@ export function InstallmentSalesList() {
   const fetchStats = useCallback(async () => {
     if (!isMounted.current) return;
     
-    // For non-admin, need user ID
     if (role !== 'admin' && !currentUserId) return;
     
     setLoadingStats(true);
@@ -264,12 +267,9 @@ export function InstallmentSalesList() {
     if (filters.date_from) params.date_from = filters.date_from;
     if (filters.date_to) params.date_to = filters.date_to;
     
-    // Add user filter based on role
     if (role === 'admin' && selectedUserId) {
-      // Admin selected a specific user
       params.user = selectedUserId;
     } else if (role !== 'admin' && currentUserId) {
-      // Regular user sees only their own stats
       params.user = currentUserId;
     }
 
@@ -294,10 +294,81 @@ export function InstallmentSalesList() {
     }
   }, [filters, currentUserId, role, selectedUserId]);
 
+  // Download file with Tauri support
+  const downloadFile = useCallback(async (url, filename) => {
+    try {
+      setIsDownloading(true);
+      setDownloadProgress(0);
+      
+      const token = localStorage.getItem("access_token");
+      
+      // Show progress simulation
+      const progressInterval = setInterval(() => {
+        setDownloadProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+      
+      const response = await axios.get(url, {
+        responseType: "blob",
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 30000,
+      });
+      
+      clearInterval(progressInterval);
+      setDownloadProgress(100);
+      
+      // Check if running in Tauri desktop app
+      if (isTauri()) {
+        try {
+          // Dynamically import Tauri APIs
+          const { save } = await import('@tauri-apps/api/dialog');
+          const { writeFile } = await import('@tauri-apps/api/fs');
+          
+          // Show save dialog
+          const filePath = await save({
+            defaultPath: filename,
+            filters: [
+              { name: 'Word Document', extensions: ['docx'] },
+              { name: 'PDF Document', extensions: ['pdf'] },
+              { name: 'All Files', extensions: ['*'] }
+            ]
+          });
+          
+          if (filePath) {
+            // Convert blob to Uint8Array
+            const arrayBuffer = await response.data.arrayBuffer();
+            const uint8Array = new Uint8Array(arrayBuffer);
+            
+            // Write file to selected path
+            await writeFile(filePath, uint8Array);
+            toast.success(`تم حفظ الملف في: ${filePath.split('/').pop()}`);
+          } else {
+            toast.info("تم إلغاء حفظ الملف");
+          }
+        } catch (tauriError) {
+          console.error("Tauri save error:", tauriError);
+          // Fallback to browser download
+          saveAs(response.data, filename);
+          toast.success("تم تحميل الملف بنجاح");
+        }
+      } else {
+        // Web version - use saveAs
+        saveAs(response.data, filename);
+        toast.success("تم تحميل الملف بنجاح");
+      }
+    } catch (error) {
+      console.error("Erreur lors du téléchargement :", error);
+      toast.error("فشل تحميل الملف");
+    } finally {
+      setTimeout(() => {
+        setIsDownloading(false);
+        setDownloadProgress(null);
+      }, 500);
+    }
+  }, []);
+
   // Fetch sales with filters
   const fetchSales = useCallback(
     async (page = 1, forceRefresh = false) => {
-      // For non-admin users, need user ID
       if (role !== 'admin') {
         const userId = currentUserId || userIdRef.current;
         if (!userId) {
@@ -307,18 +378,15 @@ export function InstallmentSalesList() {
         }
       }
 
-      // Prevent multiple simultaneous fetches
       if (fetchInProgress.current && !forceRefresh) {
         console.log("Fetch already in progress, skipping...");
         return;
       }
 
-      // Cancel any pending request
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
 
-      // Create new AbortController for this request
       const newAbortController = new AbortController();
       abortControllerRef.current = newAbortController;
       fetchInProgress.current = true;
@@ -334,31 +402,22 @@ export function InstallmentSalesList() {
         page_size: 50,
       };
 
-      // Add user filter based on role
       if (role === 'admin' && selectedUserId) {
-        // Admin selected a specific user
-        params.users = selectedUserId; // Using 'users' as per your filter class
+        params.users = selectedUserId;
         console.log("Admin filtering by user ID:", selectedUserId);
       } else if (role !== 'admin') {
-        // Regular user sees only their own sales
         const userId = currentUserId || userIdRef.current;
         if (userId) {
           params.users = userId;
           console.log("Regular user filtering by user ID:", userId);
         }
-      } else {
-        console.log("Admin user - fetching all sales (no user filter)");
       }
 
-      // Add search term
       if (searchTerm) params.search = searchTerm;
-      
-      // Add date filters
       if (filters.periode) params.periode = filters.periode;
       if (filters.date_from) params.date_from = filters.date_from;
       if (filters.date_to) params.date_to = filters.date_to;
       
-      // Add magasin filter for non-admin users with magasin restrictions
       if (role !== 'admin' && userAccessibleMagasins.length > 0) {
         params.magasins = userAccessibleMagasins.join(',');
       }
@@ -420,7 +479,6 @@ export function InstallmentSalesList() {
         });
         
       } catch (err) {
-        // Ignore cancelled requests
         if (err.name === "CanceledError" || err.code === "ERR_CANCELED") {
           console.log("Request cancelled");
           return;
@@ -451,7 +509,6 @@ export function InstallmentSalesList() {
       console.log("User role:", role);
       
       if (role !== 'admin') {
-        // For non-admin users, fetch user ID first
         const userId = await fetchCurrentUserId();
         console.log("Current user ID:", userId);
         
@@ -471,7 +528,6 @@ export function InstallmentSalesList() {
           setLoading(false);
         }
       } else {
-        // For admin users, no need to fetch user ID
         console.log("Admin user - will fetch all sales");
         setIsInitialized(true);
         await fetchUserAccessibleMagasins();
@@ -490,8 +546,6 @@ export function InstallmentSalesList() {
   // Fetch sales when dependencies change
   useEffect(() => {
     if (!isInitialized) return;
-    
-    // For non-admin, need currentUserId
     if (role !== 'admin' && !currentUserId) return;
 
     if (searchDebounceRef.current) {
@@ -513,8 +567,6 @@ export function InstallmentSalesList() {
   // Debounced filters
   useEffect(() => {
     if (!isInitialized) return;
-    
-    // For non-admin, need currentUserId
     if (role !== 'admin' && !currentUserId) return;
 
     if (filterDebounceRef.current) {
@@ -541,7 +593,6 @@ export function InstallmentSalesList() {
   const handleUserFilterChange = (e) => {
     const userId = e.target.value;
     setSelectedUserId(userId === "" ? null : parseInt(userId));
-    // Reset to first page when changing user filter
     fetchSales(1);
   };
 
@@ -599,22 +650,6 @@ export function InstallmentSalesList() {
     }
   };
 
-  const downloadFile = async (url, filename) => {
-    try {
-      const token = localStorage.getItem("access_token");
-      const response = await axios.get(url, {
-        responseType: "blob",
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 30000,
-      });
-      saveAs(response.data, filename);
-      toast.success("تم تحميل الملف بنجاح");
-    } catch (error) {
-      console.error("Erreur lors du téléchargement :", error);
-      toast.error("فشل تحميل الملف");
-    }
-  };
-
   const handlePrint = async (sale) => {
     setLoadingPrintDetails(true);
     setOpenPrintDialog(true);
@@ -660,11 +695,33 @@ export function InstallmentSalesList() {
 
   const formatMoney = (num) => {
     if (num === undefined || num === null) return "0";
-    return Number(num);
+    return Number(num).toLocaleString();
   };
 
   return (
     <div className="space-y-4">
+      {/* Download Progress Overlay */}
+      {isDownloading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-800 rounded-xl p-6 w-80 text-center border border-amber-500/30">
+            <div className="w-16 h-16 mx-auto mb-4">
+              <svg className="animate-spin w-16 h-16 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+            <p className="text-white font-medium mb-2">جاري تحميل الملف...</p>
+            <div className="w-full bg-slate-700 rounded-full h-2 mt-2">
+              <div 
+                className="bg-amber-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${downloadProgress || 0}%` }}
+              />
+            </div>
+            <p className="text-slate-400 text-sm mt-2">{downloadProgress || 0}%</p>
+          </div>
+        </div>
+      )}
+
       {/* Header with Stats */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
@@ -982,7 +1039,7 @@ export function InstallmentSalesList() {
                   <th className="px-4 py-3 text-right">المبلغ الشهري</th>
                   <th className="px-4 py-3 text-right">المخزن</th>
                   <th className="px-4 py-3 text-right">الإجراءات</th>
-                 </tr>
+                  </tr>
               </thead>
               <tbody>
                 {sales.map((sale, index) => (

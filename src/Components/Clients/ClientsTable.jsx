@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom"; // Add this import
 import axios from "../../api/axiosInstance";
 import ConfirmationDialog from "../Cards/ConfirmationDialog";
 import AddClientDialog from "./AddClientDialog";
@@ -28,6 +29,7 @@ const statusColors = {
 };
 
 export function ClientsTable() {
+  const navigate = useNavigate(); // Initialize navigate
   const [rows, setRows] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
@@ -129,6 +131,18 @@ export function ClientsTable() {
     fetchClients();
   };
 
+  // ✅ Handle sale receipt button click
+  const handleSaleReceipt = (client) => {
+    navigate('/New/Facilitevente', { 
+      state: { 
+        fromClientBoard: true, 
+        clientId: client.id,
+        isEditMode: false,
+        initialData: null
+      } 
+    });
+  };
+
   // ✅ Filter handlers
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -191,7 +205,24 @@ export function ClientsTable() {
             >
               + زبون جديد
             </button>
-            <button className="bg-gray-600 px-4 py-2 rounded text-white">وصل</button>
+            {/* Updated Sale Receipt button - now it's a normal button that will be enabled/disabled based on selection */}
+            <button 
+              className={`px-4 py-2 rounded text-white transition-all duration-200 ${
+                selectedClient 
+                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg hover:shadow-xl cursor-pointer' 
+                  : 'bg-gray-500 cursor-not-allowed opacity-50'
+              }`}
+              onClick={() => {
+                if (selectedClient) {
+                  handleSaleReceipt(selectedClient);
+                } else {
+                  toast.warning("الرجاء اختيار زبون أولاً");
+                }
+              }}
+              disabled={!selectedClient}
+            >
+              وصل البيع
+            </button>
           </div>
         </div>
 
@@ -293,7 +324,7 @@ export function ClientsTable() {
                     ].map((h) => (
                       <th key={h} className="px-4 py-3 text-right">{h}</th>
                     ))}
-                     </tr>
+                  </tr>
                 </thead>
 
                 <tbody>
@@ -306,6 +337,8 @@ export function ClientsTable() {
                   ) : (
                     rows.map((client, index) => {
                       const statusDisplay = getStatusDisplay(client.statut);
+                      const isSelected = selectedClient?.id === client.id;
+                      
                       return (
                         <motion.tr
                           key={client.id}
@@ -313,7 +346,13 @@ export function ClientsTable() {
                             setSelectedClient(client);
                             setOpenDetailDialog(true);
                           }}
-                          className={`border-b transition-all cursor-pointer ${getRowBackground(client, index)}`}
+                          onClick={() => {
+                            // Single click selects the client for sale receipt
+                            setSelectedClient(client);
+                          }}
+                          className={`border-b transition-all cursor-pointer ${getRowBackground(client, index)} ${
+                            isSelected ? 'bg-blue-500/20 border-l-4 border-l-blue-500' : ''
+                          }`}
                         >
                           <td className="px-4 py-3 text-blue-300">{client.id}</td>
                           <td className="px-4 py-3 text-white">{client.prenom_ar}</td>
@@ -355,7 +394,7 @@ export function ClientsTable() {
                                   e.stopPropagation();
                                   handleDelete(client.id);
                                 }}
-                                className="p-2 bg-red-500/20 rounded"
+                                className="p-2 bg-red-500/20 rounded hover:bg-red-500/40 transition"
                               >
                                 <Trash2 className="w-4 h-4 text-red-400" />
                               </button>

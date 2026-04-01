@@ -1,15 +1,17 @@
-html, body, #root{
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
   margin: 0;
   padding: 0;
   height: 100%;
-  
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+  font-family: "Cairo", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
     "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   direction: rtl !important;
-  font-family: "Cairo", sans-serif;
   background-color: #f6fafd !important;
 }
 
@@ -18,3 +20,107 @@ code {
     monospace;
 }
 
+/* Main content scrollbar */
+.main-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.main-scrollbar::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.3);
+  border-radius: 10px;
+}
+
+.main-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.3);
+  border-radius: 10px;
+  transition: all 0.3s ease;
+}
+
+.main-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 0.5);
+}
+
+/* Light mode scrollbar - fixed selector */
+.light-mode .main-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.light-mode .main-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.5);
+}
+
+.light-mode .main-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 0.7);
+}
+
+/* For Firefox - main scrollbar */
+.main-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(245, 158, 11, 0.3) rgba(15, 23, 42, 0.3);
+}
+
+/* Light mode Firefox scrollbar - fixed */
+.light-mode .main-scrollbar {
+  scrollbar-color: rgba(245, 158, 11, 0.5) rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Smooth scrolling */
+.main-scrollbar {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar for the sidebar */
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.3);
+  border-radius: 10px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 0.5);
+}
+
+/* For Firefox - sidebar scrollbar */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(245, 158, 11, 0.3) rgba(255, 255, 255, 0.05);
+}
+
+/* Utility classes - these are already included in Tailwind, 
+   but if you want to ensure they exist: */
+.flex-1 {
+  flex: 1 1 0%;
+}
+
+.min-h-0 {
+  min-height: 0;
+}
+
+/* Optional: Hide scrollbar when not hovering for a cleaner look */
+.main-scrollbar:not(:hover)::-webkit-scrollbar-thumb,
+.sidebar-scroll:not(:hover)::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+.main-scrollbar:not(:hover)::-webkit-scrollbar-track,
+.sidebar-scroll:not(:hover)::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* But show on hover */
+.main-scrollbar:hover::-webkit-scrollbar-thumb,
+.sidebar-scroll:hover::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.3);
+}
+
+.main-scrollbar:hover::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 0.5);
+}

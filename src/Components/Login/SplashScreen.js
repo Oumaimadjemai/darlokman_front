@@ -1,82 +1,118 @@
-import React from "react";
-import { Box, CircularProgress, Typography } from "@mui/material";
+import { motion } from "framer-motion";
+import { Sparkles } from "lucide-react";
 
-export default function SplashScreen() {
+export default function SplashScreen({ onComplete }) {
+  // Add window check for SSR compatibility
+  const stars = Array.from({ length: 20 }).map((_, i) => ({
+    id: i,
+    x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1000),
+    y: Math.random() * (typeof window !== 'undefined' ? window.innerHeight : 1000),
+  }));
+
   return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        height: "100vh",
-        bgcolor: "primary.main", // teal background
-        color: "white",
-        textAlign: "center",
-      }}
-    >
-      {/* Logo with pulse animation */}
-      <img
-        src="assets/images/logo.png"
-        alt="Logo"
-        style={{
-          width: 120,
-          marginBottom: 20,
-          animation: "pulse 2s infinite",
-        }}
-      />
+    <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
+      {/* 🌌 Background gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#0b1b3a] via-[#0f2747] to-[#111827]" />
 
-      {/* Arabic Hello with fade-in animation */}
-      <Typography
-        variant="h4"
-        sx={{
-          mb: 1,
-          animation: "fadeIn 2s ease-in-out",
-          fontWeight: "bold",
-        }}
-      >
-        مرحباً بك
-      </Typography>
+      {/* golden glow right side */}
+      <div className="absolute right-[-200px] top-1/2 w-[500px] h-[500px] bg-yellow-500/20 blur-[120px] rounded-full" />
 
-      <Typography
-        variant="h6"
-        sx={{
-          mb: 3,
-          animation: "fadeIn 3s ease-in-out",
-          fontStyle: "italic",
-        }}
-      >
-        جاري التحميل...
-      </Typography>
+      {/* blue glow left side */}
+      <div className="absolute left-[-200px] top-1/3 w-[500px] h-[500px] bg-blue-500/30 blur-[120px] rounded-full" />
 
-      <CircularProgress
-        size={50}
-        sx={{
-          animation: "spin 1.5s linear infinite",
-          color: "white",
-        }}
-      />
+      {/* ⭐ floating background stars */}
+      {stars.map((star) => (
+        <motion.div
+          key={star.id}
+          className="absolute text-yellow-400/40"
+          initial={{
+            x: star.x,
+            y: star.y,
+            scale: 0,
+          }}
+          animate={{
+            y: [null, "-20px", "20px"],
+            scale: [0.5, 1, 0.5],
+            opacity: [0.2, 0.8, 0.2],
+          }}
+          transition={{
+            duration: 4 + Math.random() * 3,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        >
+          <Sparkles size={12} />
+        </motion.div>
+      ))}
 
-      {/* Animations */}
-      <style>
-        {`
-          @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.1); opacity: 0.7; }
-            100% { transform: scale(1); opacity: 1; }
-          }
+      {/* 🎯 CENTER CONTENT */}
+      <div className="relative z-10 flex flex-col items-center">
+        {/* glowing aura */}
+        <motion.div
+          className="absolute w-40 h-40 bg-amber-500/20 rounded-full blur-2xl"
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.4, 0.7, 0.4],
+          }}
+          transition={{ duration: 3, repeat: Infinity }}
+        />
 
-          @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
+        {/* 🏷️ LOGO */}
+        <motion.img
+          src="assets/images/logo.png"
+          className="w-28 h-28 rounded-full z-10"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 120 }}
+        />
 
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}
-      </style>
-    </Box>
+        {/* ✨ orbiting stars */}
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <motion.div
+            key={i}
+            className="absolute text-yellow-300"
+            style={{
+              rotate: i * 60,
+            }}
+            animate={{
+              rotate: [0, 360],
+            }}
+            transition={{
+              duration: 6,
+              repeat: Infinity,
+              ease: "linear",
+            }}
+          >
+            <div className="absolute w-2 h-2 bg-yellow-400 rounded-full shadow-lg shadow-yellow-400/50" />
+          </motion.div>
+        ))}
+
+        {/* 📝 TITLE */}
+        <motion.h1
+          className="mt-10 text-3xl font-bold text-amber-400"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          نظام إدارة الأعمال
+        </motion.h1>
+
+        <p className="text-gray-400 mt-2">إدارة شاملة لأعمالك</p>
+
+        {/* ⬇️ LOADER */}
+        <div className="w-64 h-2 bg-white/10 rounded-full mt-8 overflow-hidden">
+          <motion.div
+            className="h-full bg-gradient-to-r from-amber-400 to-yellow-500"
+            initial={{ width: 0 }}
+            animate={{ width: "100%" }}
+            transition={{ duration: 2 }}
+            onAnimationComplete={onComplete}
+          />
+        </div>
+
+        <p className="text-amber-400 text-sm mt-3 animate-pulse">
+          جاري التحميل...
+        </p>
+      </div>
+    </div>
   );
 }

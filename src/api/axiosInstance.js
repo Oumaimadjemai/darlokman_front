@@ -1,6 +1,6 @@
 // api/axiosInstance.js
 import axios from "axios";
-
+//
 const axiosInstance = axios.create({
   baseURL: "https://gestionstock-production.up.railway.app/",
   timeout: 60000,

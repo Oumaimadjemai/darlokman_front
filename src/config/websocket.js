@@ -1,24 +1,20 @@
 // src/config/websocket.js
 const getWebSocketUrl = () => {
-  // Use the current window location for WebSocket
-  // This will automatically use the correct domain on Railway
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const host = window.location.host; // This will be gestionstock-production.up.railway.app on Railway
+  // Use Railway backend for WebSocket
+  // Since your backend is on Railway, always connect to it
+  const protocol = 'wss:'; // Railway uses HTTPS, so WebSocket must use WSS
+  const host = 'gestionstock-production.up.railway.app';
   
-  // For development, you can still override with environment variable
-  if (process.env.NODE_ENV === 'development' && process.env.REACT_APP_WS_HOST) {
-    const wsHost = process.env.REACT_APP_WS_HOST;
-    const wsPort = process.env.REACT_APP_WS_PORT || '8000';
-    return `${protocol}//${wsHost}:${wsPort}`;
-  }
+  // For local development with local backend, you can use this instead
+  // if (process.env.NODE_ENV === 'development') {
+  //   return `ws://localhost:8000`;
+  // }
   
-  // For production, use the same host as the page
   return `${protocol}//${host}`;
 };
 
 export const getChatWebSocketUrl = (roomId, token) => {
   const baseUrl = getWebSocketUrl();
   const encodedRoomId = encodeURIComponent(roomId);
-  // Add token as query parameter
   return `${baseUrl}/ws/chat/${encodedRoomId}/?token=${token}`;
 };

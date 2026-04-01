@@ -11,7 +11,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import axios from '../../api/axiosInstance';
 import EmojiPicker from 'emoji-picker-react';
- 
+
+// ✅ WebSocket configuration - Railway production only
+const getWebSocketUrl = (roomId, token) => {
+  // Always use Railway production URL for WebSocket
+  return `wss://gestionstock-production.up.railway.app/ws/chat/${roomId}/?token=${token}`;
+};
+
+// Base API URL - always use Railway production
+const API_BASE_URL = 'https://gestionstock-production.up.railway.app';
+
 export default function ChatComponent() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -128,17 +137,20 @@ export default function ChatComponent() {
  
   useEffect(() => { if (Notification.permission === 'default') Notification.requestPermission(); }, []);
  
-  // API calls
+  // API calls - Using Railway URLs
   const fetchUnreadCount = useCallback(async () => {
     if (!token || !mountedRef.current) return;
-    try { const r = await axios.get('/chat/unread/', { headers }); setUnreadCount(r.data.unread_count || 0); } catch {}
+    try { 
+      const r = await axios.get(`${API_BASE_URL}/chat/unread/`, { headers }); 
+      setUnreadCount(r.data.unread_count || 0); 
+    } catch {}
   }, [token]);
  
   const fetchRooms = useCallback(async () => {
     if (!token || !mountedRef.current) return;
     setLoading(true); setError(null);
     try {
-      const r = await axios.get('/chat/rooms/', { headers });
+      const r = await axios.get(`${API_BASE_URL}/chat/rooms/`, { headers });
       const data = r.data?.results ?? (Array.isArray(r.data) ? r.data : []);
       setRooms(data);
       if (data.length > 0 && !selectedRoom) setSelectedRoom(data[0]);
@@ -152,7 +164,7 @@ export default function ChatComponent() {
   const fetchUsers = useCallback(async () => {
     if (!token || !mountedRef.current) return;
     try {
-      const r = await axios.get('/auth/users/', { headers });
+      const r = await axios.get(`${API_BASE_URL}/auth/users/`, { headers });
       const data = r.data?.results ?? (Array.isArray(r.data) ? r.data : []);
       setUsers(data.filter(u => u.id !== user?.id));
     } catch { setUsers([]); }
@@ -162,7 +174,7 @@ export default function ChatComponent() {
     if (!token || !mountedRef.current || !roomId) return;
     setLoadingMessages(true);
     try {
-      const r = await axios.get(`/chat/rooms/${roomId}/messages/`, { headers });
+      const r = await axios.get(`${API_BASE_URL}/chat/rooms/${roomId}/messages/`, { headers });
       const data = r.data?.results ?? (Array.isArray(r.data) ? r.data : []);
       const unique = data.reduce((acc, cur) => { 
         if (!acc.find(m => m.id === cur.id)) acc.push(cur); 
@@ -176,7 +188,7 @@ export default function ChatComponent() {
   const markMessagesAsRead = useCallback(async (roomId) => {
     if (!token) return;
     try {
-      await axios.post(`/chat/rooms/${roomId}/mark-read/`, {}, { headers });
+      await axios.post(`${API_BASE_URL}/chat/rooms/${roomId}/mark-read/`, {}, { headers });
       fetchUnreadCount();
       setRooms(prev => prev.map(r => r.id === roomId ? { ...r, unread_count: 0 } : r));
     } catch {}
@@ -186,7 +198,7 @@ export default function ChatComponent() {
   const addUsersToRoom = async (userIds) => {
     if (!selectedRoom || !token) return;
     try {
-      await axios.post(`/chat/rooms/${selectedRoom.id}/add-participants/`, { user_ids: userIds }, { headers });
+      await axios.post(`${API_BASE_URL}/chat/rooms/${selectedRoom.id}/add-participants/`, { user_ids: userIds }, { headers });
       toast.success('تم إضافة المستخدمين'); setShowAddUsersModal(false); setSelectedUsers([]); fetchRooms();
     } catch (e) { toast.error(e.response?.data?.error || 'فشل إضافة المستخدمين'); }
   };
@@ -194,7 +206,7 @@ export default function ChatComponent() {
   const removeUserFromRoom = async (userId, username) => {
     if (!selectedRoom || !token) return;
     try {
-      await axios.post(`/chat/rooms/${selectedRoom.id}/remove-participant/`, { user_id: userId }, { headers });
+      await axios.post(`${API_BASE_URL}/chat/rooms/${selectedRoom.id}/remove-participant/`, { user_id: userId }, { headers });
       toast.success(`تم إزالة ${username}`); fetchRooms();
     } catch (e) { toast.error(e.response?.data?.error || 'فشل إزالة المستخدم'); }
   };
@@ -202,7 +214,7 @@ export default function ChatComponent() {
   const leaveRoom = async () => {
     if (!selectedRoom || !token) return;
     try {
-      await axios.post(`/chat/rooms/${selectedRoom.id}/leave/`, {}, { headers });
+      await axios.post(`${API_BASE_URL}/chat/rooms/${selectedRoom.id}/leave/`, {}, { headers });
       toast.success('غادرت المحادثة');
       if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
       fetchRooms(); setSelectedRoom(null); setMessages([]); setShowRoomMenu(false);
@@ -214,7 +226,7 @@ export default function ChatComponent() {
     if (selectedRoom.created_by !== user?.id) { toast.error('يمكن فقط للمنشئ حذف المحادثة'); return; }
     if (!window.confirm('هل أنت متأكد من حذف هذه المحادثة؟')) return;
     try {
-      await axios.delete(`/chat/rooms/${selectedRoom.id}/`, { headers });
+      await axios.delete(`${API_BASE_URL}/chat/rooms/${selectedRoom.id}/`, { headers });
       toast.success('تم حذف المحادثة');
       if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
       fetchRooms(); setSelectedRoom(null); setMessages([]); setShowRoomMenu(false);
@@ -225,7 +237,7 @@ export default function ChatComponent() {
   const editMessage = async () => {
     if (!editingMessage || !editContent.trim()) return;
     try {
-      await axios.put(`/chat/messages/${editingMessage.id}/`, { content: editContent, message_type: 'text' }, { headers });
+      await axios.put(`${API_BASE_URL}/chat/messages/${editingMessage.id}/`, { content: editContent, message_type: 'text' }, { headers });
       setMessages(prev => prev.map(m => m.id === editingMessage.id ? { ...m, content: editContent, updated_at: new Date().toISOString() } : m));
       toast.success('تم التعديل'); setEditingMessage(null); setEditContent(''); setActiveMessageMenu(null);
     } catch (e) { toast.error(e.response?.data?.error || 'فشل التعديل'); }
@@ -235,7 +247,7 @@ export default function ChatComponent() {
   const executeDeleteMessage = async () => {
     if (!deleteConfirmMessage) return;
     try {
-      await axios.delete(`/chat/messages/${deleteConfirmMessage.id}/`, { headers });
+      await axios.delete(`${API_BASE_URL}/chat/messages/${deleteConfirmMessage.id}/`, { headers });
       setMessages(prev => prev.filter(m => m.id !== deleteConfirmMessage.id));
       toast.success('تم حذف الرسالة'); setDeleteConfirmMessage(null);
     } catch (e) { toast.error(e.response?.data?.error || 'فشل حذف الرسالة'); }
@@ -261,7 +273,7 @@ export default function ChatComponent() {
     formData.append('room_id', selectedRoom.id);
     
     try {
-      const response = await axios.post('/chat/upload/', formData, {
+      const response = await axios.post(`${API_BASE_URL}/chat/upload/`, formData, {
         headers: { ...headers, 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -311,41 +323,39 @@ export default function ChatComponent() {
     if (msg.file_url) {
       return msg.file_url;
     }
-    if (msg.file && typeof msg.file === 'string' && msg.file.startsWith('/media/')) {
-      return `http://localhost:8000${msg.file}`;
+    if (msg.file && typeof msg.file === 'string') {
+      return `${API_BASE_URL}${msg.file}`;
     }
     return '';
   };
  
-  // In your ChatComponent.jsx, replace the downloadFile function with:
-const downloadFile = async (messageId, fileName) => {
-  try {
-    toast.loading('جاري تحميل الملف...', { id: 'download' });
-    
-    const token = localStorage.getItem('access_token');
-    const response = await axios.get(`/chat/download/${messageId}/`, {
-      headers: { 
-        'Authorization': `Bearer ${token}`
-      },
-      responseType: 'blob'
-    });
-    
-    // Create download link
-    const blobUrl = window.URL.createObjectURL(response.data);
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(blobUrl);
-    
-    toast.success('تم تحميل الملف بنجاح', { id: 'download' });
-  } catch (error) {
-    console.error('Download error:', error);
-    toast.error('فشل تحميل الملف', { id: 'download' });
-  }
-};
+  // Download file
+  const downloadFile = async (messageId, fileName) => {
+    try {
+      toast.loading('جاري تحميل الملف...', { id: 'download' });
+      
+      const token = localStorage.getItem('access_token');
+      const response = await axios.get(`${API_BASE_URL}/chat/download/${messageId}/`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        responseType: 'blob'
+      });
+      
+      // Create download link
+      const blobUrl = window.URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+      
+      toast.success('تم تحميل الملف بنجاح', { id: 'download' });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('فشل تحميل الملف', { id: 'download' });
+    }
+  };
  
   // Check if file is image
   const isImageFile = (fileName) => {
@@ -358,22 +368,33 @@ const downloadFile = async (messageId, fileName) => {
   const addReaction = async (messageId, reaction) => {
     if (!token) return;
     try {
-      await axios.post(`/chat/messages/${messageId}/react/`, { reaction }, { headers });
+      await axios.post(`${API_BASE_URL}/chat/messages/${messageId}/react/`, { reaction }, { headers });
       setMessages(prev => prev.map(m => m.id === messageId ? { ...m, reactions: [...(m.reactions || []), { user_id: user?.id, reaction }] } : m));
     } catch {}
   };
  
-  // WebSocket
+  // WebSocket - Always use Railway URL
   const connectWebSocket = useCallback(() => {
     if (!selectedRoom || !token || isConnectingRef.current) return;
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    
     isConnectingRef.current = true;
-    const ws = new WebSocket(`ws://localhost:8000/ws/chat/${selectedRoom.id}/?token=${token}`);
+    
+    // ✅ Always use Railway production WebSocket URL
+    const wsUrl = getWebSocketUrl(selectedRoom.id, token);
+    console.log('🔌 Connecting to WebSocket:', wsUrl);
+    
+    const ws = new WebSocket(wsUrl);
  
     ws.onopen = () => {
       if (!mountedRef.current) return;
-      setIsConnected(true); reconnectAttempts.current = 0; isConnectingRef.current = false;
-      console.log('✅ WebSocket connected');
+      setIsConnected(true);
+      reconnectAttempts.current = 0;
+      isConnectingRef.current = false;
+      console.log('✅ WebSocket connected to Railway');
+      
+      // Send initial ping to verify connection
+      ws.send(JSON.stringify({ type: 'ping' }));
     };
     
     ws.onmessage = (event) => {
@@ -412,6 +433,8 @@ const downloadFile = async (messageId, fileName) => {
           if (data.is_typing) setTimeout(() => setTypingUsers(p => ({ ...p, [data.username]: false })), 3000);
         } else if (data.type === 'connection') {
           console.log('Connection established:', data.message);
+        } else if (data.type === 'pong') {
+          console.log('🏓 Pong received - connection alive');
         }
       } catch (err) {
         console.error('Error parsing WebSocket message:', err);
@@ -420,13 +443,23 @@ const downloadFile = async (messageId, fileName) => {
     
     ws.onclose = (e) => {
       if (!mountedRef.current) return;
-      setIsConnected(false); isConnectingRef.current = false;
-      console.log(`🔴 WebSocket disconnected: ${e.code}`);
+      setIsConnected(false);
+      isConnectingRef.current = false;
+      console.log(`🔴 WebSocket disconnected: ${e.code} - ${e.reason || 'No reason'}`);
       if (e.code !== 1000 && reconnectAttempts.current < 5) {
-        setTimeout(() => { reconnectAttempts.current++; connectWebSocket(); }, 3000);
+        setTimeout(() => {
+          reconnectAttempts.current++;
+          console.log(`Attempting to reconnect (${reconnectAttempts.current}/5)...`);
+          connectWebSocket();
+        }, 3000);
       }
     };
-    ws.onerror = (err) => { console.error('WebSocket error:', err); isConnectingRef.current = false; };
+    
+    ws.onerror = (err) => {
+      console.error('WebSocket error:', err);
+      isConnectingRef.current = false;
+    };
+    
     wsRef.current = ws;
   }, [selectedRoom, token, user?.id, markMessagesAsRead, showNotification]);
  
@@ -449,7 +482,7 @@ const downloadFile = async (messageId, fileName) => {
     setMessages(prev => [...prev, tempMsg]);
     setNewMessage(''); setShowEmojiPicker(false);
     try {
-      const r = await axios.post(`/chat/rooms/${selectedRoom.id}/send/`, { content, message_type: 'text' }, { headers });
+      const r = await axios.post(`${API_BASE_URL}/chat/rooms/${selectedRoom.id}/send/`, { content, message_type: 'text' }, { headers });
       if (r.data?.id) {
         setMessages(prev => prev.filter(m => m.id !== tempId));
         setMessages(prev => [...prev, { ...r.data, can_edit: true, can_delete: true }]);
@@ -493,7 +526,7 @@ const downloadFile = async (messageId, fileName) => {
     console.log('📤 Creating room with payload:', payload);
     
     try {
-      const r = await axios.post('/chat/rooms/', payload, { headers });
+      const r = await axios.post(`${API_BASE_URL}/chat/rooms/`, payload, { headers });
       console.log('✅ Room created response:', r.data);
       setRooms(prev => [r.data, ...prev]); 
       setSelectedRoom(r.data);
@@ -642,66 +675,66 @@ const downloadFile = async (messageId, fileName) => {
                     : 'bg-slate-700 text-slate-100 rounded-bl-none border border-slate-600/40'
                 } ${isTemp ? 'opacity-60' : ''}`}>
                
-{isFile ? (
-  <div className="space-y-2">
-    {isImage ? (
-      <>
-        <img 
-          src={fileUrl} 
-          alt={msg.file_name}
-          className="max-w-[220px] max-h-[220px] rounded-xl cursor-pointer hover:opacity-90 transition object-cover"
-          onClick={() => window.open(fileUrl)}
-          onError={(e) => {
-            e.target.onerror = null;
-            e.target.src = 'https://via.placeholder.com/200x200?text=Image+Not+Found';
-          }}
-        />
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              window.open(fileUrl);
-            }}
-            className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
-          >
-            <Eye className="w-3 h-3" /> عرض
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              downloadFile(msg.id, msg.file_name);
-            }}
-            className="text-xs text-green-400 hover:text-green-300 flex items-center gap-1"
-          >
-            <Download className="w-3 h-3" /> تحميل
-          </button>
-        </div>
-      </>
-    ) : (
-      <div className="flex items-center gap-3 min-w-[180px]">
-        <div className={`p-2 rounded-xl ${isMe ? 'bg-blue-500' : 'bg-slate-600'}`}>
-          {getFileIcon(msg.file_name)}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{msg.file_name}</p>
-          {msg.file_size && <p className="text-xs opacity-60 mt-0.5">{formatFileSize(msg.file_size)}</p>}
-        </div>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            downloadFile(msg.id, msg.file_name);
-          }}
-          className="p-1.5 hover:bg-white/10 rounded-lg transition flex-shrink-0"
-          title="تحميل الملف"
-        >
-          <Download className="w-4 h-4" />
-        </button>
-      </div>
-    )}
-  </div>
-) : (
-  <p className="text-sm leading-relaxed break-words">{msg.content}</p>
-)}
+                  {isFile ? (
+                    <div className="space-y-2">
+                      {isImage ? (
+                        <>
+                          <img 
+                            src={fileUrl} 
+                            alt={msg.file_name}
+                            className="max-w-[220px] max-h-[220px] rounded-xl cursor-pointer hover:opacity-90 transition object-cover"
+                            onClick={() => window.open(fileUrl)}
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = 'https://via.placeholder.com/200x200?text=Image+Not+Found';
+                            }}
+                          />
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(fileUrl);
+                              }}
+                              className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                            >
+                              <Eye className="w-3 h-3" /> عرض
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                downloadFile(msg.id, msg.file_name);
+                              }}
+                              className="text-xs text-green-400 hover:text-green-300 flex items-center gap-1"
+                            >
+                              <Download className="w-3 h-3" /> تحميل
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-3 min-w-[180px]">
+                          <div className={`p-2 rounded-xl ${isMe ? 'bg-blue-500' : 'bg-slate-600'}`}>
+                            {getFileIcon(msg.file_name)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{msg.file_name}</p>
+                            {msg.file_size && <p className="text-xs opacity-60 mt-0.5">{formatFileSize(msg.file_size)}</p>}
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              downloadFile(msg.id, msg.file_name);
+                            }}
+                            className="p-1.5 hover:bg-white/10 rounded-lg transition flex-shrink-0"
+                            title="تحميل الملف"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm leading-relaxed break-words">{msg.content}</p>
+                  )}
                 </div>
               )}
  

@@ -22,43 +22,6 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import axios from "../../../api/axiosInstance";
 import ConfirmationDialog from "../../Cards/ConfirmationDialog";
-import { saveAs } from "file-saver";
-
-// Improved Tauri detection that works with remote URLs
-const isTauri = () => {
-  // Check for Tauri's global variables
-  if (typeof window !== 'undefined') {
-    // Check for Tauri's __TAURI__ global
-    if (window.__TAURI__ !== undefined || window.__TAURI_INTERNALS__ !== undefined) {
-      return true;
-    }
-    // Check for Tauri's IPC bridge
-    if (window.tauri && typeof window.tauri.invoke === 'function') {
-      return true;
-    }
-    // Check for Tauri's user agent
-    if (navigator.userAgent.includes('Tauri')) {
-      return true;
-    }
-    // Check for Tauri-specific window property
-    if (window.__TAURI_METADATA__ !== undefined) {
-      return true;
-    }
-  }
-  return false;
-};
-
-// Async Tauri detection function
-const isTauriAsync = async () => {
-  try {
-    // Try to dynamically import a Tauri module
-    const { getVersion } = await import('@tauri-apps/api/app');
-    await getVersion();
-    return true;
-  } catch (e) {
-    return false;
-  }
-};
 
 export function InstallmentSalesList() {
   const navigate = useNavigate();
@@ -99,7 +62,6 @@ export function InstallmentSalesList() {
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [downloadProgress, setDownloadProgress] = useState(null);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [isTauriEnvironment, setIsTauriEnvironment] = useState(false);
 
   const [filters, setFilters] = useState({
     periode: "",
@@ -135,16 +97,6 @@ export function InstallmentSalesList() {
     { value: "last_month", label: "الشهر الماضي" },
     { value: "this_year", label: "هذا العام" },
   ];
-
-  // Check Tauri environment on mount
-  useEffect(() => {
-    const checkTauri = async () => {
-      const tauriDetected = await isTauriAsync();
-      setIsTauriEnvironment(tauriDetected);
-      console.log("Tauri environment detected:", tauriDetected);
-    };
-    checkTauri();
-  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -335,7 +287,7 @@ export function InstallmentSalesList() {
     }
   }, [filters, currentUserId, role, selectedUserId]);
 
-  // Improved download function with better Tauri support
+  // Improved download function with file save dialog for both browser and Tauri
   const downloadFile = async (url, filename) => {
     try {
       setIsDownloading(true);
@@ -357,56 +309,129 @@ export function InstallmentSalesList() {
       clearInterval(progressInterval);
       setDownloadProgress(100);
       
-      // Check if we're in Tauri environment
-      let inTauri = false;
-      try {
-        // Try to check if Tauri APIs are available
-        const { getVersion } = await import('@tauri-apps/api/app');
-        await getVersion();
-        inTauri = true;
-      } catch (e) {
-        inTauri = false;
-      }
+      const blob = response.data;
       
-      if (inTauri) {
+      // Try to use File System Access API (modern browsers)
+      if ('showSaveFilePicker' in window) {
         try {
-          // Dynamically import Tauri APIs
-          const { save } = await import('@tauri-apps/api/dialog');
-          const { writeBinaryFile } = await import('@tauri-apps/api/fs');
-          const { sep } = await import('@tauri-apps/api/path');
-          
-          // Convert blob to Uint8Array
-          const arrayBuffer = await response.data.arrayBuffer();
-          const uint8Array = new Uint8Array(arrayBuffer);
-          
-          // Show save dialog
-          const filePath = await save({
-            defaultPath: filename,
-            filters: [
-              { name: 'Word Document', extensions: ['docx'] },
-              { name: 'All Files', extensions: ['*'] }
-            ]
+          // Create file handle
+          const fileHandle = await window.showSaveFilePicker({
+            suggestedName: filename,
+            types: [{
+              description: 'Word Document',
+              accept: { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] }
+            }]
           });
           
-          if (filePath) {
-            // Write file to selected path
-            await writeBinaryFile(filePath, uint8Array);
-            const fileName = filePath.split(sep()).pop();
-            toast.success(`تم حفظ الملف بنجاح: ${fileName}`);
-          } else {
-            toast.info("تم إلغاء حفظ الملف");
+          // Create writable stream
+          const writable = await fileHandle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          
+          toast.success("تم حفظ الملف بنجاح");
+          setOpenPrintDialog(false);
+          return;
+        } catch (err) {
+          if (err.name !== 'AbortError') {
+            console.error("File System Access API error:", err);
           }
-        } catch (tauriError) {
-          console.error("Tauri save error:", tauriError);
-          // Fallback to browser download
-          saveAs(response.data, filename);
-          toast.success("تم تحميل الملف بنجاح (طريقة بديلة)");
+          // Fall through to traditional method if user cancels or error occurs
         }
-      } else {
-        // Web version - use saveAs (browser download)
-        saveAs(response.data, filename);
-        toast.success("تم تحميل الملف بنجاح");
       }
+      
+      // Fallback: Create download link (traditional method)
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      
+      toast.success("تم تحميل الملف بنجاح");
+      setOpenPrintDialog(false);
+      
+    } catch (error) {
+      console.error("Erreur lors du téléchargement :", error);
+      toast.error("فشل تحميل الملف");
+    } finally {
+      setTimeout(() => {
+        setIsDownloading(false);
+        setDownloadProgress(null);
+      }, 500);
+    }
+  };
+
+  // Alternative download function using a dialog approach
+  const downloadFileWithDialog = async (url, filename) => {
+    try {
+      setIsDownloading(true);
+      setDownloadProgress(0);
+      
+      const token = localStorage.getItem("access_token");
+      
+      // Progress simulation
+      const progressInterval = setInterval(() => {
+        setDownloadProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+      
+      const response = await axios.get(url, {
+        responseType: "blob",
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 30000,
+      });
+      
+      clearInterval(progressInterval);
+      setDownloadProgress(100);
+      
+      const blob = response.data;
+      
+      // Create a hidden input to trigger file save
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.style.display = 'none';
+      
+      // Create a promise that resolves when file is saved
+      const savePromise = new Promise((resolve, reject) => {
+        // For browsers that support the File System Access API
+        if ('showSaveFilePicker' in window) {
+          window.showSaveFilePicker({
+            suggestedName: filename,
+            types: [{
+              description: 'Word Document',
+              accept: { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] }
+            }]
+          }).then(async (fileHandle) => {
+            const writable = await fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            resolve();
+          }).catch(err => {
+            if (err.name !== 'AbortError') {
+              reject(err);
+            } else {
+              resolve(); // User cancelled
+            }
+          });
+        } else {
+          // Fallback for older browsers
+          const downloadUrl = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(downloadUrl);
+          resolve();
+        }
+      });
+      
+      await savePromise;
+      toast.success("تم حفظ الملف بنجاح");
+      setOpenPrintDialog(false);
+      
     } catch (error) {
       console.error("Erreur lors du téléchargement :", error);
       toast.error("فشل تحميل الملف");
@@ -1404,7 +1429,6 @@ export function InstallmentSalesList() {
                         `/vente/ventes-facilite/${printSaleDetails.id}/acte/word/`,
                         `Acte_${printSaleDetails.id}.docx`,
                       );
-                      setOpenPrintDialog(false);
                     }}
                     className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-3 rounded-lg hover:from-red-600 hover:to-red-700 transition flex items-center justify-center gap-2"
                   >
@@ -1417,7 +1441,6 @@ export function InstallmentSalesList() {
                         `/vente/ventes-facilite/${printSaleDetails.id}/bon/word/`,
                         `Bon_${printSaleDetails.id}.docx`,
                       );
-                      setOpenPrintDialog(false);
                     }}
                     className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white px-4 py-3 rounded-lg hover:from-emerald-600 hover:to-green-700 transition flex items-center justify-center gap-2"
                   >
@@ -1430,7 +1453,6 @@ export function InstallmentSalesList() {
                         `/vente/ventes-facilite/${printSaleDetails.id}/depot/word/`,
                         `Depot_${printSaleDetails.id}.docx`,
                       );
-                      setOpenPrintDialog(false);
                     }}
                     className="w-full bg-gradient-to-r from-amber-500 to-orange-600 text-white px-4 py-3 rounded-lg hover:from-amber-600 hover:to-orange-700 transition flex items-center justify-center gap-2"
                   >
@@ -1450,7 +1472,6 @@ export function InstallmentSalesList() {
                               `/vente/ventes-facilite/${printSaleDetails.id}/ccp/word/?prelevement=${montant}`,
                               `CCP_${index + 1}.docx`,
                             );
-                            setOpenPrintDialog(false);
                           }}
                           className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-3 rounded-lg hover:from-purple-600 hover:to-purple-700 transition flex items-center justify-center gap-2"
                         >

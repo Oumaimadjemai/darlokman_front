@@ -5,7 +5,6 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import axios from '../../../api/axiosInstance';
 import ConfirmationDialog from '../../Cards/ConfirmationDialog';
-import { saveAs } from "file-saver";
 
 export function CashSalesList() {
   const navigate = useNavigate();
@@ -27,7 +26,9 @@ export function CashSalesList() {
   });
   const [currentUserId, setCurrentUserId] = useState(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState(null); // For admin user filter
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(null);
   
   // Filter states
   const [filters, setFilters] = useState({
@@ -83,7 +84,6 @@ export function CashSalesList() {
 
   // Function to fetch current user ID from API if not in localStorage
   const fetchCurrentUserId = useCallback(async () => {
-    // First check localStorage
     let userId = localStorage.getItem("user_id");
     if (userId) {
       userIdRef.current = userId;
@@ -91,7 +91,6 @@ export function CashSalesList() {
       return userId;
     }
     
-    // Try to decode from token
     try {
       const token = localStorage.getItem("access_token");
       if (token) {
@@ -108,7 +107,6 @@ export function CashSalesList() {
       console.error("Failed to decode token", e);
     }
     
-    // If still no user_id, try to get from the users list using username
     if (currentUsername) {
       try {
         const token = localStorage.getItem("access_token");
@@ -163,7 +161,6 @@ export function CashSalesList() {
 
   // Fetch sales with filters
   const fetchSales = useCallback(async (forceRefresh = false) => {
-    // For non-admin users, need user ID
     if (role !== 'admin') {
       const userId = currentUserId || userIdRef.current;
       if (!userId) {
@@ -173,18 +170,15 @@ export function CashSalesList() {
       }
     }
 
-    // Prevent multiple simultaneous fetches
     if (fetchInProgress.current && !forceRefresh) {
       console.log("Fetch already in progress, skipping...");
       return;
     }
 
-    // Cancel any pending request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
 
-    // Create new AbortController for this request
     const newAbortController = new AbortController();
     abortControllerRef.current = newAbortController;
     fetchInProgress.current = true;
@@ -196,20 +190,15 @@ export function CashSalesList() {
 
     const params = {};
     
-    // Add user filter based on role
     if (role === 'admin' && selectedUserId) {
-      // Admin selected a specific user
       params.users = selectedUserId;
       console.log("Admin filtering by user ID:", selectedUserId);
     } else if (role !== 'admin') {
-      // Regular user sees only their own sales
       const userId = currentUserId || userIdRef.current;
       if (userId) {
         params.users = userId;
         console.log("Regular user filtering by user ID:", userId);
       }
-    } else {
-      console.log("Admin user - fetching all sales (no user filter)");
     }
     
     if (searchTerm) params.search = searchTerm;
@@ -228,7 +217,6 @@ export function CashSalesList() {
       
       if (!isMounted.current) return;
       
-      // Sort sales from latest to oldest by date
       const sortedSales = (response.data.ventes || []).sort((a, b) => {
         const dateA = new Date(a.date_vente || a.date_formatee);
         const dateB = new Date(b.date_vente || b.date_formatee);
@@ -241,7 +229,6 @@ export function CashSalesList() {
         nombre_de_ventes: response.data.nombre_de_ventes || 0,
       });
     } catch (err) {
-      // Ignore cancelled requests
       if (err.name === "CanceledError" || err.code === "ERR_CANCELED") {
         console.log("Request cancelled");
         return;
@@ -269,7 +256,6 @@ export function CashSalesList() {
       console.log("User role:", role);
       
       if (role !== 'admin') {
-        // For non-admin users, fetch user ID first
         const userId = await fetchCurrentUserId();
         console.log("Current user ID:", userId);
         
@@ -287,7 +273,6 @@ export function CashSalesList() {
           setLoading(false);
         }
       } else {
-        // For admin users, no need to fetch user ID
         console.log("Admin user - will fetch all sales");
         setIsInitialized(true);
         setTimeout(() => {
@@ -305,8 +290,6 @@ export function CashSalesList() {
   // Debounced search and filters
   useEffect(() => {
     if (!isInitialized) return;
-    
-    // For non-admin, need currentUserId
     if (role !== 'admin' && !currentUserId) return;
 
     if (searchDebounceRef.current) {
@@ -327,8 +310,6 @@ export function CashSalesList() {
   // Debounced filters
   useEffect(() => {
     if (!isInitialized) return;
-    
-    // For non-admin, need currentUserId
     if (role !== 'admin' && !currentUserId) return;
 
     if (filterDebounceRef.current) {
@@ -354,7 +335,6 @@ export function CashSalesList() {
   const handleUserFilterChange = (e) => {
     const userId = e.target.value;
     setSelectedUserId(userId === "" ? null : parseInt(userId));
-    // Reset to first page when changing user filter
     fetchSales();
   };
 
@@ -379,7 +359,7 @@ export function CashSalesList() {
     try {
       await axios.delete(`/vente/ventes-cache/${selectedId}/`, { headers, timeout: 15000 });
       toast.success("تم حذف عملية البيع بنجاح");
-      fetchSales(true); // Refresh with force refresh
+      fetchSales(true);
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data?.error || "فشل حذف عملية البيع");
@@ -400,19 +380,77 @@ export function CashSalesList() {
     }
   };
 
+  // Improved download function with save dialog support
   const downloadFile = async (url, filename) => {
     try {
+      setIsDownloading(true);
+      setDownloadProgress(0);
+      
       const token = localStorage.getItem("access_token");
+      
+      // Progress simulation
+      const progressInterval = setInterval(() => {
+        setDownloadProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+      
       const response = await axios.get(url, {
         responseType: "blob",
         headers: { Authorization: `Bearer ${token}` },
         timeout: 30000,
       });
-      saveAs(response.data, filename);
+      
+      clearInterval(progressInterval);
+      setDownloadProgress(100);
+      
+      const blob = response.data;
+      
+      // Try to use File System Access API (modern browsers) for save dialog
+      if ('showSaveFilePicker' in window) {
+        try {
+          const fileHandle = await window.showSaveFilePicker({
+            suggestedName: filename,
+            types: [{
+              description: 'Word Document',
+              accept: { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] }
+            }]
+          });
+          
+          const writable = await fileHandle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          
+          toast.success("تم حفظ الملف بنجاح");
+          setOpenPrintDialog(false);
+          return;
+        } catch (err) {
+          if (err.name !== 'AbortError') {
+            console.error("File System Access API error:", err);
+          }
+          // User cancelled or error occurred, fall through to traditional method
+        }
+      }
+      
+      // Fallback: Create download link (traditional method)
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      
       toast.success("تم تحميل الملف بنجاح");
+      setOpenPrintDialog(false);
+      
     } catch (error) {
       console.error("Erreur lors du téléchargement :", error);
       toast.error("فشل تحميل الملف");
+    } finally {
+      setTimeout(() => {
+        setIsDownloading(false);
+        setDownloadProgress(null);
+      }, 500);
     }
   };
 
@@ -433,14 +471,35 @@ export function CashSalesList() {
   const totalSales = sales.length;
   const totalAmount = totaux.total_montant;
 
-  // User options for filter
-  const userOptions = [
-    { value: "", label: "جميع المستخدمين" },
-    ...users.map(u => ({ value: u.id, label: u.username }))
-  ];
+  const formatMoney = (num) => {
+    if (num === undefined || num === null) return "0";
+    return Number(num);
+  };
 
   return (
     <div className="space-y-4">
+      {/* Download Progress Overlay */}
+      {isDownloading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-800 rounded-xl p-6 w-80 text-center border border-amber-500/30">
+            <div className="w-16 h-16 mx-auto mb-4">
+              <svg className="animate-spin w-16 h-16 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+            <p className="text-white font-medium mb-2">جاري تحميل الملف...</p>
+            <div className="w-full bg-slate-700 rounded-full h-2 mt-2">
+              <div 
+                className="bg-amber-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${downloadProgress || 0}%` }}
+              />
+            </div>
+            <p className="text-slate-400 text-sm mt-2">{downloadProgress || 0}%</p>
+          </div>
+        </div>
+      )}
+
       {/* Header with Stats and Add Button */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
@@ -457,7 +516,7 @@ export function CashSalesList() {
             <div className="flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-emerald-400" />
               <div className="text-xs text-emerald-300">المبلغ الإجمالي:</div>
-              <div className="text-lg text-white">{totalAmount} دج</div>
+              <div className="text-lg text-white">{formatMoney(totalAmount)} دج</div>
             </div>
           </div>
           <motion.button
@@ -634,7 +693,7 @@ export function CashSalesList() {
                     <th className="px-4 py-3 text-right">البائع</th>
                   )}
                   <th className="px-4 py-3 text-right">الإجراءات</th>
-                </tr>
+                 </tr>
               </thead>
               <tbody>
                 {sales.length > 0 ? (
@@ -660,7 +719,7 @@ export function CashSalesList() {
                           : 'غير معروف'}
                       </td>
                       <td className="px-4 py-3 text-emerald-300 font-medium">
-                        {parseFloat(sale.montant_total)} دج
+                        {formatMoney(sale.montant_total)} دج
                       </td>
                       {role === 'admin' && (
                         <td className="px-4 py-3 text-purple-300">
@@ -724,7 +783,7 @@ export function CashSalesList() {
                 عرض {sales.length} من {totaux.nombre_de_ventes} عملية بيع
               </div>
               <div className="text-emerald-400">
-                الإجمالي: <span className="font-bold">{totalAmount} دج</span>
+                الإجمالي: <span className="font-bold">{formatMoney(totalAmount)} دج</span>
               </div>
             </div>
           </div>
@@ -760,30 +819,27 @@ export function CashSalesList() {
                 <X className="w-6 h-6" />
               </button>
             </div>
-            <div className="p-6 text-center">
-              <p className="text-slate-300 mb-4">
+            <div className="p-6 space-y-3">
+              <p className="text-slate-300 text-center mb-2">
                 هل تريد طباعة وصل لعملية البيع رقم {selectedSale.id}؟
               </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    downloadFile(
-                      `/vente/ventes-cache/${selectedSale.id}/bon/word/`,
-                      `Bon_${selectedSale.id}.docx`
-                    );
-                    setOpenPrintDialog(false);
-                  }}
-                  className="flex-1 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white px-4 py-2 rounded-lg hover:from-indigo-600 hover:to-indigo-700 transition"
-                >
-                  طباعة
-                </button>
-                <button
-                  onClick={() => setOpenPrintDialog(false)}
-                  className="flex-1 bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-600 transition"
-                >
-                  إلغاء
-                </button>
-              </div>
+              <button
+                onClick={() => {
+                  downloadFile(
+                    `/vente/ventes-cache/${selectedSale.id}/bon/word/`,
+                    `Bon_${selectedSale.id}.docx`
+                  );
+                }}
+                className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white px-4 py-3 rounded-lg hover:from-emerald-600 hover:to-green-700 transition flex items-center justify-center gap-2"
+              >
+                <Printer className="w-4 h-4" /> طباعة وصل البيع
+              </button>
+              <button
+                onClick={() => setOpenPrintDialog(false)}
+                className="w-full bg-slate-700 text-white px-4 py-3 rounded-lg hover:bg-slate-600 transition"
+              >
+                إلغاء
+              </button>
             </div>
           </motion.div>
         </div>
@@ -802,9 +858,12 @@ export function CashSalesList() {
 // Detail Dialog Component
 function DetailDialog({ sale, onClose }) {
   const lignes = sale.lignes_detail || [];
-
-  // Sort lines if needed
   const sortedLignes = [...lignes].sort((a, b) => (a.id || 0) - (b.id || 0));
+
+  const formatMoney = (num) => {
+    if (num === undefined || num === null) return "0";
+    return Number(num);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
@@ -854,7 +913,7 @@ function DetailDialog({ sale, onClose }) {
               <DollarSign className="w-6 h-6 text-indigo-400 mx-auto mb-2" />
               <div className="text-sm text-slate-400">المبلغ الإجمالي</div>
               <div className="text-2xl font-bold text-emerald-400">
-                {parseFloat(sale.montant_total)} دج
+                {formatMoney(sale.montant_total)} دج
               </div>
             </div>
           </div>
@@ -889,8 +948,8 @@ function DetailDialog({ sale, onClose }) {
                         <td className="px-4 py-2 text-white">{ligne.produit_nom || 'غير معروف'}</td>
                         <td className="px-4 py-2 text-slate-300 font-mono text-xs">{ligne.produit_reference || '-'}</td>
                         <td className="px-4 py-2 text-blue-300">{ligne.quantite}</td>
-                        <td className="px-4 py-2 text-amber-300">{parseFloat(ligne.prix_unitaire)} دج</td>
-                        <td className="px-4 py-2 text-emerald-300 font-medium">{parseFloat(ligne.sous_total)} دج</td>
+                        <td className="px-4 py-2 text-amber-300">{formatMoney(ligne.prix_unitaire)} دج</td>
+                        <td className="px-4 py-2 text-emerald-300 font-medium">{formatMoney(ligne.sous_total)} دج</td>
                         <td className="px-4 py-2 text-purple-300">{ligne.magasin_detail?.nom || '-'}</td>
                         <td className="px-4 py-2 text-slate-400 text-xs break-all">
                           {ligne.codes_barres_utilises || '-'}

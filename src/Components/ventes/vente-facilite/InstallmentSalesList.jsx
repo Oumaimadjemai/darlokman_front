@@ -772,7 +772,7 @@ export function InstallmentSalesList() {
 
   const formatMoney = (num) => {
     if (num === undefined || num === null) return "0";
-    return Number(num).toLocaleString();
+    return Number(num);
   };
 
   return (

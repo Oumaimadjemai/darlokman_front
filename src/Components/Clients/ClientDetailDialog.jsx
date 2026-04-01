@@ -214,45 +214,34 @@ const VenteDetailFacilite = ({ clientId }) => {
     if (!clientId) return;
     setLoading(true);
     
-    // Add the client filter parameter
     const fetchVentes = async () => {
       try {
         const res = await axios.get(`/vente/ventes-facilite/?client=${clientId}`);
         
-        // ✅ FIX: Access the ventes array from results.ventes
         let ventesData = [];
         
         if (res.data && res.data.results) {
-          // If results is an object with ventes property
           if (res.data.results.ventes && Array.isArray(res.data.results.ventes)) {
             ventesData = res.data.results.ventes;
-          } 
-          // If results is directly the array
-          else if (Array.isArray(res.data.results)) {
+          } else if (Array.isArray(res.data.results)) {
             ventesData = res.data.results;
           }
-        } 
-        // Fallback: if results structure is different
-        else if (res.data.ventes && Array.isArray(res.data.ventes)) {
+        } else if (res.data.ventes && Array.isArray(res.data.ventes)) {
           ventesData = res.data.ventes;
         }
         
-        // For each vente, fetch the full details to get lignes_detail
         const ventesWithDetails = await Promise.all(
           ventesData.map(async (vente) => {
             try {
-              // Fetch full details for this vente
               const detailRes = await axios.get(`/vente/ventes-facilite/${vente.id}/`);
               return detailRes.data;
             } catch (err) {
               console.error(`Error fetching details for vente ${vente.id}:`, err);
-              // Return basic info if detail fetch fails
               return vente;
             }
           })
         );
         
-        // Sort by date (newest first)
         const sortedVentes = ventesWithDetails.sort((a, b) => {
           const dateA = new Date(a.date_creation || a.date_formatee);
           const dateB = new Date(b.date_creation || b.date_formatee);
@@ -283,6 +272,11 @@ const VenteDetailFacilite = ({ clientId }) => {
     );
   }
 
+  const formatNumber = (num) => {
+    if (num === undefined || num === null) return "0";
+    return Number(num).toLocaleString();
+  };
+
   return (
     <div className="space-y-4">
       {ventes.map((vente) => (
@@ -308,7 +302,7 @@ const VenteDetailFacilite = ({ clientId }) => {
                 </div>
               </div>
               <div className="text-lg font-bold text-amber-400">
-                الإجمالي: {parseFloat(vente.montant_total || 0)} د.ج
+                الإجمالي: {formatNumber(vente.montant_total)} د.ج
               </div>
             </div>
           </div>
@@ -324,7 +318,7 @@ const VenteDetailFacilite = ({ clientId }) => {
                   <th className="px-4 py-2 text-right">الكمية</th>
                   <th className="px-4 py-2 text-right">المحل</th>
                   <th className="px-4 py-2 text-right">المجموع</th>
-                </tr>
+                  </tr>
               </thead>
               <tbody>
                 {vente.lignes_detail && vente.lignes_detail.length > 0 ? (
@@ -338,14 +332,14 @@ const VenteDetailFacilite = ({ clientId }) => {
                         {ligne.produit_detail?.nom || ligne.nom || ""}
                       </td>
                       <td className="px-4 py-2 text-slate-300">
-                        {parseFloat(ligne.prix_unitaire || 0)}
+                        {formatNumber(ligne.prix_unitaire)}
                       </td>
                       <td className="px-4 py-2 text-slate-300">{ligne.quantite || 0}</td>
                       <td className="px-4 py-2 text-slate-300">
                         {vente.magasin?.nom || ligne.magasin_detail?.nom || "--"}
                       </td>
                       <td className="px-4 py-2 text-slate-300">
-                        {parseFloat(ligne.sous_total || 0)}
+                        {formatNumber(ligne.sous_total)}
                       </td>
                     </tr>
                   ))
@@ -364,11 +358,11 @@ const VenteDetailFacilite = ({ clientId }) => {
           <div className="p-4 bg-slate-800/50 flex justify-between items-center">
             <div className="text-sm">
               <span className="text-slate-400">المبلغ المدفوع:</span>{" "}
-              <span className="text-green-400">{parseFloat(vente.montant_verse || 0)} د.ج</span>
+              <span className="text-green-400">{formatNumber(vente.montant_verse)} د.ج</span>
             </div>
             <div className="text-sm">
               <span className="text-slate-400">المبلغ المتبقي:</span>{" "}
-              <span className="text-red-400">{parseFloat(vente.montant_restant || 0)} د.ج</span>
+              <span className="text-red-400">{formatNumber(vente.montant_restant)} د.ج</span>
             </div>
           </div>
         </div>
@@ -390,7 +384,6 @@ const VenteDetailCash = ({ clientId }) => {
       try {
         const res = await axios.get(`/vente/liste/?client=${clientId}`);
         
-        // Handle the response structure
         let ventesData = [];
         
         if (res.data && res.data.results) {
@@ -405,7 +398,6 @@ const VenteDetailCash = ({ clientId }) => {
           ventesData = res.data;
         }
         
-        // For each vente, fetch full details
         const ventesWithDetails = await Promise.all(
           ventesData.map(async (vente) => {
             try {
@@ -448,6 +440,11 @@ const VenteDetailCash = ({ clientId }) => {
     );
   }
 
+  const formatNumber = (num) => {
+    if (num === undefined || num === null) return "0";
+    return Number(num).toLocaleString();
+  };
+
   return (
     <div className="space-y-4">
       {ventes.map((vente) => (
@@ -463,7 +460,7 @@ const VenteDetailCash = ({ clientId }) => {
                 </div>
               </div>
               <div className="text-lg font-bold text-amber-400">
-                الإجمالي: {parseFloat(vente.montant_total || 0)} د.ج
+                الإجمالي: {formatNumber(vente.montant_total)} د.ج
               </div>
             </div>
           </div>
@@ -479,7 +476,7 @@ const VenteDetailCash = ({ clientId }) => {
                   <th className="px-4 py-2 text-right">الكمية</th>
                   <th className="px-4 py-2 text-right">المحل</th>
                   <th className="px-4 py-2 text-right">المجموع</th>
-                </tr>
+                  </tr>
               </thead>
               <tbody>
                 {vente.lignes_detail && vente.lignes_detail.length > 0 ? (
@@ -493,14 +490,14 @@ const VenteDetailCash = ({ clientId }) => {
                         {ligne.produit_detail?.nom || ligne.produit_nom || ""}
                       </td>
                       <td className="px-4 py-2 text-slate-300">
-                        {parseFloat(ligne.prix_unitaire || 0)}
+                        {formatNumber(ligne.prix_unitaire)}
                       </td>
                       <td className="px-4 py-2 text-slate-300">{ligne.quantite || 0}</td>
                       <td className="px-4 py-2 text-slate-300">
                         {vente.magasin?.nom || ligne.magasin_detail?.nom || "--"}
                       </td>
                       <td className="px-4 py-2 text-slate-300">
-                        {parseFloat(ligne.sous_total || 0)}
+                        {formatNumber(ligne.sous_total)}
                       </td>
                     </tr>
                   ))
@@ -519,6 +516,7 @@ const VenteDetailCash = ({ clientId }) => {
     </div>
   );
 };
+
 // Client Paiement Info Component
 const ClientPaiementInfo = ({ clientId }) => {
   const [ventes, setVentes] = useState([]);
@@ -530,10 +528,8 @@ const ClientPaiementInfo = ({ clientId }) => {
     const fetchPaiements = async () => {
       setLoading(true);
       try {
-        // First, fetch all installment sales for this client
         const res = await axios.get(`/vente/ventes-facilite/?client=${clientId}`);
         
-        // Extract ventes from the response structure
         let ventesData = [];
         if (res.data && res.data.results) {
           if (res.data.results.ventes && Array.isArray(res.data.results.ventes)) {
@@ -551,14 +547,11 @@ const ClientPaiementInfo = ({ clientId }) => {
           return;
         }
         
-        // For each vente, fetch payment details
         const ventesWithPaiements = await Promise.all(
           ventesData.map(async (vente) => {
             try {
-              // Fetch payment details for this vente
               const paiementRes = await axios.get(`/vente/vente/payer/${vente.id}/`);
               
-              // Handle different response structures
               let paiementData = [];
               if (paiementRes.data) {
                 if (Array.isArray(paiementRes.data)) {
@@ -572,10 +565,8 @@ const ClientPaiementInfo = ({ clientId }) => {
                 }
               }
               
-              // Filter out null/undefined
               paiementData = paiementData.filter(p => p != null);
               
-              // Calculate totals
               const totalPaid = paiementData.reduce((sum, p) => sum + (parseFloat(p.montant) || 0), 0);
               const totalDue = parseFloat(vente.montant_total) || 0;
               const remaining = totalDue - totalPaid;
@@ -601,7 +592,6 @@ const ClientPaiementInfo = ({ clientId }) => {
               };
             } catch (err) {
               console.error(`Error fetching paiements for vente ${vente.id}:`, err);
-              // Return basic info without payments
               return {
                 vente_id: vente.id,
                 date_debut: vente.date_debut,
@@ -618,7 +608,6 @@ const ClientPaiementInfo = ({ clientId }) => {
           })
         );
         
-        // Sort by date (newest first)
         const sortedVentes = ventesWithPaiements.sort((a, b) => {
           const dateA = a.date_debut ? new Date(a.date_debut) : 0;
           const dateB = b.date_debut ? new Date(b.date_debut) : 0;
@@ -636,6 +625,11 @@ const ClientPaiementInfo = ({ clientId }) => {
     
     fetchPaiements();
   }, [clientId]);
+
+  const formatNumber = (num) => {
+    if (num === undefined || num === null) return "0";
+    return Number(num).toLocaleString();
+  };
 
   if (loading) {
     return (
@@ -675,13 +669,13 @@ const ClientPaiementInfo = ({ clientId }) => {
               <div className="text-center">
                 <div className="text-sm text-slate-400">الدفعة الشهرية</div>
                 <div className="text-lg font-bold text-amber-400">
-                  {vente.montant_mensuel} د.ج
+                  {formatNumber(vente.montant_mensuel)} د.ج
                 </div>
               </div>
               <div className="text-center">
                 <div className="text-sm text-slate-400">المبلغ الإجمالي</div>
                 <div className="text-lg font-bold text-white">
-                  {vente.montant_total} د.ج
+                  {formatNumber(vente.montant_total)} د.ج
                 </div>
               </div>
             </div>
@@ -695,7 +689,7 @@ const ClientPaiementInfo = ({ clientId }) => {
                   <th className="px-4 py-3 text-right">المبلغ (دج)</th>
                   <th className="px-4 py-3 text-right">الشهر</th>
                   <th className="px-4 py-3 text-right">الحالة</th>
-                 </tr>
+                  </tr>
               </thead>
               <tbody>
                 {vente.paiements && vente.paiements.length > 0 ? (
@@ -705,7 +699,7 @@ const ClientPaiementInfo = ({ clientId }) => {
                         {p.date_paiement ? dayjs(p.date_paiement).format("DD/MM/YYYY") : "--"}
                       </td>
                       <td className="px-4 py-3 text-slate-300 font-medium">
-                        {p.montant} د.ج
+                        {formatNumber(p.montant)} د.ج
                       </td>
                       <td className="px-4 py-3 text-slate-300">
                         {p.month_index ? `الدفعة ${p.month_index}` : "--"}
@@ -745,16 +739,16 @@ const ClientPaiementInfo = ({ clientId }) => {
             <div className="text-center">
               <div className="text-sm text-slate-400">المجموع المدفوع</div>
               <div className="text-lg font-bold text-green-400">
-                {vente.total_verse_effectif} د.ج
+                {formatNumber(vente.total_verse_effectif)} د.ج
               </div>
               <div className="text-xs text-slate-500 mt-1">
-                {vente.montant_verse > 0 ? `(مقدم: ${vente.montant_verse})` : ""}
+                {vente.montant_verse > 0 ? `(مقدم: ${formatNumber(vente.montant_verse)})` : ""}
               </div>
             </div>
             <div className="text-center">
               <div className="text-sm text-slate-400">المبلغ المتبقي</div>
               <div className="text-lg font-bold text-red-400">
-                {vente.reste_vente} د.ج
+                {formatNumber(vente.reste_vente)} د.ج
               </div>
               <div className="text-xs text-slate-500 mt-1">
                 {vente.paiements && vente.paiements.length > 0 
@@ -791,13 +785,13 @@ const ClientPaiementInfo = ({ clientId }) => {
             <div className="text-center">
               <div className="text-sm text-slate-400">إجمالي المشتريات</div>
               <div className="text-xl font-bold text-white">
-                {ventes.reduce((sum, v) => sum + v.montant_total, 0)} د.ج
+                {formatNumber(ventes.reduce((sum, v) => sum + v.montant_total, 0))} د.ج
               </div>
             </div>
             <div className="text-center">
               <div className="text-sm text-slate-400">إجمالي المدفوع</div>
               <div className="text-xl font-bold text-green-400">
-                {ventes.reduce((sum, v) => sum + v.total_verse_effectif, 0)} د.ج
+                {formatNumber(ventes.reduce((sum, v) => sum + v.total_verse_effectif, 0))} د.ج
               </div>
             </div>
           </div>
@@ -806,6 +800,7 @@ const ClientPaiementInfo = ({ clientId }) => {
     </div>
   );
 };
+
 
 // Main Component
 export default function ClientDetailDialog({ open, onClose, client }) {
@@ -818,6 +813,8 @@ export default function ClientDetailDialog({ open, onClose, client }) {
   const [openConfirm, setOpenConfirm] = useState(false);
   const [actionType, setActionType] = useState("");
   const [loading, setLoading] = useState(false);
+  const [clientDetails, setClientDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   const statutChoices = [
     { value: "non_classifie", label: "غير مصنف", color: "slate" },
@@ -838,13 +835,30 @@ export default function ClientDetailDialog({ open, onClose, client }) {
     { id: 4, label: "كشف الحساب", icon: BarChart3 },
   ];
 
-  useEffect(() => {
-    if (client) {
-      setBloque(client.bloque ?? false);
-      setStatut(client.statut ?? "non_classifie");
-      setNote(client.note ?? "");
+  // Fetch client details including debt information
+  const fetchClientDetails = async () => {
+    if (!client?.id) return;
+    
+    setLoadingDetails(true);
+    try {
+      const response = await axios.get(`/auth/clients/${client.id}/`);
+      setClientDetails(response.data);
+      setBloque(response.data.bloque ?? false);
+      setStatut(response.data.statut ?? "non_classifie");
+      setNote(response.data.note ?? "");
+    } catch (error) {
+      console.error("Error fetching client details:", error);
+      toast.error("فشل تحميل تفاصيل العميل");
+    } finally {
+      setLoadingDetails(false);
     }
-  }, [client]);
+  };
+
+  useEffect(() => {
+    if (open && client) {
+      fetchClientDetails();
+    }
+  }, [open, client]);
 
   const handleOpenConfirm = (type) => {
     setActionType(type);
@@ -853,10 +867,12 @@ export default function ClientDetailDialog({ open, onClose, client }) {
 
   const handleConfirm = async () => {
     if (actionType === "deleteFiles") {
-      for (const file of client.fichiers || []) {
+      for (const file of clientDetails?.fichiers || []) {
         await handleDeleteFile(file.id);
       }
       setDeleteFileChecked(false);
+      // Refresh client details after deletion
+      await fetchClientDetails();
     }
     if (actionType === "updateClient") {
       await handleUpdateClient();
@@ -869,6 +885,8 @@ export default function ClientDetailDialog({ open, onClose, client }) {
     try {
       await axios.patch(`/auth/clients/${client.id}/`, { bloque, statut });
       toast.success("✅ تم تحديث حالة الزبون بنجاح");
+      // Refresh client details
+      await fetchClientDetails();
     } catch (error) {
       console.error(error);
       toast.error("❌ فشل تحديث الزبون");
@@ -883,6 +901,8 @@ export default function ClientDetailDialog({ open, onClose, client }) {
       await axios.patch(`/auth/clients/${client.id}/`, { note });
       toast.success("✅ تم تحديث الملاحظة بنجاح");
       setIsEditingNote(false);
+      // Refresh client details
+      await fetchClientDetails();
     } catch (error) {
       console.error(error);
       toast.error("❌ فشل تحديث الملاحظة");
@@ -903,7 +923,8 @@ export default function ClientDetailDialog({ open, onClose, client }) {
 
   if (!open || !client) return null;
 
-  const clientFiles = client.fichiers?.map((file) => ({
+  const currentClient = clientDetails || client;
+  const clientFiles = currentClient.fichiers?.map((file) => ({
     id: file.id,
     type: file.url?.toLowerCase().endsWith(".pdf") ? "pdf" : "image",
     name: file.name || `ملف ${file.id}`,
@@ -919,7 +940,20 @@ export default function ClientDetailDialog({ open, onClose, client }) {
     return statusColors[statusValue]?.label || statusColors.non_classifie.label;
   };
 
+  const formatNumber = (num) => {
+    if (num === undefined || num === null) return "0";
+    return Number(num).toLocaleString();
+  };
+
   const renderContent = () => {
+    if (loadingDetails && activeTab === 0) {
+      return (
+        <div className="flex justify-center items-center py-20">
+          <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      );
+    }
+
     switch (activeTab) {
       case 0:
         return (
@@ -932,36 +966,36 @@ export default function ClientDetailDialog({ open, onClose, client }) {
                   <div className="flex justify-between">
                     <span className="text-slate-400">الاسم الكامل:</span>
                     <span className="text-white">
-                      {`${client.prenom_ar || ""} ${client.nom_famille_ar || ""} / ${client.prenom_fr || ""} ${client.nom_famille_fr || ""}`}
+                      {`${currentClient.prenom_ar || ""} ${currentClient.nom_famille_ar || ""} / ${currentClient.prenom_fr || ""} ${currentClient.nom_famille_fr || ""}`}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">رقم الحساب:</span>
-                    <span className="text-white">{`${client.ccp || ""} - مفتاح ${client.cle || ""}`}</span>
+                    <span className="text-white">{`${currentClient.ccp || ""} - مفتاح ${currentClient.cle || ""}`}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">الدخل:</span>
-                    <span className="text-white">{client.revenu ? `${client.revenu} د.ج` : "--"}</span>
+                    <span className="text-white">{currentClient.revenu ? `${formatNumber(currentClient.revenu)} د.ج` : "--"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">العنوان:</span>
-                    <span className="text-white">{client.adresse || "--"}</span>
+                    <span className="text-white">{currentClient.adresse || "--"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">الهاتف:</span>
-                    <span className="text-white">{client.telephone || "--"}</span>
+                    <span className="text-white">{currentClient.telephone || "--"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">رقم الزبون:</span>
-                    <span className="text-white">{client.id}</span>
+                    <span className="text-white">{currentClient.id}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">المهنة:</span>
-                    <span className="text-white">{client.profession || "--"}</span>
+                    <span className="text-white">{currentClient.profession || "--"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">تاريخ الدخل:</span>
-                    <span className="text-white">{client.jour ? `${client.jour} من كل شهر` : "--"}</span>
+                    <span className="text-white">{currentClient.jour ? `${currentClient.jour} من كل شهر` : "--"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">التصنيف:</span>
@@ -993,13 +1027,13 @@ export default function ClientDetailDialog({ open, onClose, client }) {
                     <label className="text-slate-400 text-sm">استرجاع الملف</label>
                     <button
                       onClick={() => {
-                        if (client.fichiers?.length > 0) {
+                        if (clientFiles?.length > 0) {
                           handleOpenConfirm("deleteFiles");
                         } else {
                           toast.info("لا توجد ملفات لاسترجاعها");
                         }
                       }}
-                      disabled={client.fichiers?.length === 0}
+                      disabled={clientFiles?.length === 0}
                       className="text-red-400 text-sm hover:text-red-300 transition disabled:opacity-50"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -1039,19 +1073,19 @@ export default function ClientDetailDialog({ open, onClose, client }) {
                 <div className="bg-gradient-to-r from-red-500/20 to-rose-600/20 border border-red-500/30 rounded-lg p-4 text-center">
                   <div className="text-red-300 text-sm">الدين الحالي</div>
                   <div className="text-red-400 text-2xl font-bold">
-                    {(client.dette_actuelle_client || 0)} د.ج
+                    {formatNumber(currentClient.dette_actuelle_client || 0)} د.ج
                   </div>
                 </div>
                 <div className="bg-gradient-to-r from-emerald-500/20 to-green-600/20 border border-emerald-500/30 rounded-lg p-4 text-center">
                   <div className="text-emerald-300 text-sm">المدفوعات</div>
                   <div className="text-emerald-400 text-2xl font-bold">
-                    {(client.montant_paye_effectif || 0)} د.ج
+                    {formatNumber(currentClient.montant_paye_effectif || 0)} د.ج
                   </div>
                 </div>
                 <div className="bg-gradient-to-r from-blue-500/20 to-cyan-600/20 border border-blue-500/30 rounded-lg p-4 text-center">
                   <div className="text-blue-300 text-sm">المشتريات</div>
                   <div className="text-blue-400 text-2xl font-bold">
-                    {(client.dette_totale_client || 0)} د.ج
+                    {formatNumber(currentClient.dette_totale_client || 0)} د.ج
                   </div>
                 </div>
               </div>
@@ -1134,10 +1168,10 @@ export default function ClientDetailDialog({ open, onClose, client }) {
             <div className="bg-gradient-to-r from-amber-500 to-yellow-600 px-6 py-4 flex justify-between items-center">
               <div>
                 <h2 className="text-white text-xl font-bold">
-                  {`${client.prenom_ar || ""} ${client.nom_famille_ar || ""}`}
+                  {`${currentClient.prenom_ar || ""} ${currentClient.nom_famille_ar || ""}`}
                 </h2>
                 <p className="text-white/70 text-sm mt-1">
-                  رقم العميل: {client.id}
+                  رقم العميل: {currentClient.id}
                 </p>
               </div>
               <button

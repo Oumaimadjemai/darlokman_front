@@ -24,10 +24,40 @@ import axios from "../../../api/axiosInstance";
 import ConfirmationDialog from "../../Cards/ConfirmationDialog";
 import { saveAs } from "file-saver";
 
-// Check if running in Tauri
+// Improved Tauri detection that works with remote URLs
 const isTauri = () => {
-  return typeof window !== 'undefined' && 
-         (window.__TAURI__ !== undefined || window.__TAURI_INTERNALS__ !== undefined);
+  // Check for Tauri's global variables
+  if (typeof window !== 'undefined') {
+    // Check for Tauri's __TAURI__ global
+    if (window.__TAURI__ !== undefined || window.__TAURI_INTERNALS__ !== undefined) {
+      return true;
+    }
+    // Check for Tauri's IPC bridge
+    if (window.tauri && typeof window.tauri.invoke === 'function') {
+      return true;
+    }
+    // Check for Tauri's user agent
+    if (navigator.userAgent.includes('Tauri')) {
+      return true;
+    }
+    // Check for Tauri-specific window property
+    if (window.__TAURI_METADATA__ !== undefined) {
+      return true;
+    }
+  }
+  return false;
+};
+
+// Async Tauri detection function
+const isTauriAsync = async () => {
+  try {
+    // Try to dynamically import a Tauri module
+    const { getVersion } = await import('@tauri-apps/api/app');
+    await getVersion();
+    return true;
+  } catch (e) {
+    return false;
+  }
 };
 
 export function InstallmentSalesList() {
@@ -69,6 +99,7 @@ export function InstallmentSalesList() {
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [downloadProgress, setDownloadProgress] = useState(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isTauriEnvironment, setIsTauriEnvironment] = useState(false);
 
   const [filters, setFilters] = useState({
     periode: "",
@@ -104,6 +135,16 @@ export function InstallmentSalesList() {
     { value: "last_month", label: "الشهر الماضي" },
     { value: "this_year", label: "هذا العام" },
   ];
+
+  // Check Tauri environment on mount
+  useEffect(() => {
+    const checkTauri = async () => {
+      const tauriDetected = await isTauriAsync();
+      setIsTauriEnvironment(tauriDetected);
+      console.log("Tauri environment detected:", tauriDetected);
+    };
+    checkTauri();
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -294,15 +335,15 @@ export function InstallmentSalesList() {
     }
   }, [filters, currentUserId, role, selectedUserId]);
 
-  // Download file with Tauri support
-  const downloadFile = useCallback(async (url, filename) => {
+  // Improved download function with better Tauri support
+  const downloadFile = async (url, filename) => {
     try {
       setIsDownloading(true);
       setDownloadProgress(0);
       
       const token = localStorage.getItem("access_token");
       
-      // Show progress simulation
+      // Progress simulation
       const progressInterval = setInterval(() => {
         setDownloadProgress(prev => Math.min(prev + 10, 90));
       }, 200);
@@ -316,31 +357,42 @@ export function InstallmentSalesList() {
       clearInterval(progressInterval);
       setDownloadProgress(100);
       
-      // Check if running in Tauri desktop app
-      if (isTauri()) {
+      // Check if we're in Tauri environment
+      let inTauri = false;
+      try {
+        // Try to check if Tauri APIs are available
+        const { getVersion } = await import('@tauri-apps/api/app');
+        await getVersion();
+        inTauri = true;
+      } catch (e) {
+        inTauri = false;
+      }
+      
+      if (inTauri) {
         try {
           // Dynamically import Tauri APIs
           const { save } = await import('@tauri-apps/api/dialog');
-          const { writeFile } = await import('@tauri-apps/api/fs');
+          const { writeBinaryFile } = await import('@tauri-apps/api/fs');
+          const { sep } = await import('@tauri-apps/api/path');
+          
+          // Convert blob to Uint8Array
+          const arrayBuffer = await response.data.arrayBuffer();
+          const uint8Array = new Uint8Array(arrayBuffer);
           
           // Show save dialog
           const filePath = await save({
             defaultPath: filename,
             filters: [
               { name: 'Word Document', extensions: ['docx'] },
-              { name: 'PDF Document', extensions: ['pdf'] },
               { name: 'All Files', extensions: ['*'] }
             ]
           });
           
           if (filePath) {
-            // Convert blob to Uint8Array
-            const arrayBuffer = await response.data.arrayBuffer();
-            const uint8Array = new Uint8Array(arrayBuffer);
-            
             // Write file to selected path
-            await writeFile(filePath, uint8Array);
-            toast.success(`تم حفظ الملف في: ${filePath.split('/').pop()}`);
+            await writeBinaryFile(filePath, uint8Array);
+            const fileName = filePath.split(sep()).pop();
+            toast.success(`تم حفظ الملف بنجاح: ${fileName}`);
           } else {
             toast.info("تم إلغاء حفظ الملف");
           }
@@ -348,10 +400,10 @@ export function InstallmentSalesList() {
           console.error("Tauri save error:", tauriError);
           // Fallback to browser download
           saveAs(response.data, filename);
-          toast.success("تم تحميل الملف بنجاح");
+          toast.success("تم تحميل الملف بنجاح (طريقة بديلة)");
         }
       } else {
-        // Web version - use saveAs
+        // Web version - use saveAs (browser download)
         saveAs(response.data, filename);
         toast.success("تم تحميل الملف بنجاح");
       }
@@ -364,7 +416,7 @@ export function InstallmentSalesList() {
         setDownloadProgress(null);
       }, 500);
     }
-  }, []);
+  };
 
   // Fetch sales with filters
   const fetchSales = useCallback(
@@ -1039,7 +1091,7 @@ export function InstallmentSalesList() {
                   <th className="px-4 py-3 text-right">المبلغ الشهري</th>
                   <th className="px-4 py-3 text-right">المخزن</th>
                   <th className="px-4 py-3 text-right">الإجراءات</th>
-                  </tr>
+                 </tr>
               </thead>
               <tbody>
                 {sales.map((sale, index) => (

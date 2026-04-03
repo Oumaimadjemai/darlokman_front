@@ -274,7 +274,7 @@ const VenteDetailFacilite = ({ clientId }) => {
 
   const formatNumber = (num) => {
     if (num === undefined || num === null) return "0";
-    return Number(num).toLocaleString();
+    return Number(num);
   };
 
   return (
@@ -442,7 +442,7 @@ const VenteDetailCash = ({ clientId }) => {
 
   const formatNumber = (num) => {
     if (num === undefined || num === null) return "0";
-    return Number(num).toLocaleString();
+    return Number(num);
   };
 
   return (
@@ -517,7 +517,7 @@ const VenteDetailCash = ({ clientId }) => {
   );
 };
 
-// Client Paiement Info Component
+// Client Paiement Info Component - Only main info, progress bar, and summary
 const ClientPaiementInfo = ({ clientId }) => {
   const [ventes, setVentes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -528,6 +528,7 @@ const ClientPaiementInfo = ({ clientId }) => {
     const fetchPaiements = async () => {
       setLoading(true);
       try {
+        // 1️⃣ First, fetch all sales for the client
         const res = await axios.get(`/vente/ventes-facilite/?client=${clientId}`);
         
         let ventesData = [];
@@ -547,6 +548,7 @@ const ClientPaiementInfo = ({ clientId }) => {
           return;
         }
         
+        // 2️⃣ For each sale, fetch payment details
         const ventesWithPaiements = await Promise.all(
           ventesData.map(async (vente) => {
             try {
@@ -558,37 +560,23 @@ const ClientPaiementInfo = ({ clientId }) => {
                   paiementData = paiementRes.data;
                 } else if (paiementRes.data.results && Array.isArray(paiementRes.data.results)) {
                   paiementData = paiementRes.data.results;
-                } else if (paiementRes.data.paiements && Array.isArray(paiementRes.data.paiements)) {
-                  paiementData = paiementRes.data.paiements;
                 } else {
                   paiementData = [paiementRes.data];
                 }
               }
               
-              paiementData = paiementData.filter(p => p != null);
-              
-              const totalPaid = paiementData.reduce((sum, p) => sum + (parseFloat(p.montant) || 0), 0);
-              const totalDue = parseFloat(vente.montant_total) || 0;
-              const remaining = totalDue - totalPaid;
+              const paymentInfo = paiementData[0] || {};
               
               return {
                 vente_id: vente.id,
-                date_debut: vente.date_debut,
-                date_fin: vente.date_fin,
-                montant_total: totalDue,
-                montant_mensuel: parseFloat(vente.montant_mensuel) || 0,
-                montant_verse: parseFloat(vente.montant_verse) || 0,
-                montant_restant: parseFloat(vente.montant_restant) || 0,
-                total_verse_effectif: totalPaid,
-                reste_vente: remaining,
-                paiements: paiementData.map(p => ({
-                  id: p.id,
-                  montant: parseFloat(p.montant) || 0,
-                  date_paiement: p.date_paiement,
-                  status: p.status || (p.montant > 0 ? "paid" : "pending"),
-                  month_index: p.month_index,
-                  year: p.year
-                }))
+                date_debut: paymentInfo.date_debut || vente.date_debut,
+                date_fin: paymentInfo.date_fin || vente.date_fin,
+                montant_total: (paymentInfo.reste_vente || 0) + (paymentInfo.total_verse_effectif || 0),
+                montant_mensuel: paymentInfo.montant_mensuel || vente.montant_mensuel || 0,
+                nombre_mois: paymentInfo.nombre_mois || vente.nombre_mois || 0,
+                total_verse_effectif: paymentInfo.total_verse_effectif || 0,
+                reste_vente: paymentInfo.reste_vente || 0,
+                solde_regle: paymentInfo.solde_regle || false
               };
             } catch (err) {
               console.error(`Error fetching paiements for vente ${vente.id}:`, err);
@@ -598,16 +586,16 @@ const ClientPaiementInfo = ({ clientId }) => {
                 date_fin: vente.date_fin,
                 montant_total: parseFloat(vente.montant_total) || 0,
                 montant_mensuel: parseFloat(vente.montant_mensuel) || 0,
-                montant_verse: parseFloat(vente.montant_verse) || 0,
-                montant_restant: parseFloat(vente.montant_restant) || 0,
+                nombre_mois: vente.nombre_mois || 0,
                 total_verse_effectif: parseFloat(vente.montant_verse) || 0,
                 reste_vente: parseFloat(vente.montant_restant) || 0,
-                paiements: []
+                solde_regle: false
               };
             }
           })
         );
         
+        // Sort by start date (newest first)
         const sortedVentes = ventesWithPaiements.sort((a, b) => {
           const dateA = a.date_debut ? new Date(a.date_debut) : 0;
           const dateB = b.date_debut ? new Date(b.date_debut) : 0;
@@ -628,7 +616,7 @@ const ClientPaiementInfo = ({ clientId }) => {
 
   const formatNumber = (num) => {
     if (num === undefined || num === null) return "0";
-    return Number(num).toLocaleString();
+    return Number(num);
   };
 
   if (loading) {
@@ -654,7 +642,8 @@ const ClientPaiementInfo = ({ clientId }) => {
     <div className="space-y-6">
       {ventes.map((vente) => (
         <div key={vente.vente_id} className="bg-slate-700/30 rounded-lg overflow-hidden">
-          <div className="bg-gradient-to-r from-amber-500/20 to-yellow-600/20 p-4 border-b border-amber-500/30">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-amber-500/20 to-yellow-600/20 p-4">
             <div className="flex justify-between items-center flex-wrap gap-2">
               <div>
                 <div className="text-sm text-slate-400">
@@ -662,9 +651,14 @@ const ClientPaiementInfo = ({ clientId }) => {
                 </div>
                 <div className="text-sm text-slate-400">
                   <span className="text-amber-400">الفترة:</span>{" "}
-                  {vente.date_debut ? dayjs(vente.date_debut).format("DD/MM/YYYY") : "--"} -{" "}
-                  {vente.date_fin ? dayjs(vente.date_fin).format("DD/MM/YYYY") : "--"}
+                  {vente.date_debut ? dayjs(vente.date_debut).format("DD/MM/YYYY") : "--"} 
+                  {vente.date_fin ? ` - ${dayjs(vente.date_fin).format("DD/MM/YYYY")}` : ""}
                 </div>
+                {vente.nombre_mois > 0 && (
+                  <div className="text-sm text-slate-400">
+                    <span className="text-amber-400">عدد الأشهر:</span> {vente.nombre_mois} شهر
+                  </div>
+                )}
               </div>
               <div className="text-center">
                 <div className="text-sm text-slate-400">الدفعة الشهرية</div>
@@ -681,99 +675,47 @@ const ClientPaiementInfo = ({ clientId }) => {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-600/30 text-slate-300">
-                  <th className="px-4 py-3 text-right">تاريخ الدفع</th>
-                  <th className="px-4 py-3 text-right">المبلغ (دج)</th>
-                  <th className="px-4 py-3 text-right">الشهر</th>
-                  <th className="px-4 py-3 text-right">الحالة</th>
-                  </tr>
-              </thead>
-              <tbody>
-                {vente.paiements && vente.paiements.length > 0 ? (
-                  vente.paiements.map((p, index) => (
-                    <tr key={p.id || index} className="border-b border-slate-700">
-                      <td className="px-4 py-3 text-slate-300">
-                        {p.date_paiement ? dayjs(p.date_paiement).format("DD/MM/YYYY") : "--"}
-                      </td>
-                      <td className="px-4 py-3 text-slate-300 font-medium">
-                        {formatNumber(p.montant)} د.ج
-                      </td>
-                      <td className="px-4 py-3 text-slate-300">
-                        {p.month_index ? `الدفعة ${p.month_index}` : "--"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
-                          p.status === "paid" || p.status === "PAID" || p.montant > 0
-                            ? "bg-green-500/20 text-green-400" 
-                            : "bg-yellow-500/20 text-yellow-400"
-                        }`}>
-                          {p.status === "paid" || p.status === "PAID" || p.montant > 0 ? (
-                            <>✔ مدفوع</>
-                          ) : (
-                            <>⏳ قيد الانتظار</>
-                          )}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
-                      <div className="flex flex-col items-center gap-2">
-                        <AlertCircle className="w-8 h-8 text-slate-500" />
-                        <p>لا توجد أي دفعات مسجلة</p>
-                        <p className="text-xs">سيتم تسجيل الدفعات عند دفع الأقساط</p>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          {/* Payment Summary & Progress Bar */}
+          <div className="p-4">
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="text-center">
+                <div className="text-sm text-slate-400">المجموع المدفوع</div>
+                <div className="text-lg font-bold text-green-400">
+                  {formatNumber(vente.total_verse_effectif)} د.ج
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm text-slate-400">المبلغ المتبقي</div>
+                <div className="text-lg font-bold text-red-400">
+                  {formatNumber(vente.reste_vente)} د.ج
+                </div>
+              </div>
+            </div>
+            
+            {/* Progress Bar */}
+            {vente.montant_total > 0 && (
+              <div>
+                <div className="w-full bg-slate-700 rounded-full h-2">
+                  <div 
+                    className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${(vente.total_verse_effectif / vente.montant_total) * 100}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-slate-400 mt-1">
+                  <span>0%</span>
+                  <span>{Math.round((vente.total_verse_effectif / vente.montant_total) * 100)}%</span>
+                  <span>100%</span>
+                </div>
+              </div>
+            )}
 
-          {/* Payment Summary */}
-          <div className="p-4 bg-slate-800/50 grid grid-cols-2 gap-4">
-            <div className="text-center">
-              <div className="text-sm text-slate-400">المجموع المدفوع</div>
-              <div className="text-lg font-bold text-green-400">
-                {formatNumber(vente.total_verse_effectif)} د.ج
+            {/* Badge for fully paid */}
+            {vente.solde_regle && (
+              <div className="mt-4 bg-green-500/20 text-green-400 text-center py-2 rounded-lg text-sm">
+                ✓ تم تسديد كامل المبلغ
               </div>
-              <div className="text-xs text-slate-500 mt-1">
-                {vente.montant_verse > 0 ? `(مقدم: ${formatNumber(vente.montant_verse)})` : ""}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-sm text-slate-400">المبلغ المتبقي</div>
-              <div className="text-lg font-bold text-red-400">
-                {formatNumber(vente.reste_vente)} د.ج
-              </div>
-              <div className="text-xs text-slate-500 mt-1">
-                {vente.paiements && vente.paiements.length > 0 
-                  ? `تم دفع ${vente.paiements.length} قسط` 
-                  : "لم يتم دفع أي قسط بعد"}
-              </div>
-            </div>
+            )}
           </div>
-          
-          {/* Progress Bar */}
-          {vente.montant_total > 0 && (
-            <div className="px-4 pb-4">
-              <div className="w-full bg-slate-700 rounded-full h-2">
-                <div 
-                  className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all duration-500"
-                  style={{ width: `${(vente.total_verse_effectif / vente.montant_total) * 100}%` }}
-                />
-              </div>
-              <div className="flex justify-between text-xs text-slate-400 mt-1">
-                <span>0%</span>
-                <span>{Math.round((vente.total_verse_effectif / vente.montant_total) * 100)}%</span>
-                <span>100%</span>
-              </div>
-            </div>
-          )}
         </div>
       ))}
       
@@ -800,8 +742,6 @@ const ClientPaiementInfo = ({ clientId }) => {
     </div>
   );
 };
-
-
 // Main Component
 export default function ClientDetailDialog({ open, onClose, client }) {
   const [activeTab, setActiveTab] = useState(0);
@@ -836,23 +776,51 @@ export default function ClientDetailDialog({ open, onClose, client }) {
   ];
 
   // Fetch client details including debt information
-  const fetchClientDetails = async () => {
-    if (!client?.id) return;
+ // Fetch client details including debt information
+const fetchClientDetails = async () => {
+  if (!client?.id) return;
+  
+  setLoadingDetails(true);
+  try {
+    // Fetch client basic info
+    const response = await axios.get(`/auth/clients/${client.id}/`);
     
-    setLoadingDetails(true);
-    try {
-      const response = await axios.get(`/auth/clients/${client.id}/`);
-      setClientDetails(response.data);
-      setBloque(response.data.bloque ?? false);
-      setStatut(response.data.statut ?? "non_classifie");
-      setNote(response.data.note ?? "");
-    } catch (error) {
-      console.error("Error fetching client details:", error);
-      toast.error("فشل تحميل تفاصيل العميل");
-    } finally {
-      setLoadingDetails(false);
+    // Fetch client's vente facilite data to get debt info
+    const venteResponse = await axios.get(`/vente/ventes-facilite/?client=${client.id}`);
+    
+    let ventesData = [];
+    if (venteResponse.data && venteResponse.data.results) {
+      if (venteResponse.data.results.ventes && Array.isArray(venteResponse.data.results.ventes)) {
+        ventesData = venteResponse.data.results.ventes;
+      } else if (Array.isArray(venteResponse.data.results)) {
+        ventesData = venteResponse.data.results;
+      }
+    } else if (venteResponse.data.ventes && Array.isArray(venteResponse.data.ventes)) {
+      ventesData = venteResponse.data.ventes;
     }
-  };
+    
+    // Calculate totals from ventes
+    const totalMontantTotal = ventesData.reduce((sum, v) => sum + (parseFloat(v.montant_total) || 0), 0);
+    const totalMontantVerse = ventesData.reduce((sum, v) => sum + (parseFloat(v.montant_verse) || 0), 0);
+    const totalMontantRestant = ventesData.reduce((sum, v) => sum + (parseFloat(v.montant_restant) || 0), 0);
+    
+    setClientDetails({
+      ...response.data,
+      dette_totale_client: totalMontantTotal,
+      montant_paye_effectif: totalMontantTotal - totalMontantRestant,
+      dette_actuelle_client: totalMontantRestant,
+    });
+    
+    setBloque(response.data.bloque ?? false);
+    setStatut(response.data.statut ?? "non_classifie");
+    setNote(response.data.note ?? "");
+  } catch (error) {
+    console.error("Error fetching client details:", error);
+    toast.error("فشل تحميل تفاصيل العميل");
+  } finally {
+    setLoadingDetails(false);
+  }
+};
 
   useEffect(() => {
     if (open && client) {
@@ -942,7 +910,7 @@ export default function ClientDetailDialog({ open, onClose, client }) {
 
   const formatNumber = (num) => {
     if (num === undefined || num === null) return "0";
-    return Number(num).toLocaleString();
+    return Number(num);
   };
 
   const renderContent = () => {

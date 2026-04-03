@@ -12,14 +12,17 @@ import {
   AlertCircle,
   Calendar,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Download,
+  ListChecks
 } from "lucide-react";
 import axios from "../../../api/axiosInstance";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-
+import { toast } from "sonner";
 export default function PosteBoard() {
   const [rows, setRows] = useState([]);
+  const [allRows, setAllRows] = useState([]); // Store all data for export
   const [totaux, setTotaux] = useState({
     total_ventes: 0,
     total_montant_total: 0,
@@ -28,7 +31,7 @@ export default function PosteBoard() {
   });
   const [users, setUsers] = useState([]);
   const [filters, setFilters] = useState({
-    periode: "",
+    periode: "last_month",
     users: "",
   });
   const [searchTerm, setSearchTerm] = useState("");
@@ -37,6 +40,9 @@ export default function PosteBoard() {
   const [error, setError] = useState(null);
   const debounceTimer = useRef(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [loadingAll, setLoadingAll] = useState(false);
+  const [showAllData, setShowAllData] = useState(false);
   
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -55,6 +61,83 @@ export default function PosteBoard() {
     { value: "last_month", label: "الشهر الماضي" },
     { value: "this_year", label: "هذا العام" },
   ];
+
+  // Fetch all data (for export or show all)
+  const fetchAllData = useCallback(async () => {
+    setLoadingAll(true);
+    try {
+      const headers = {
+        Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        "Content-Type": "application/json",
+      };
+      
+      const params = {
+        ...filters,
+        search: searchTerm || undefined,
+        page_size: 10000, // Large page size to get all at once
+      };
+      
+      const response = await axios.get("/vente/ventes-facilite/", { headers, params });
+      
+      let ventesList = [];
+      if (response.data.results && response.data.results.ventes) {
+        ventesList = response.data.results.ventes;
+      } else if (response.data.ventes) {
+        ventesList = response.data.ventes;
+      } else if (Array.isArray(response.data)) {
+        ventesList = response.data;
+      }
+      
+      // Fetch remaining pages if any
+      let allResults = [...ventesList];
+      let nextUrl = response.data.next;
+      
+      while (nextUrl) {
+        const nextResponse = await axios.get(nextUrl, { headers });
+        let nextVentes = [];
+        if (nextResponse.data.results && nextResponse.data.results.ventes) {
+          nextVentes = nextResponse.data.results.ventes;
+        } else if (nextResponse.data.ventes) {
+          nextVentes = nextResponse.data.ventes;
+        }
+        allResults = [...allResults, ...nextVentes];
+        nextUrl = nextResponse.data.next;
+      }
+      
+      // Fetch details for all sales
+      const ventesWithDetails = await Promise.all(
+        allResults.map(async (vente) => {
+          try {
+            const detailRes = await axios.get(`/vente/ventes-facilite/${vente.id}/`, { headers });
+            return {
+              ...vente,
+              montants_par_mois: vente.montants_par_mois || [],
+              date_debut: detailRes.data.date_debut || vente.date_debut,
+              date_fin: detailRes.data.date_fin || vente.date_fin,
+              client_detail: detailRes.data.client_detail || {
+                nom_famille_fr: vente.client_name?.split(' ')[0] || "",
+                prenom_fr: vente.client_name?.split(' ')[1] || "",
+                ccp: "",
+                cle: ""
+              },
+            };
+          } catch (err) {
+            console.error(`Error fetching details for sale ${vente.id}:`, err);
+            return vente;
+          }
+        })
+      );
+      
+      setAllRows(ventesWithDetails);
+      return ventesWithDetails;
+      
+    } catch (err) {
+      console.error("Error fetching all data:", err);
+      throw err;
+    } finally {
+      setLoadingAll(false);
+    }
+  }, [filters, searchTerm]);
 
   const fetchVente = useCallback(async (url = null) => {
     setLoading(true);
@@ -86,22 +169,36 @@ export default function PosteBoard() {
       
       // Get ventes from the response
       let ventesList = [];
+      let totals = {
+        total_ventes: 0,
+        total_montant_total: 0,
+        total_montant_verse: 0,
+        total_montant_restant: 0,
+      };
+      
       if (response.data.results && response.data.results.ventes) {
         ventesList = response.data.results.ventes;
+        totals = {
+          total_ventes: response.data.results.total_ventes || 0,
+          total_montant_total: response.data.results.total_montant_total || 0,
+          total_montant_verse: response.data.results.total_montant_verse || 0,
+          total_montant_restant: response.data.results.total_montant_restant || 0,
+        };
       } else if (response.data.ventes) {
         ventesList = response.data.ventes;
+        totals = {
+          total_ventes: response.data.total_ventes || 0,
+          total_montant_total: response.data.total_montant_total || 0,
+          total_montant_verse: response.data.total_montant_verse || 0,
+          total_montant_restant: response.data.total_montant_restant || 0,
+        };
       } else if (Array.isArray(response.data)) {
         ventesList = response.data;
       }
       
-      setTotaux({
-        total_ventes: response.data.total_ventes || 0,
-        total_montant_total: response.data.total_montant_total || 0,
-        total_montant_verse: response.data.total_montant_verse || 0,
-        total_montant_restant: response.data.total_montant_restant || 0,
-      });
+      setTotaux(totals);
       
-      // Fetch details for each sale to get montants_par_mois
+      // Fetch details for each sale to get client info and dates
       setLoadingDetails(true);
       const ventesWithDetails = await Promise.all(
         ventesList.map(async (vente) => {
@@ -109,10 +206,15 @@ export default function PosteBoard() {
             const detailRes = await axios.get(`/vente/ventes-facilite/${vente.id}/`, { headers });
             return {
               ...vente,
-              montants_par_mois: detailRes.data.montants_par_mois || [],
-              date_debut: detailRes.data.date_debut,
-              date_fin: detailRes.data.date_fin,
-              client_detail: detailRes.data.client_detail || vente.client_detail,
+              montants_par_mois: vente.montants_par_mois || [],
+              date_debut: detailRes.data.date_debut || vente.date_debut,
+              date_fin: detailRes.data.date_fin || vente.date_fin,
+              client_detail: detailRes.data.client_detail || {
+                nom_famille_fr: vente.client_name?.split(' ')[0] || "",
+                prenom_fr: vente.client_name?.split(' ')[1] || "",
+                ccp: "",
+                cle: ""
+              },
             };
           } catch (err) {
             console.error(`Error fetching details for sale ${vente.id}:`, err);
@@ -133,6 +235,19 @@ export default function PosteBoard() {
     }
   }, [filters, searchTerm, currentPage, itemsPerPage]);
 
+  // Load all data when showAllData is toggled
+  useEffect(() => {
+    if (showAllData) {
+      fetchAllData().then(allData => {
+        if (allData) {
+          setRows(allData);
+        }
+      });
+    } else {
+      fetchVente();
+    }
+  }, [showAllData, filters, searchTerm]);
+
   // Fetch when filters or search term change (with debounce)
   useEffect(() => {
     if (debounceTimer.current) {
@@ -140,8 +255,16 @@ export default function PosteBoard() {
     }
     
     debounceTimer.current = setTimeout(() => {
-      setCurrentPage(1); // Reset to first page when filters change
-      fetchVente();
+      setCurrentPage(1);
+      if (!showAllData) {
+        fetchVente();
+      } else {
+        fetchAllData().then(allData => {
+          if (allData) {
+            setRows(allData);
+          }
+        });
+      }
     }, 500);
     
     return () => {
@@ -149,7 +272,7 @@ export default function PosteBoard() {
         clearTimeout(debounceTimer.current);
       }
     };
-  }, [fetchVente]);
+  }, [fetchVente, fetchAllData, showAllData]);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -167,48 +290,171 @@ export default function PosteBoard() {
     fetchUsers();
   }, []);
 
-  const exportToExcel = useCallback(() => {
-    const dataToExport = [];
-    rows.forEach((row) => {
+ const exportToExcel = useCallback(async () => {
+  setExporting(true);
+  try {
+    let dataToExport = [];
+    
+    // Build params
+    const params = new URLSearchParams();
+    if (searchTerm) params.append('search', searchTerm);
+    if (filters.users) params.append('users', filters.users);
+    if (filters.periode) params.append('periode', filters.periode);
+    params.append('page_size', '10000');
+    
+    const apiUrl = `/vente/ventes-facilite/?${params.toString()}`;
+    
+    console.log("Exporting from URL:", apiUrl);
+    
+    // Make the request with axiosInstance
+    const response = await axios.get(apiUrl);
+    
+    let ventesList = [];
+    if (response.data.results && response.data.results.ventes) {
+      ventesList = response.data.results.ventes;
+    } else if (response.data.ventes) {
+      ventesList = response.data.ventes;
+    }
+    
+    // Get all results (handle pagination)
+    let allResults = [...ventesList];
+    let nextUrl = response.data.next;
+    
+    // Fetch remaining pages
+    while (nextUrl) {
+      try {
+        if (nextUrl.startsWith('http://')) {
+          nextUrl = nextUrl.replace('http://', 'https://');
+        }
+        
+        const nextResponse = await axios.get(nextUrl);
+        let nextVentes = [];
+        if (nextResponse.data.results && nextResponse.data.results.ventes) {
+          nextVentes = nextResponse.data.results.ventes;
+        } else if (nextResponse.data.ventes) {
+          nextVentes = nextResponse.data.ventes;
+        }
+        allResults = [...allResults, ...nextVentes];
+        nextUrl = nextResponse.data.next;
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (err) {
+        console.error("Error fetching next page:", err);
+        break;
+      }
+    }
+    
+    console.log(`Total ventes fetched: ${allResults.length}`);
+    
+    // Fetch details in batches
+    const ventesWithDetails = [];
+    const batchSize = 10;
+    
+    for (let i = 0; i < allResults.length; i += batchSize) {
+      const batch = allResults.slice(i, i + batchSize);
+      const batchResults = await Promise.all(
+        batch.map(async (vente) => {
+          try {
+            const detailRes = await axios.get(`/vente/ventes-facilite/${vente.id}/`);
+            return {
+              ...vente,
+              montants_par_mois: vente.montants_par_mois || [],
+              date_debut: detailRes.data.date_debut || vente.date_debut,
+              date_fin: detailRes.data.date_fin || vente.date_fin,
+              client_detail: detailRes.data.client_detail || {
+                nom_famille_fr: vente.client_name?.split(' ')[0] || "",
+                prenom_fr: vente.client_name?.split(' ')[1] || "",
+                ccp: "",
+                cle: ""
+              },
+            };
+          } catch (err) {
+            console.error(`Error fetching details for sale ${vente.id}:`, err);
+            return vente;
+          }
+        })
+      );
+      ventesWithDetails.push(...batchResults);
+      console.log(`Processed ${Math.min(i + batchSize, allResults.length)}/${allResults.length} sales`);
+    }
+    
+    // Prepare data for export
+    ventesWithDetails.forEach((row) => {
+      const name = `${row.client_detail?.nom_famille_fr || row.client_name?.split(' ')[0] || ""} ${row.client_detail?.prenom_fr || row.client_name?.split(' ')[1] || ""}`.trim();
+      const account = `${row.client_detail?.ccp || ""}/${row.client_detail?.cle || ""}`;
+      const accountDisplay = account === "/" ? "-" : account;
+      
       if (row.montants_par_mois?.length) {
         row.montants_par_mois.forEach((montant, index) => {
-          // Calculate payment date based on start date and month index
-          let paymentDate = "";
-          let paymentMonth = "";
-          if (row.date_debut) {
-            const startDate = new Date(row.date_debut);
-            const paymentDateObj = new Date(startDate);
-            paymentDateObj.setMonth(startDate.getMonth() + index);
-            paymentDate = paymentDateObj.toLocaleDateString('ar-DZ');
-            paymentMonth = paymentDateObj.toLocaleString('ar-DZ', { month: 'long' });
-          }
-          
           dataToExport.push({
-            "الاسم و اللقب": `${row.client_detail?.nom_famille_fr || row.client_name || ""} ${row.client_detail?.prenom_fr || ""}`.trim(),
-            "رقم الحساب": `${row.client_detail?.ccp || ""}/${row.client_detail?.cle || ""}`,
-            "الدفعة": index + 1,
+            "الاسم و اللقب": name || "غير معروف",
+            "رقم الحساب": accountDisplay,
             "القسط الشهري": montant,
-            "الشهر": paymentMonth,
-            "تاريخ الدفع المتوقع": paymentDate,
             "تاريخ البداية": row.date_debut || "-",
             "تاريخ النهاية": row.date_fin || "-",
           });
         });
+      } else if (row.nombre_mois && row.montant_mensuel) {
+        for (let i = 0; i < row.nombre_mois; i++) {
+          dataToExport.push({
+            "الاسم و اللقب": name || "غير معروف",
+            "رقم الحساب": accountDisplay,
+            "القسط الشهري": row.montant_mensuel,
+            "تاريخ البداية": row.date_debut || "-",
+            "تاريخ النهاية": row.date_fin || "-",
+          });
+        }
       }
     });
 
     if (dataToExport.length === 0) {
-      alert("لا توجد بيانات للتصدير");
+      toast.error("لا توجد بيانات للتصدير");
+      setExporting(false);
       return;
+    }
+
+    // Generate filename
+    let filename = "report_payments";
+    if (filters.periode && filters.periode !== "") {
+      const periodeLabel = periodeOptions.find(opt => opt.value === filters.periode)?.label || filters.periode;
+      filename = `report_payments_${periodeLabel}`;
+    } else {
+      filename = `report_payments_${new Date().toISOString().split('T')[0]}`;
     }
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "تقرير المدفوعات");
-    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-    saveAs(new Blob([excelBuffer], { type: "application/octet-stream" }), "report_payments.xlsx");
-  }, [rows]);
-
+    
+    // Auto-size columns
+    worksheet['!cols'] = [
+      { wch: 25 },
+      { wch: 20 },
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 12 },
+    ];
+    
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
+    
+    // Create blob and use file-saver's saveAs which opens the save dialog
+    const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    
+    // This will open the browser's "Save As" dialog
+    saveAs(blob, `${filename}.xlsx`);
+    
+    toast.success(`تم تصدير ${dataToExport.length} دفعة بنجاح`);
+    
+  } catch (err) {
+    console.error("Error exporting data:", err);
+    if (err.message === "Network Error") {
+      toast.error("خطأ في الشبكة. يرجى التحقق من اتصال الانترنت والمحاولة مرة أخرى.");
+    } else {
+      toast.error(`خطأ في تصدير البيانات: ${err.message}`);
+    }
+  } finally {
+    setExporting(false);
+  }
+}, [filters, searchTerm, periodeOptions]);
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters(prev => ({ ...prev, [name]: value }));
@@ -218,62 +464,77 @@ export default function PosteBoard() {
     setFilters({ periode: "", users: "" });
     setSearchTerm("");
     setCurrentPage(1);
+    setShowAllData(false);
   };
 
   const handleNextPage = () => {
-    if (nextPageUrl) {
+    if (nextPageUrl && !showAllData) {
       setCurrentPage(currentPage + 1);
       fetchVente(nextPageUrl);
     }
   };
 
   const handlePrevPage = () => {
-    if (prevPageUrl) {
+    if (prevPageUrl && !showAllData) {
       setCurrentPage(currentPage - 1);
       fetchVente(prevPageUrl);
     }
   };
 
-  // Memoize expanded rows to avoid recalculation on every render
+  const toggleShowAllData = async () => {
+    if (!showAllData) {
+      // Switching to show all data
+      setLoading(true);
+      await fetchAllData();
+      setShowAllData(true);
+      setLoading(false);
+    } else {
+      // Switching back to paginated view
+      setShowAllData(false);
+      setCurrentPage(1);
+      fetchVente();
+    }
+  };
+
+  // Generate expanded rows - one row per monthly payment
+  const displayRows = showAllData ? allRows : rows;
+  
   const expandedRows = useMemo(() => {
     const result = [];
-    rows.forEach((row) => {
+    displayRows.forEach((row) => {
+      const name = `${row.client_detail?.nom_famille_fr || row.client_name?.split(' ')[0] || ""} ${row.client_detail?.prenom_fr || row.client_name?.split(' ')[1] || ""}`.trim() || "غير معروف";
+      const account = `${row.client_detail?.ccp || ""}/${row.client_detail?.cle || ""}`;
+      const accountDisplay = account === "/" ? "-" : account;
+      
       if (row.montants_par_mois?.length) {
         row.montants_par_mois.forEach((montant, idx) => {
-          // Calculate payment date
-          let paymentDate = "";
-          let paymentMonth = "";
-          let paymentYear = "";
-          
-          if (row.date_debut) {
-            const startDate = new Date(row.date_debut);
-            const paymentDateObj = new Date(startDate);
-            paymentDateObj.setMonth(startDate.getMonth() + idx);
-            paymentDate = paymentDateObj.toLocaleDateString('ar-DZ');
-            paymentMonth = paymentDateObj.toLocaleString('ar-DZ', { month: 'long' });
-            paymentYear = paymentDateObj.getFullYear();
-          }
-          
           result.push({
             id: `${row.id}_${idx}`,
-            name: `${row.client_detail?.nom_famille_fr || row.client_name || ""} ${row.client_detail?.prenom_fr || ""}`.trim() || "غير معروف",
-            account: `${row.client_detail?.ccp || ""}/${row.client_detail?.cle || ""}`,
+            name: name,
+            account: accountDisplay,
             montant: montant,
             date_debut: row.date_debut || "-",
             date_fin: row.date_fin || "-",
-            payment_date: paymentDate,
-            payment_month: paymentMonth,
-            payment_year: paymentYear,
-            month_index: idx + 1,
           });
         });
+      } else if (row.nombre_mois && row.montant_mensuel) {
+        for (let i = 0; i < row.nombre_mois; i++) {
+          result.push({
+            id: `${row.id}_${i}`,
+            name: name,
+            account: accountDisplay,
+            montant: row.montant_mensuel,
+            date_debut: row.date_debut || "-",
+            date_fin: row.date_fin || "-",
+          });
+        }
       }
     });
     return result;
-  }, [rows]);
+  }, [displayRows]);
 
   const totalAmount = useMemo(() => {
-    return expandedRows.reduce((sum, row) => sum + row.montant, 0);
+    return expandedRows.reduce((sum, row) => sum + (Number(row.montant) || 0), 0);
   }, [expandedRows]);
 
   const userOptions = useMemo(() => [
@@ -290,6 +551,20 @@ export default function PosteBoard() {
           <h1 className="text-2xl text-white">تقرير المدفوعات البريدية</h1>
         </div>
         <div className="flex gap-2">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={toggleShowAllData}
+            disabled={loading || loadingAll}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+              showAllData
+                ? 'bg-purple-500 text-white'
+                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+            }`}
+          >
+            <ListChecks className="w-4 h-4" />
+            <span>{showAllData ? "عرض بالصفحات" : "عرض الكل"}</span>
+          </motion.button>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -383,16 +658,33 @@ export default function PosteBoard() {
       </AnimatePresence>
 
       {/* Export Button */}
-      <div className="flex justify-end">
-        <button 
-          onClick={exportToExcel} 
-          disabled={loading || loadingDetails || expandedRows.length === 0}
-          className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-green-600 text-white px-4 py-2 rounded-lg shadow-lg hover:shadow-emerald-500/50 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <FileSpreadsheet className="w-4 h-4" /> 
-          <span>تصدير Excel</span>
-        </button>
-      </div>
+<div className="flex justify-end">
+  <button 
+    onClick={exportToExcel} 
+    disabled={loading || loadingDetails || exporting || (showAllData && loadingAll)}
+    className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-green-600 text-white px-4 py-2 rounded-lg shadow-lg hover:shadow-emerald-500/50 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    {exporting ? (
+      <>
+        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+        <span>جاري التصدير...</span>
+      </>
+    ) : (
+      <>
+        <FileSpreadsheet className="w-4 h-4" />
+        <span>تصدير Excel</span>
+      </>
+    )}
+  </button>
+</div>
+
+      {/* Info Bar */}
+      {showAllData && (
+        <div className="bg-purple-500/20 text-purple-300 px-4 py-2 rounded-lg text-sm flex items-center justify-between">
+          <span>📊 عرض جميع البيانات ({expandedRows.length} دفعة)</span>
+          <span className="text-xs">إجمالي المبلغ: {Number(totalAmount).toLocaleString()} دج</span>
+        </div>
+      )}
 
       {/* Table */}
       <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm border border-green-500/20 rounded-xl overflow-hidden shadow-lg">
@@ -406,7 +698,7 @@ export default function PosteBoard() {
           </h2>
         </div>
 
-        {loading ? (
+        {(loading || (showAllData && loadingAll)) ? (
           <div className="flex justify-center items-center py-12">
             <div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin" />
           </div>
@@ -434,13 +726,10 @@ export default function PosteBoard() {
                   <th className="px-4 py-3 text-right">#</th>
                   <th className="px-4 py-3 text-right">الاسم و اللقب</th>
                   <th className="px-4 py-3 text-right">رقم الحساب</th>
-                  <th className="px-4 py-3 text-right">الدفعة</th>
                   <th className="px-4 py-3 text-right">القسط الشهري</th>
-                  <th className="px-4 py-3 text-right">الشهر</th>
-                  <th className="px-4 py-3 text-right">تاريخ الدفع المتوقع</th>
                   <th className="px-4 py-3 text-right">تاريخ البداية</th>
                   <th className="px-4 py-3 text-right">تاريخ النهاية</th>
-                    </tr>
+                </tr>
               </thead>
               <tbody>
                 {expandedRows.map((row, index) => (
@@ -448,10 +737,7 @@ export default function PosteBoard() {
                     <td className="px-4 py-3 text-green-300">{index + 1}</td>
                     <td className="px-4 py-3 text-white font-medium">{row.name}</td>
                     <td className="px-4 py-3 text-blue-300 font-mono">{row.account}</td>
-                    <td className="px-4 py-3 text-purple-300">{row.month_index}</td>
-                    <td className="px-4 py-3 text-emerald-400 font-bold">{Number(row.montant)} دج</td>
-                    <td className="px-4 py-3 text-amber-300">{row.payment_month}</td>
-                    <td className="px-4 py-3 text-cyan-300">{row.payment_date}</td>
+                    <td className="px-4 py-3 text-emerald-400 font-bold">{Number(row.montant).toLocaleString()} دج</td>
                     <td className="px-4 py-3 text-slate-300">{row.date_debut}</td>
                     <td className="px-4 py-3 text-slate-300">{row.date_fin}</td>
                   </tr>
@@ -461,15 +747,15 @@ export default function PosteBoard() {
           </div>
         )}
 
-        {/* Pagination Footer */}
-        {totalItems > 0 && !loading && !loadingDetails && (
+        {/* Pagination Footer - Only show when not in "show all" mode */}
+        {!showAllData && totalItems > 0 && !loading && !loadingDetails && (
           <div className="bg-gradient-to-r from-slate-800 to-slate-900 px-4 py-3 border-t border-slate-700">
             <div className="flex justify-between items-center text-sm flex-wrap gap-2">
               <div className="text-slate-400">
-                عرض {expandedRows.length} من {totalItems} عملية بيع
+                عرض {expandedRows.length} دفعة من إجمالي {totalItems} عملية بيع
               </div>
               <div className="text-emerald-400">
-                إجمالي المبلغ: <span className="font-bold text-white">{Number(totalAmount)} دج</span>
+                إجمالي المبلغ: <span className="font-bold text-white">{Number(totalAmount).toLocaleString()} دج</span>
               </div>
             </div>
             
@@ -514,8 +800,8 @@ function StatCard({ icon: Icon, label, value, color, isCurrency }) {
   };
   
   const formattedValue = isCurrency 
-    ? `${Number(value)} دج`
-    : Number(value);
+    ? `${Number(value).toLocaleString()} دج`
+    : Number(value).toLocaleString();
   
   return (
     <div className={`border rounded-lg px-3 py-2 ${colors[color]}`}>

@@ -11,6 +11,8 @@ import {
   Edit,
   Barcode,
   Building2,
+  Plus,
+  Check,
 } from "lucide-react";
 import axios from "../../api/axiosInstance";
 
@@ -24,8 +26,9 @@ export default function AddProduitDialog({ open, onClose, onSuccess, productToEd
   const [filesToDelete, setFilesToDelete] = useState([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedMagasin, setSelectedMagasin] = useState("");
-  const [quantiteInitiale, setQuantiteInitiale] = useState(0);
   const [initialBarcodes, setInitialBarcodes] = useState([]);
+  const [isAddingFamille, setIsAddingFamille] = useState(false);
+  const [newFamilleName, setNewFamilleName] = useState("");
 
   // Product state
   const [productInfo, setProductInfo] = useState({
@@ -54,7 +57,7 @@ export default function AddProduitDialog({ open, onClose, onSuccess, productToEd
     taux_benefice_15: 0,
   });
 
-  // Fetch magasins and familles
+  // Fetch magasins and existing families for dropdown
   useEffect(() => {
     if (open) {
       const fetchData = async () => {
@@ -65,13 +68,18 @@ export default function AddProduitDialog({ open, onClose, onSuccess, productToEd
           // Fetch magasins
           const magasinRes = await axios.get("/param/magasins/", { headers });
           setMagasins(magasinRes.data.results || []);
+          console.log("Magasins loaded:", magasinRes.data.results);
 
-          // Fetch familles
-          const familleRes = await axios.get("/prod/produits/familles/", { headers });
-          const famillesList = familleRes.data.familles || [];
-          setFamilles(famillesList.map(f => f.famille));
+          // Fetch existing families
+          console.log("Fetching families from API...");
+          const familleRes = await axios.get("/prod/produits/familles/dropdown/", { headers });
+          console.log("API Response:", familleRes.data);
+          setFamilles(Array.isArray(familleRes.data) ? familleRes.data : []);
+          
         } catch (error) {
           console.error("Error fetching data:", error);
+          console.error("Error response:", error.response?.data);
+          toast.error("❌ حدث خطأ في تحميل البيانات");
         }
       };
       fetchData();
@@ -109,12 +117,10 @@ export default function AddProduitDialog({ open, onClose, onSuccess, productToEd
         taux_benefice_15: parseFloat(productToEdit.taux_benefice_15) || 0,
       });
       
-      // Store initial barcodes for display only (read-only)
       if (productToEdit.codes_barres && Array.isArray(productToEdit.codes_barres)) {
         setInitialBarcodes(productToEdit.codes_barres);
       }
       
-      // Set existing images
       if (productToEdit.image) {
         setExistingFiles([{
           id: "main_image",
@@ -127,6 +133,26 @@ export default function AddProduitDialog({ open, onClose, onSuccess, productToEd
       resetForm();
     }
   }, [productToEdit, open]);
+
+  // Handle adding new family - just add to local state, no API call
+  const handleAddFamille = () => {
+    if (!newFamilleName.trim()) {
+      toast.warning("⚠️ يرجى إدخال اسم العائلة");
+      return;
+    }
+
+    // Add the new family to the local list for future selections
+    const trimmedName = newFamilleName.trim();
+    if (!familles.includes(trimmedName)) {
+      setFamilles([...familles, trimmedName]);
+    }
+    
+    // Set the current product's family to the new one
+    setProductInfo(prev => ({ ...prev, famille: trimmedName }));
+    setNewFamilleName("");
+    setIsAddingFamille(false);
+    toast.success("✅ تم إضافة العائلة بنجاح");
+  };
 
   // Price calculation functions
   const calculatePrice = (prixAchat, taux) => {
@@ -188,7 +214,7 @@ export default function AddProduitDialog({ open, onClose, onSuccess, productToEd
     setExistingFiles((prev) => prev.filter(f => f.id !== fileId));
   };
 
-  // Submit
+  // Submit - famille is sent as a regular field
   const handleSubmit = async () => {
     if (!productInfo.nom || !productInfo.reference) {
       toast.warning("⚠️ يرجى ملء الحقول الإلزامية: الإسم، المرجع");
@@ -196,7 +222,7 @@ export default function AddProduitDialog({ open, onClose, onSuccess, productToEd
     }
 
     if (!productInfo.famille) {
-      toast.warning("⚠️ يرجى اختيار عائلة للمنتج");
+      toast.warning("⚠️ يرجى اختيار أو إضافة عائلة للمنتج");
       return;
     }
 
@@ -211,7 +237,7 @@ export default function AddProduitDialog({ open, onClose, onSuccess, productToEd
       const access_token = localStorage.getItem("access_token");
       const formData = new FormData();
 
-      // Prepare payload - DO NOT include barcodes (they are read-only)
+      // Prepare payload - famille is sent as a regular field
       const payload = {
         nom: productInfo.nom,
         reference: productInfo.reference,
@@ -238,12 +264,9 @@ export default function AddProduitDialog({ open, onClose, onSuccess, productToEd
         taux_benefice_15: Number(productInfo.taux_benefice_15) || 0,
       };
 
-      // For new product, add magasin_principal and quantite
       if (!isEditMode) {
         payload.magasin_principal = parseInt(selectedMagasin);
-        payload.quantite = quantiteInitiale;
       }
-      // For edit mode, DO NOT include barcodes - they are read-only and should not be modified
 
       // Add all payload fields to FormData
       Object.entries(payload).forEach(([key, value]) => {
@@ -252,16 +275,13 @@ export default function AddProduitDialog({ open, onClose, onSuccess, productToEd
         }
       });
 
-      // Add new images
+      // Add images
       uploadedFiles.forEach((file) => formData.append("image", file));
+      filesToDelete.forEach((fileId) => formData.append("delete_images", fileId));
 
-      // Add files to delete
-      filesToDelete.forEach((fileId) => {
-        formData.append("delete_images", fileId);
-      });
-
+      let response;
       if (isEditMode && productToEdit?.id) {
-        await axios.patch(`/prod/produits/${productToEdit.id}/`, formData, {
+        response = await axios.patch(`/prod/produits/${productToEdit.id}/`, formData, {
           headers: {
             Authorization: `Bearer ${access_token}`,
             "Content-Type": "multipart/form-data",
@@ -269,7 +289,7 @@ export default function AddProduitDialog({ open, onClose, onSuccess, productToEd
         });
         toast.success("✅ تم تحديث المنتج بنجاح");
       } else {
-        await axios.post("prod/produits/", formData, {
+        response = await axios.post("/prod/produits/", formData, {
           headers: {
             Authorization: `Bearer ${access_token}`,
             "Content-Type": "multipart/form-data",
@@ -278,11 +298,13 @@ export default function AddProduitDialog({ open, onClose, onSuccess, productToEd
         toast.success("✅ تم إضافة المنتج بنجاح");
       }
 
+      console.log("Product saved:", response.data);
+      
       if (onSuccess) onSuccess();
       onClose();
       resetForm();
     } catch (err) {
-      console.error("Error:", err);
+      console.error("Error saving product:", err);
       let message = "❌ حدث خطأ أثناء " + (isEditMode ? "تحديث" : "إضافة") + " المنتج";
       if (err.response?.data) {
         if (typeof err.response.data === "object") {
@@ -331,7 +353,8 @@ export default function AddProduitDialog({ open, onClose, onSuccess, productToEd
     setExistingFiles([]);
     setFilesToDelete([]);
     setSelectedMagasin("");
-    setQuantiteInitiale(0);
+    setNewFamilleName("");
+    setIsAddingFamille(false);
   };
 
   if (!open) return null;
@@ -437,20 +460,63 @@ export default function AddProduitDialog({ open, onClose, onSuccess, productToEd
                       <label className="block text-sm text-slate-400 mb-1">
                         العائلة <span className="text-red-500">*</span>
                       </label>
-                      <select
-                        value={productInfo.famille}
-                        onChange={(e) =>
-                          setProductInfo((prev) => ({ ...prev, famille: e.target.value }))
-                        }
-                        className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
-                      >
-                        <option value="">اختر العائلة</option>
-                        {familles.map((famille) => (
-                          <option key={famille} value={famille}>
-                            {famille}
-                          </option>
-                        ))}
-                      </select>
+                      {!isAddingFamille ? (
+                        <div className="flex gap-2">
+                          <select
+                            value={productInfo.famille}
+                            onChange={(e) => {
+                              if (e.target.value === "__new__") {
+                                setIsAddingFamille(true);
+                              } else {
+                                setProductInfo((prev) => ({ ...prev, famille: e.target.value }));
+                              }
+                            }}
+                            className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
+                          >
+                            <option value="">اختر العائلة</option>
+                            {familles.map((famille) => (
+                              <option key={famille} value={famille}>
+                                {famille}
+                              </option>
+                            ))}
+                            <option value="__new__" className="text-purple-400">
+                              + إضافة عائلة جديدة
+                            </option>
+                          </select>
+                          {productInfo.famille && familles.includes(productInfo.famille) && (
+                            <div className="flex items-center px-3 bg-purple-500/20 rounded-lg">
+                              <Check className="w-4 h-4 text-purple-400" />
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newFamilleName}
+                            onChange={(e) => setNewFamilleName(e.target.value)}
+                            placeholder="أدخل اسم العائلة الجديدة"
+                            className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
+                            autoFocus
+                          />
+                          <button
+                            onClick={handleAddFamille}
+                            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition flex items-center gap-2"
+                          >
+                            <Plus className="w-4 h-4" />
+                            إضافة
+                          </button>
+                          <button
+                            onClick={() => {
+                              setIsAddingFamille(false);
+                              setNewFamilleName("");
+                            }}
+                            className="px-4 py-2 bg-slate-600 hover:bg-slate-700 rounded-lg transition"
+                          >
+                            إلغاء
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm text-slate-400 mb-1">
@@ -468,7 +534,7 @@ export default function AddProduitDialog({ open, onClose, onSuccess, productToEd
                     </div>
                   </div>
 
-                  {/* Only show magasin selection for new product */}
+                  {/* Magasin selection for new product */}
                   {!isEditMode && (
                     <div>
                       <label className="block text-sm text-slate-400 mb-1">
@@ -492,24 +558,7 @@ export default function AddProduitDialog({ open, onClose, onSuccess, productToEd
                     </div>
                   )}
 
-                  {/* Initial quantity for new product */}
-                  {!isEditMode && selectedMagasin && (
-                    <div>
-                      <label className="block text-sm text-slate-400 mb-1">
-                        الكمية الإبتدائية
-                      </label>
-                      <input
-                        type="number"
-                        value={quantiteInitiale}
-                        onChange={(e) => setQuantiteInitiale(parseInt(e.target.value) || 0)}
-                        min="0"
-                        className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
-                        placeholder="الكمية"
-                      />
-                    </div>
-                  )}
-
-                  {/* Show magasin info for edit mode */}
+                  {/* Magasin info for edit mode */}
                   {isEditMode && productToEdit?.magasin_principal_detail && (
                     <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3">
                       <div className="flex items-center gap-2">
@@ -587,7 +636,7 @@ export default function AddProduitDialog({ open, onClose, onSuccess, productToEd
                 </div>
               )}
 
-              {/* Barcodes Tab - READ ONLY */}
+              {/* Barcodes Tab */}
               {activeTab === "barcodes" && (
                 <div className="space-y-4">
                   <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
@@ -621,7 +670,7 @@ export default function AddProduitDialog({ open, onClose, onSuccess, productToEd
                         <div className="bg-slate-700/30 rounded-lg p-4 text-center">
                           <Barcode className="w-12 h-12 text-slate-500 mx-auto mb-2" />
                           <p className="text-slate-400 text-sm">
-                            سيتم إنشاء الباركودات بعد إضافة المنتج وتحديد الكمية
+                            سيتم إنشاء الباركودات بعد إضافة المنتج
                           </p>
                         </div>
                       </>
@@ -633,7 +682,6 @@ export default function AddProduitDialog({ open, onClose, onSuccess, productToEd
               {/* Images Tab */}
               {activeTab === "images" && (
                 <div>
-                  {/* Existing Images */}
                   {existingFiles.length > 0 && (
                     <div className="mb-6">
                       <h3 className="text-slate-300 font-semibold mb-3">
@@ -662,7 +710,6 @@ export default function AddProduitDialog({ open, onClose, onSuccess, productToEd
                     </div>
                   )}
 
-                  {/* Upload New Images */}
                   <div
                     onClick={() => document.getElementById("file-input").click()}
                     onDrop={handleDrop}
@@ -684,7 +731,6 @@ export default function AddProduitDialog({ open, onClose, onSuccess, productToEd
                     />
                   </div>
 
-                  {/* New Images */}
                   {uploadedFiles.length > 0 && (
                     <div className="mt-6">
                       <h3 className="text-slate-300 font-semibold mb-3">

@@ -281,7 +281,7 @@ export function BarcodesList() {
                     <th className="px-4 py-3 text-right">اسم المنتج</th>
                     <th className="px-4 py-3 text-right">الكمية</th>
                     <th className="px-4 py-3 text-right">الباركودات</th>
-                    <th className="px-4 py-3 text-right">الإجراءات</th>
+                    
                    </tr>
                 </thead>
                 <tbody>
@@ -330,32 +330,7 @@ export function BarcodesList() {
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-2">
-                            {displayCodes.map((cb, i) => (
-                              <div key={i} className="flex gap-1">
-                                <motion.button
-                                  whileHover={{ scale: 1.1 }}
-                                  whileTap={{ scale: 0.9 }}
-                                  onClick={() => handlePrintBarcode(produit, cb, magasin.nom)}
-                                  className="p-2 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg text-blue-400"
-                                  title="طباعة الباركود"
-                                >
-                                  <Printer className="w-4 h-4" />
-                                </motion.button>
-                                <motion.button
-                                  whileHover={{ scale: 1.1 }}
-                                  whileTap={{ scale: 0.9 }}
-                                  onClick={() => handleDeleteBarcode(produit, cb, magasin.nom)}
-                                  className="p-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-red-400"
-                                  title="حذف الباركود"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </motion.button>
-                              </div>
-                            ))}
-                          </div>
-                        </td>
+                       
                       </motion.tr>
                     );
                   })}

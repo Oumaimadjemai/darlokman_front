@@ -244,6 +244,7 @@ export function PurchaseView() {
       setOriginalPrice(0);
       setSearchTerm("");
       setShowPriceWarning(false);
+      setSelectedMagasin(null);
 
       toast.success("تمت إضافة المنتج للسلة");
     } catch (error) {

@@ -105,6 +105,42 @@ export function InstallmentSalesView() {
     return parts;
   };
 
+  // Update a single payment and redistribute the remaining amount
+  const updateBreakdownValue = (index, newValue) => {
+    const newBreakdown = [...breakdown];
+    const oldValue = newBreakdown[index];
+    const difference = newValue - oldValue;
+    
+    newBreakdown[index] = newValue;
+    
+    // Redistribute the difference among other payments
+    if (difference !== 0) {
+      const otherIndices = newBreakdown.map((_, i) => i).filter(i => i !== index);
+      const totalOthers = otherIndices.reduce((sum, i) => sum + newBreakdown[i], 0);
+      
+      if (totalOthers > 0) {
+        otherIndices.forEach(i => {
+          const proportion = newBreakdown[i] / totalOthers;
+          const adjustment = -difference * proportion;
+          // Round to nearest 10
+          const adjustedValue = Math.round((newBreakdown[i] + adjustment) / 10) * 10;
+          newBreakdown[i] = Math.max(0, adjustedValue);
+        });
+      }
+      
+      // Fix rounding issues by adjusting the last payment
+      const newSum = newBreakdown.reduce((sum, val) => sum + val, 0);
+      const targetSum = monthlyAmount;
+      const roundingError = targetSum - newSum;
+      
+      if (Math.abs(roundingError) > 0 && newBreakdown.length > 0) {
+        newBreakdown[newBreakdown.length - 1] += roundingError;
+      }
+    }
+    
+    setBreakdown(newBreakdown);
+  };
+
   const getProductPrice = (produit, moisValue) => {
     if (!produit) return 0;
     switch (moisValue) {
@@ -492,9 +528,10 @@ export function InstallmentSalesView() {
     }
   }, [montantVerse, roundedTotal]);
 
-  // Calculate monthly amount and breakdown
+  // Calculate monthly amount
   const monthlyAmount = mois > 0 && montantRestant > 0 ? Math.floor(montantRestant / mois) : 0;
 
+  // Recalculate breakdown when monthlyAmount or prelevement changes
   useEffect(() => {
     if (prelevement > 0 && monthlyAmount > 0) {
       setBreakdown(diviserMontantMensuel(monthlyAmount, prelevement));
@@ -741,7 +778,7 @@ export function InstallmentSalesView() {
       return;
     }
     
-    // ✅ FIXED: Only check salary limit if selectedClient exists and salaryLimitActive is true
+    // Check salary limit if active
     if (salaryLimitActive && selectedClient && selectedClient.revenu) {
       const clientSalary = parseFloat(selectedClient.revenu) || 0;
       const monthlyPayment = monthlyAmount;
@@ -1219,8 +1256,8 @@ export function InstallmentSalesView() {
                     <tr>
                       <td colSpan="8" className="px-4 py-8 text-center text-slate-400">
                         السلة فارغة - أضف منتجات للبيع
-                       </td>
-                     </tr>
+                      </td>
+                    </tr>
                   ) : (
                     cart.map((item, index) => (
                       <motion.tr
@@ -1347,18 +1384,19 @@ export function InstallmentSalesView() {
                   {breakdown.map((value, index) => (
                     <div key={index} className="relative">
                       <input
-                        type="number"
                         value={value}
                         onChange={(e) => {
-                          const newBreakdown = [...breakdown];
-                          newBreakdown[index] = parseFloat(e.target.value) || 0;
-                          setBreakdown(newBreakdown);
+                          const newValue = parseFloat(e.target.value) || 0;
+                          updateBreakdownValue(index, newValue);
                         }}
                         className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:border-red-500 focus:outline-none text-center"
                         placeholder={`دفعة ${index + 1}`}
                       />
                     </div>
                   ))}
+                </div>
+                <div className="text-xs text-slate-400 mt-2 text-center">
+                  المجموع: {breakdown.reduce((sum, val) => sum + val, 0)} دج / الهدف: {monthlyAmount} دج
                 </div>
               </div>
             )}

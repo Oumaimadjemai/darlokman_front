@@ -32,17 +32,30 @@ export default function ProductDetailDialog({ open, onClose, product }) {
         try {
           const response = await axios.get(`/achat/par-group/?produit=${product.id}`, { headers });
           
-          // ✅ Handle the nested response structure
+          // Handle the nested response structure
           const result = response.data.results || response.data;
           let achatsData = result.achats_groupes || [];
           
-          // ✅ Store totals
+          // Store totals
           setTotaux({
             nombre_achats: result.nombre_achats || 0,
             somme_totale: result.somme_totale || 0,
             somme_payee: result.somme_payee || 0,
             somme_restante: result.somme_restante || 0,
           });
+
+          // Process each purchase to show only the lines for this product
+          achatsData = achatsData.map((achat) => {
+            // Filter lines for this specific product
+            const productLines = (achat.achats || []).filter(
+              (ligne) => ligne.produit === product.id
+            );
+            
+            return {
+              ...achat,
+              productLines: productLines,
+            };
+          }).filter((achat) => achat.productLines.length > 0);
 
           // Sort by date (most recent first)
           achatsData.sort((a, b) => {
@@ -104,6 +117,15 @@ export default function ProductDetailDialog({ open, onClose, product }) {
           const response = await axios.get(`/vente/ventes-facilite/?produit=${product.id}`, { headers });
           let ventesData = response.data.ventes || [];
 
+          ventesData = ventesData
+            .map((vente) => ({
+              ...vente,
+              lignes_detail: (vente.lignes_detail || []).filter(
+                (ligne) => ligne.produit === product.id
+              ),
+            }))
+            .filter((vente) => vente.lignes_detail.length > 0);
+
           ventesData.sort((a, b) => {
             const [dayA, monthA, yearA] = (a.date_formatee || "01/01/1900").split("/").map(Number);
             const [dayB, monthB, yearB] = (b.date_formatee || "01/01/1900").split("/").map(Number);
@@ -129,52 +151,50 @@ export default function ProductDetailDialog({ open, onClose, product }) {
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Left side: Product Info */}
-         
-
-<div className="bg-slate-700/30 rounded-lg p-4">
-  <h3 className="text-indigo-400 font-semibold mb-4">معلومات المنتج</h3>
-  <div className="space-y-3">
-    <div className="flex justify-between">
-      <span className="text-slate-400">الاسم:</span>
-      <span className="text-white font-medium">{product.nom || "-"}</span>
-    </div>
-    <div className="flex justify-between">
-      <span className="text-slate-400">المرجع:</span>
-      <span className="text-white">{product.reference || "-"}</span>
-    </div>
-    <div className="flex justify-between">
-      <span className="text-slate-400">العائلة:</span>
-      <span className="text-white">{product.famille || "-"}</span>
-    </div>
-    <div className="flex justify-between">
-      <span className="text-slate-400">الكمية الإجمالية:</span>
-      <span className={`font-bold ${product.quantite_totale <= 5 ? 'text-yellow-400' : 'text-emerald-400'}`}>
-        {product.quantite_totale || 0}
-      </span>
-    </div>
-    <div className="flex justify-between">
-      <span className="text-slate-400">المخزن الرئيسي:</span>
-      <span className="text-white">{product.magasin_principal_detail?.nom || "-"}</span>
-    </div>
-    {product.magasins && product.magasins.length > 0 && (
-      <div className="flex flex-col gap-1">
-        <span className="text-slate-400">مخازن إضافية:</span>
-        <div className="space-y-1">
-          {product.magasins.map((mag, idx) => (
-            <div key={idx} className="flex justify-between text-sm">
-              <span className="text-slate-400">{mag.nom}:</span>
-              <span className="text-white">{mag.quantite_totale} وحدة</span>
+            <div className="bg-slate-700/30 rounded-lg p-4">
+              <h3 className="text-indigo-400 font-semibold mb-4">معلومات المنتج</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">الاسم:</span>
+                  <span className="text-white font-medium">{product.nom || "-"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">المرجع:</span>
+                  <span className="text-white">{product.reference || "-"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">العائلة:</span>
+                  <span className="text-white">{product.famille || "-"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">الكمية الإجمالية:</span>
+                  <span className={`font-bold ${product.quantite_totale <= 5 ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                    {product.quantite_totale || 0}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">المخزن الرئيسي:</span>
+                  <span className="text-white">{product.magasin_principal_detail?.nom || "-"}</span>
+                </div>
+                {product.magasins && product.magasins.length > 0 && (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-slate-400">مخازن إضافية:</span>
+                    <div className="space-y-1">
+                      {product.magasins.map((mag, idx) => (
+                        <div key={idx} className="flex justify-between text-sm">
+                          <span className="text-slate-400">{mag.nom}:</span>
+                          <span className="text-white">{mag.quantite_totale} وحدة</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-slate-400">العلامة التجارية:</span>
+                  <span className="text-white">{product.marque || "-"}</span>
+                </div>
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
-    )}
-    <div className="flex justify-between">
-      <span className="text-slate-400">العلامة التجارية:</span>
-      <span className="text-white">{product.marque || "-"}</span>
-    </div>
-  </div>
-</div>
 
             {/* Right side: Image */}
             <div className="bg-slate-700/30 rounded-lg p-4 flex items-center justify-center">
@@ -206,21 +226,36 @@ export default function ProductDetailDialog({ open, onClose, product }) {
         }
         return (
           <div className="space-y-4">
+            {/* Summary Cards */}
+            {totaux && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gradient-to-r from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 rounded-lg p-3 text-center">
+                  <div className="text-sm text-cyan-300">عدد المشتريات</div>
+                  <div className="text-xl font-bold text-cyan-400">{totaux.nombre_achats || 0}</div>
+                </div>
+                <div className="bg-gradient-to-r from-emerald-500/20 to-green-600/20 border border-emerald-500/30 rounded-lg p-3 text-center">
+                  <div className="text-sm text-emerald-300">المبلغ الإجمالي</div>
+                  <div className="text-xl font-bold text-emerald-400">{parseFloat(totaux.somme_totale || 0)} د.ج</div>
+                </div>
+                <div className="bg-gradient-to-r from-amber-500/20 to-yellow-600/20 border border-amber-500/30 rounded-lg p-3 text-center">
+                  <div className="text-sm text-amber-300">المبلغ المدفوع</div>
+                  <div className="text-xl font-bold text-amber-400">{parseFloat(totaux.somme_payee || 0)} د.ج</div>
+                </div>
+              </div>
+            )}
+
             {loading ? (
               <div className="flex justify-center py-12">
                 <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
               </div>
             ) : achats.length > 0 ? (
               achats.map((achat) => {
-                const filteredLignes = achat.achats?.filter(
-                  (ligne) => ligne.produit === product.id
-                ) || [];
-                const totalFiltered = filteredLignes.reduce(
-                  (sum, ligne) => sum + (parseFloat(ligne.prix_achat || 0) * (ligne.quantite_totale || 0)),
-                  0
-                );
-
-                if (filteredLignes.length === 0) return null;
+                // Calculate total for this purchase (only for this product)
+                const purchaseTotal = achat.productLines.reduce((sum, ligne) => {
+                  const prixAchat = parseFloat(ligne.prix_achat) || 0;
+                  const quantite = parseInt(ligne.quantite) || 0;
+                  return sum + (prixAchat * quantite);
+                }, 0);
 
                 return (
                   <div key={achat.id} className="bg-slate-700/30 rounded-lg overflow-hidden">
@@ -235,7 +270,7 @@ export default function ProductDetailDialog({ open, onClose, product }) {
                           </div>
                         </div>
                         <div className="text-lg font-bold text-cyan-400">
-                          الإجمالي: {totalFiltered} د.ج
+                          الإجمالي: {purchaseTotal} د.ج
                         </div>
                       </div>
                     </div>
@@ -244,22 +279,28 @@ export default function ProductDetailDialog({ open, onClose, product }) {
                         <thead>
                           <tr className="bg-slate-700/50 text-slate-300">
                             <th className="px-4 py-2 text-right">#</th>
-                            <th className="px-4 py-2 text-right">السعر</th>
+                            <th className="px-4 py-2 text-right">سعر الشراء</th>
                             <th className="px-4 py-2 text-right">الكمية</th>
                             <th className="px-4 py-2 text-right">المخزن</th>
                             <th className="px-4 py-2 text-right">المجموع</th>
-                            </tr>
+                           </tr>
                         </thead>
                         <tbody>
-                          {filteredLignes.map((ligne) => (
-                            <tr key={ligne.id} className="border-b border-slate-700">
-                              <td className="px-4 py-2 text-cyan-300">{ligne.id}</td>
-                              <td className="px-4 py-2 text-amber-300">{parseFloat(ligne.prix_achat || 0)} د.ج</td>
-                              <td className="px-4 py-2 text-blue-300">{ligne.quantite_totale || 0}</td>
-                              <td className="px-4 py-2 text-purple-300">{ligne.magasin_detail?.nom || "-"}</td>
-                              <td className="px-4 py-2 text-emerald-300">{(parseFloat(ligne.prix_achat || 0) * (ligne.quantite_totale || 0))} د.ج</td>
-                            </tr>
-                          ))}
+                          {achat.productLines.map((ligne, idx) => {
+                            const prixAchat = parseFloat(ligne.prix_achat) || 0;
+                            const quantite = parseInt(ligne.quantite) || 0;
+                            const totalItem = prixAchat * quantite;
+                            
+                            return (
+                              <tr key={ligne.id || idx} className="border-b border-slate-700">
+                                <td className="px-4 py-2 text-cyan-300">{idx + 1}</td>
+                                <td className="px-4 py-2 text-amber-300">{prixAchat} د.ج</td>
+                                <td className="px-4 py-2 text-blue-300">{quantite}</td>
+                                <td className="px-4 py-2 text-purple-300">{ligne.magasin_detail?.nom || "-"}</td>
+                                <td className="px-4 py-2 text-emerald-300">{totalItem} د.ج</td>
+                               </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -293,7 +334,7 @@ export default function ProductDetailDialog({ open, onClose, product }) {
                   (ligne) => ligne.produit === product.id
                 ) || [];
                 const totalFiltered = filteredLignes.reduce(
-                  (sum, ligne) => sum + parseFloat(ligne.sous_total || 0),
+                  (sum, ligne) => sum + (parseFloat(ligne.prix_unitaire || 0) * (parseInt(ligne.quantite_totale) || 0)),
                   0
                 );
 
@@ -325,12 +366,12 @@ export default function ProductDetailDialog({ open, onClose, product }) {
                             <th className="px-4 py-2 text-right">السعر</th>
                             <th className="px-4 py-2 text-right">الكمية</th>
                             <th className="px-4 py-2 text-right">المجموع</th>
-                          </tr>
+                           </tr>
                         </thead>
                         <tbody>
-                          {filteredLignes.map((ligne) => (
-                            <tr key={ligne.id} className="border-b border-slate-700">
-                              <td className="px-4 py-2 text-amber-300">{ligne.id}</td>
+                          {filteredLignes.map((ligne, idx) => (
+                            <tr key={ligne.id || idx} className="border-b border-slate-700">
+                              <td className="px-4 py-2 text-amber-300">{idx + 1}</td>
                               <td
                                 className="px-4 py-2 text-blue-400 cursor-pointer hover:underline"
                                 onClick={() => setSelectedClient(vente.client_detail)}
@@ -338,11 +379,11 @@ export default function ProductDetailDialog({ open, onClose, product }) {
                                 {vente.client_detail
                                   ? `${vente.client_detail.nom_famille_ar || ""} ${vente.client_detail.prenom_ar || ""}`
                                   : "-"}
-                              </td>
+                               </td>
                               <td className="px-4 py-2 text-emerald-300">{parseFloat(ligne.prix_unitaire || 0)} د.ج</td>
                               <td className="px-4 py-2 text-purple-300">{ligne.quantite_totale || 0}</td>
                               <td className="px-4 py-2 text-cyan-300">{parseFloat(ligne.sous_total || 0)} د.ج</td>
-                            </tr>
+                             </tr>
                           ))}
                         </tbody>
                       </table>
@@ -400,12 +441,12 @@ export default function ProductDetailDialog({ open, onClose, product }) {
                           <th className="px-4 py-2 text-right">السعر</th>
                           <th className="px-4 py-2 text-right">الكمية</th>
                           <th className="px-4 py-2 text-right">المجموع</th>
-                        </tr>
+                         </tr>
                       </thead>
                       <tbody>
-                        {vente.lignes_detail.map((ligne) => (
-                          <tr key={ligne.id} className="border-b border-slate-700">
-                            <td className="px-4 py-2 text-emerald-300">{ligne.id}</td>
+                        {vente.lignes_detail.map((ligne, idx) => (
+                          <tr key={ligne.id || idx} className="border-b border-slate-700">
+                            <td className="px-4 py-2 text-emerald-300">{idx + 1}</td>
                             <td
                               className="px-4 py-2 text-blue-400 cursor-pointer hover:underline"
                               onClick={() => setSelectedClient(vente.client_detail)}
@@ -413,11 +454,11 @@ export default function ProductDetailDialog({ open, onClose, product }) {
                               {vente.client_detail
                                 ? `${vente.client_detail.nom_famille_ar || ""} ${vente.client_detail.prenom_ar || ""}`
                                 : "-"}
-                            </td>
+                             </td>
                             <td className="px-4 py-2 text-amber-300">{parseFloat(ligne.prix_unitaire || 0)} د.ج</td>
                             <td className="px-4 py-2 text-purple-300">{ligne.quantite_totale || 0}</td>
                             <td className="px-4 py-2 text-cyan-300">{parseFloat(ligne.sous_total || 0)} د.ج</td>
-                          </tr>
+                           </tr>
                         ))}
                       </tbody>
                     </table>

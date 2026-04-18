@@ -105,41 +105,37 @@ export function InstallmentSalesView() {
     return parts;
   };
 
-  // Update a single payment and redistribute the remaining amount
-  const updateBreakdownValue = (index, newValue) => {
-    const newBreakdown = [...breakdown];
-    const oldValue = newBreakdown[index];
-    const difference = newValue - oldValue;
+  // Replace the updateBreakdownValue function with this:
+
+const updateBreakdownValue = (index, newValue) => {
+  const newBreakdown = [...breakdown];
+  const oldValue = newBreakdown[index];
+  const difference = newValue - oldValue;
+  
+  newBreakdown[index] = newValue;
+  
+  // Only adjust the last payment when difference exists
+  if (difference !== 0 && newBreakdown.length > 0) {
+    const lastIndex = newBreakdown.length - 1;
     
-    newBreakdown[index] = newValue;
-    
-    // Redistribute the difference among other payments
-    if (difference !== 0) {
-      const otherIndices = newBreakdown.map((_, i) => i).filter(i => i !== index);
-      const totalOthers = otherIndices.reduce((sum, i) => sum + newBreakdown[i], 0);
+    // If we're not changing the last payment
+    if (index !== lastIndex) {
+      // Adjust only the last payment
+      newBreakdown[lastIndex] = newBreakdown[lastIndex] - difference;
       
-      if (totalOthers > 0) {
-        otherIndices.forEach(i => {
-          const proportion = newBreakdown[i] / totalOthers;
-          const adjustment = -difference * proportion;
-          // Round to nearest 10
-          const adjustedValue = Math.round((newBreakdown[i] + adjustment) / 10) * 10;
-          newBreakdown[i] = Math.max(0, adjustedValue);
-        });
+      // Ensure last payment doesn't go negative
+      if (newBreakdown[lastIndex] < 0) {
+        newBreakdown[lastIndex] = 0;
+        // Optional: Show warning that last payment can't be negative
+        toast.warning("لا يمكن أن يكون القسط الأخير سالباً");
       }
-      
-      // Fix rounding issues by adjusting the last payment
-      const newSum = newBreakdown.reduce((sum, val) => sum + val, 0);
-      const targetSum = monthlyAmount;
-      const roundingError = targetSum - newSum;
-      
-      if (Math.abs(roundingError) > 0 && newBreakdown.length > 0) {
-        newBreakdown[newBreakdown.length - 1] += roundingError;
-      }
-    }
-    
-    setBreakdown(newBreakdown);
-  };
+    } 
+    // If we ARE changing the last payment, don't adjust anything else
+    // The last payment can be any value (the user is directly editing it)
+  }
+  
+  setBreakdown(newBreakdown);
+};
 
   const getProductPrice = (produit, moisValue) => {
     if (!produit) return 0;
@@ -532,13 +528,24 @@ export function InstallmentSalesView() {
   const monthlyAmount = mois > 0 && montantRestant > 0 ? Math.floor(montantRestant / mois) : 0;
 
   // Recalculate breakdown when monthlyAmount or prelevement changes
-  useEffect(() => {
-    if (prelevement > 0 && monthlyAmount > 0) {
-      setBreakdown(diviserMontantMensuel(monthlyAmount, prelevement));
-    } else {
-      setBreakdown([]);
+ // Replace the useEffect for breakdown calculation with this:
+
+useEffect(() => {
+  if (prelevement > 0 && monthlyAmount > 0) {
+    let parts = diviserMontantMensuel(monthlyAmount, prelevement);
+    
+    // Ensure the sum of parts equals monthlyAmount
+    const currentSum = parts.reduce((a, b) => a + b, 0);
+    if (currentSum !== monthlyAmount && parts.length > 0) {
+      // Adjust the last element to fix rounding
+      parts[parts.length - 1] += (monthlyAmount - currentSum);
     }
-  }, [prelevement, monthlyAmount]);
+    
+    setBreakdown(parts);
+  } else {
+    setBreakdown([]);
+  }
+}, [prelevement, monthlyAmount]);
 
   // Update all cart items when months change
   useEffect(() => {

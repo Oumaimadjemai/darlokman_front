@@ -36,6 +36,7 @@ export function ProductsList() {
     count: 0
   });
   const [selectedMagasinFilter, setSelectedMagasinFilter] = useState(null);
+  const [userMagasinsAccess, setUserMagasinsAccess] = useState([]);
   
   const initialLoadDone = useRef(false);
   const isMounted = useRef(true);
@@ -51,6 +52,53 @@ export function ProductsList() {
     Authorization: `Bearer ${localStorage.getItem("access_token")}`,
     "Content-Type": "application/json",
   }), []);
+
+  // Fetch current user's magasin access
+  const fetchUserMagasinAccess = useCallback(async () => {
+    if (userRole !== "admin") {
+      // For non-admin users, fetch their access type and allowed magasins
+      try {
+        const token = localStorage.getItem("access_token");
+        const userId = localStorage.getItem("user_id");
+        
+        if (userId) {
+          const response = await axios.get(`/auth/users/${userId}/`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          const userData = response.data;
+          const accessType = userData.magasin_access_type;
+          
+          console.log('📋 User access type:', accessType);
+          console.log('📋 User magasin_access_type:', userData.magasin_access_type);
+          
+          if (accessType === "all_magasins") {
+            // User has access to all magasins - fetch all
+            const magasinsRes = await axios.get("param/magasins/", { headers });
+            const allMagasins = magasinsRes.data.results || [];
+            setUserMagasinsAccess(allMagasins.map(m => ({ id: m.id, nom: m.nom })));
+            console.log('✅ User has access to ALL magasins');
+          } else if (accessType === "selected_magasins") {
+            // User has access to specific magasins
+            const allowedMagasins = userData.magasins_acces_detail || [];
+            setUserMagasinsAccess(allowedMagasins);
+            console.log('✅ User has access to selected magasins:', allowedMagasins.length);
+          } else {
+            // assigned_only - user only has access to their assigned magasin
+            if (userMagasin) {
+              setUserMagasinsAccess([{ id: parseInt(userMagasin), nom: "Magasin assigné" }]);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching user magasin access:", err);
+        // Fallback to just assigned magasin
+        if (userMagasin) {
+          setUserMagasinsAccess([{ id: parseInt(userMagasin), nom: "Magasin assigné" }]);
+        }
+      }
+    }
+  }, [userRole, userMagasin, headers]);
 
   // Fetch products with filters
   const fetchProducts = useCallback(async (search = '', appliedFilters = { magasin: '', famille: '' }) => {
@@ -69,10 +117,40 @@ export function ProductsList() {
 
     if (search) params.append("search", search);
 
-    // Filter by magasin based on role
+    // Filter by magasin based on role and access
     if (userRole !== "admin") {
-      params.append("magasin", userMagasin);
-      console.log('📦 Non-admin user, adding magasin filter:', userMagasin);
+      // For non-admin users, determine which magasin(s) to filter by
+      const magasinFilter = appliedFilters.magasin;
+      
+      // Get user's access type
+      let userAccessType = "assigned_only";
+      try {
+        const userId = localStorage.getItem("user_id");
+        if (userId) {
+          const response = await axios.get(`/auth/users/${userId}/`, { headers });
+          userAccessType = response.data.magasin_access_type;
+        }
+      } catch (err) {
+        console.error("Error getting user access type:", err);
+      }
+      
+      if (userAccessType === "all_magasins") {
+        // User can see all magasins, apply filter if selected
+        if (magasinFilter) {
+          params.append("magasin", magasinFilter);
+          console.log('📦 All magasins access, applying magasin filter:', magasinFilter);
+        }
+      } else if (userAccessType === "selected_magasins") {
+        // User can see multiple magasins
+        if (magasinFilter) {
+          params.append("magasin", magasinFilter);
+          console.log('📦 Selected magasins access, applying magasin filter:', magasinFilter);
+        }
+      } else {
+        // assigned_only - only their assigned magasin
+        params.append("magasin", userMagasin);
+        console.log('📦 Assigned only access, using assigned magasin:', userMagasin);
+      }
     } else if (appliedFilters.magasin) {
       params.append("magasin", appliedFilters.magasin);
       console.log('📦 Admin user, adding magasin filter:', appliedFilters.magasin);
@@ -86,29 +164,15 @@ export function ProductsList() {
     try {
       const response = await axios.get(url, { headers });
       console.log('✅ API Response received:', response.status);
-      console.log('📊 Response data structure:', {
-        hasResults: !!response.data.results,
-        resultsLength: response.data.results?.length,
-        hasTotaux: !!response.data.totaux,
-        count: response.data.count
-      });
       
       let productsData = response.data.results || [];
       console.log('📦 Products data count:', productsData.length);
-      if (productsData.length > 0) {
-        console.log('📦 First product sample:', {
-          id: productsData[0].id,
-          nom: productsData[0].nom,
-          reference: productsData[0].reference,
-          quantite_totale: productsData[0].quantite_totale,
-          magasins: productsData[0].magasins?.length
-        });
-      }
       
       let backendTotaux = response.data.totaux;
       
       // If magasin filter is applied, calculate quantity for that specific magasin
-      if (appliedFilters.magasin && userRole === "admin") {
+      if ((appliedFilters.magasin && (userRole === "admin" || userRole !== "admin")) || 
+          (userRole !== "admin" && userMagasinsAccess.length > 1 && appliedFilters.magasin)) {
         console.log('🔍 Applying magasin filter for quantity calculation');
         productsData = productsData.map(product => {
           let magasinQuantity = 0;
@@ -133,7 +197,8 @@ export function ProductsList() {
       let totalValue = 0;
       let totalCapital = 0;
       
-      if (appliedFilters.magasin && userRole === "admin") {
+      if ((appliedFilters.magasin && (userRole === "admin" || userRole !== "admin")) ||
+          (userRole !== "admin" && userMagasinsAccess.length > 1 && appliedFilters.magasin)) {
         // Calculate from filtered quantities
         totalQuantity = productsData.reduce((sum, p) => sum + (p.filtered_quantity || 0), 0);
         totalValue = productsData.reduce((sum, p) => {
@@ -196,12 +261,10 @@ export function ProductsList() {
       setProducts(productsData);
       console.log('✅ Products set to state. Count:', productsData.length);
       
-      // Set initial loading to false only after products are set
       setInitialLoading(false);
       
     } catch (err) {
       console.error("❌ Erreur lors du chargement des produits :", err);
-      console.error("Error details:", err.response?.data || err.message);
       toast.error("خطأ في تحميل المنتجات");
       setProducts([]);
       setTotaux({
@@ -217,7 +280,7 @@ export function ProductsList() {
       fetchInProgress.current = false;
       console.log('🏁 fetchProducts completed. loading set to false');
     }
-  }, [userRole, userMagasin, headers]);
+  }, [userRole, userMagasin, headers, userMagasinsAccess]);
 
   // Update selected magasin filter display when magasinsOptions changes
   useEffect(() => {
@@ -226,6 +289,17 @@ export function ProductsList() {
       setSelectedMagasinFilter(selectedMag);
     }
   }, [filters.magasin, magasinsOptions]);
+
+  // Check if user should see the filter button
+  const shouldShowFilter = useCallback(() => {
+    if (userRole === "admin") return true;
+    
+    // For non-admin users, check their access type
+    const userAccessType = localStorage.getItem("magasin_access_type");
+    return userAccessType === "all_magasins" || 
+           userAccessType === "selected_magasins" || 
+           userMagasinsAccess.length > 1;
+  }, [userRole, userMagasinsAccess]);
 
   // Fetch magasins and familles - only once
   useEffect(() => {
@@ -236,9 +310,12 @@ export function ProductsList() {
     
     const initializeData = async () => {
       try {
-        // Fetch magasins
+        // First, get user's magasin access
+        await fetchUserMagasinAccess();
+        
+        // Fetch magasins based on user's access
         if (userRole === "admin") {
-          console.log('🌐 Fetching magasins...');
+          console.log('🌐 Fetching all magasins...');
           const magasinsRes = await axios.get("param/magasins/", { headers });
           const dataArray = Array.isArray(magasinsRes.data.results) ? magasinsRes.data.results : [];
           const options = dataArray.map((magasin) => ({
@@ -248,20 +325,70 @@ export function ProductsList() {
           setMagasinsOptions([{ value: "", label: "الكل" }, ...options]);
           console.log('✅ Magasins loaded:', options.length);
         } else {
-          console.log('Non-admin user, skipping magasins fetch');
-          setMagasinsOptions([{ value: "", label: "الكل" }]);
+          // For non-admin users, fetch only accessible magasins
+          console.log('🌐 Fetching accessible magasins for non-admin user...');
+          
+          let accessibleMagasins = [];
+          
+          // Get user's access type and allowed magasins
+          const userId = localStorage.getItem("user_id");
+          if (userId) {
+            const userResponse = await axios.get(`/auth/users/${userId}/`, { headers });
+            const userData = userResponse.data;
+            const accessType = userData.magasin_access_type;
+            
+            // Store access type in localStorage for easy access
+            localStorage.setItem("magasin_access_type", accessType);
+            
+            if (accessType === "all_magasins") {
+              // Fetch all magasins
+              const magasinsRes = await axios.get("param/magasins/", { headers });
+              accessibleMagasins = magasinsRes.data.results || [];
+              console.log('✅ User has access to ALL magasins');
+            } else if (accessType === "selected_magasins") {
+              // Get only allowed magasins
+              accessibleMagasins = userData.magasins_acces_detail || [];
+              console.log('✅ User has access to selected magasins:', accessibleMagasins.length);
+            } else {
+              // assigned_only - only their assigned magasin
+              if (userMagasin) {
+                const magasinsRes = await axios.get(`param/magasins/${userMagasin}/`, { headers });
+                if (magasinsRes.data) {
+                  accessibleMagasins = [magasinsRes.data];
+                }
+              }
+              console.log('✅ User has access to assigned magasin only');
+            }
+          }
+          
+          const options = accessibleMagasins.map((magasin) => ({
+            value: magasin.id,
+            label: magasin.nom,
+          }));
+          
+          // Only show filter options if user has access to multiple magasins
+          if (accessibleMagasins.length > 1) {
+            setMagasinsOptions([{ value: "", label: "الكل" }, ...options]);
+          } else {
+            setMagasinsOptions([]);
+            // Auto-select the only magasin they have access to
+            if (accessibleMagasins.length === 1) {
+              setFilters(prev => ({ ...prev, magasin: accessibleMagasins[0].id.toString() }));
+            }
+          }
+          console.log('✅ Magasins options loaded:', options.length);
         }
 
         // Fetch familles
         console.log('🌐 Fetching familles...');
         const famillesRes = await axios.get("prod/produits/familles/", { headers });
         const familles = Array.isArray(famillesRes.data.familles) ? famillesRes.data.familles : [];
-        const options = familles.map((fam) => ({
+        const famillesOptionsData = familles.map((fam) => ({
           value: fam.famille,
           label: fam.famille,
         }));
-        setFamillesOptions([{ value: "", label: "الكل" }, ...options]);
-        console.log('✅ Familles loaded:', options.length);
+        setFamillesOptions([{ value: "", label: "الكل" }, ...famillesOptionsData]);
+        console.log('✅ Familles loaded:', famillesOptionsData.length);
         
         // After fetching options, load products once
         console.log('🟢 Starting initial products fetch...');
@@ -366,7 +493,7 @@ export function ProductsList() {
 
   // Get the correct quantity based on filters
   const getProductQuantity = (product) => {
-    if (filters.magasin && userRole === "admin") {
+    if (filters.magasin && (userRole === "admin" || userRole !== "admin")) {
       return product.filtered_quantity || 0;
     }
     return product.quantite_totale || 0;
@@ -407,10 +534,6 @@ export function ProductsList() {
 
   console.log('🎨 Rendering component. initialLoading:', initialLoading, 'products.length:', products.length, 'loading:', loading);
 
-  // Show loading spinner while initial data is being fetched
- 
-   
-
   return (
     <div className="space-y-4">
       {/* Header with Stats */}
@@ -448,7 +571,7 @@ export function ProductsList() {
               <div className="text-lg text-red-400">{outOfStockCount}</div>
             </div>
           </div>
-          {filters.magasin && userRole === "admin" && selectedMagasinFilter && (
+          {filters.magasin && selectedMagasinFilter && (
             <div className="bg-gradient-to-r from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 rounded-lg px-4 py-2">
               <div className="flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-cyan-400" />
@@ -498,7 +621,8 @@ export function ProductsList() {
             className="w-full bg-slate-700/50 text-white border border-amber-500/30 rounded-lg px-10 py-2 text-sm outline-none focus:border-amber-500 placeholder-slate-400"
           />
         </div>
-        {userRole === "admin" && (
+        {/* Only show filter button for users who have access to multiple magasins or are admin */}
+        {shouldShowFilter() && (
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -515,8 +639,8 @@ export function ProductsList() {
         )}
       </div>
 
-      {/* Filter Panel */}
-      {showFilters && userRole === "admin" && (
+      {/* Filter Panel - Only show if there are filter options */}
+      {showFilters && shouldShowFilter() && magasinsOptions.length > 0 && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
@@ -572,8 +696,7 @@ export function ProductsList() {
         </motion.div>
       )}
 
-      
-       
+      {/* Products Table */}
       <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm border border-amber-500/20 rounded-xl overflow-hidden shadow-lg">
         <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-4 py-3">
           <h2 className="text-white text-lg flex items-center gap-2">
@@ -629,7 +752,7 @@ export function ProductsList() {
                   <th className="px-4 py-3 text-right">الكمية</th>
                   <th className="px-4 py-3 text-right">الحالة</th>
                   <th className="px-4 py-3 text-right">الإجراءات</th>
-                   </tr>
+                </tr>
               </thead>
               <tbody>
                 {products.map((product, index) => {
@@ -665,8 +788,8 @@ export function ProductsList() {
                       <td className="px-4 py-3 text-amber-300">{formatPrice(product.prix_vente_8)} دج</td>
                       <td className="px-4 py-3 text-amber-300">{formatPrice(product.prix_vente_9)} دج</td>
                       <td className="px-4 py-3 text-amber-300">{formatPrice(product.prix_vente_10)} دج</td>
-                      <td className="px-4 py-3 text-amber-300">{formatPrice(product.prix_vente_12)} دج</td>
-                      <td className="px-4 py-3 text-amber-300">{formatPrice(product.prix_vente_15)} دج</td>
+                      <td className="px-4 py-3 text-amber-300">{formatPrice(product.prix_vente_12)} d</td>
+                      <td className="px-4 py-3 text-amber-300">{formatPrice(product.prix_vente_15)}</td>
                       
                       <td className="px-4 py-3">
                         <div>
@@ -682,13 +805,13 @@ export function ProductsList() {
                             </span>
                           )}
                         </div>
-                      </td>
+                       </td>
                       
                       <td className="px-4 py-3">
                         <span className={`px-3 py-1 rounded-full text-xs ${getStatusColor(displayQuantity)}`}>
                           {getStatusText(displayQuantity)}
                         </span>
-                      </td>
+                       </td>
                       
                       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-2">
@@ -713,7 +836,7 @@ export function ProductsList() {
                             <Trash2 className="w-4 h-4" />
                           </motion.button>
                         </div>
-                      </td>
+                       </td>
                     </motion.tr>
                   );
                 })}

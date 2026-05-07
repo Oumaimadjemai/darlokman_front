@@ -11,6 +11,7 @@ export function ProductsList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -19,6 +20,11 @@ export function ProductsList() {
   const [showFilters, setShowFilters] = useState(false);
   const [openDetailDialog, setOpenDetailDialog] = useState(false);
   const [selectedProductForDetail, setSelectedProductForDetail] = useState(null);
+  
+  // Pagination states
+  const [nextPageUrl, setNextPageUrl] = useState(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
   
   // Filter states
   const [filters, setFilters] = useState({
@@ -42,11 +48,11 @@ export function ProductsList() {
   const isMounted = useRef(true);
   const fetchInProgress = useRef(false);
   const hasInitialized = useRef(false);
+  const currentFiltersRef = useRef({ search: '', filters: { magasin: '', famille: '' } });
+  const loadingTriggerRef = useRef(null);
   
   const userRole = localStorage.getItem("role");
   const userMagasin = localStorage.getItem("magasin_id");
-  
-  console.log('🔵 Component mounted. userRole:', userRole, 'userMagasin:', userMagasin);
   
   const headers = useMemo(() => ({
     Authorization: `Bearer ${localStorage.getItem("access_token")}`,
@@ -56,7 +62,6 @@ export function ProductsList() {
   // Fetch current user's magasin access
   const fetchUserMagasinAccess = useCallback(async () => {
     if (userRole !== "admin") {
-      // For non-admin users, fetch their access type and allowed magasins
       try {
         const token = localStorage.getItem("access_token");
         const userId = localStorage.getItem("user_id");
@@ -69,22 +74,14 @@ export function ProductsList() {
           const userData = response.data;
           const accessType = userData.magasin_access_type;
           
-          console.log('📋 User access type:', accessType);
-          console.log('📋 User magasin_access_type:', userData.magasin_access_type);
-          
           if (accessType === "all_magasins") {
-            // User has access to all magasins - fetch all
             const magasinsRes = await axios.get("param/magasins/", { headers });
             const allMagasins = magasinsRes.data.results || [];
             setUserMagasinsAccess(allMagasins.map(m => ({ id: m.id, nom: m.nom })));
-            console.log('✅ User has access to ALL magasins');
           } else if (accessType === "selected_magasins") {
-            // User has access to specific magasins
             const allowedMagasins = userData.magasins_acces_detail || [];
             setUserMagasinsAccess(allowedMagasins);
-            console.log('✅ User has access to selected magasins:', allowedMagasins.length);
           } else {
-            // assigned_only - user only has access to their assigned magasin
             if (userMagasin) {
               setUserMagasinsAccess([{ id: parseInt(userMagasin), nom: "Magasin assigné" }]);
             }
@@ -92,7 +89,6 @@ export function ProductsList() {
         }
       } catch (err) {
         console.error("Error fetching user magasin access:", err);
-        // Fallback to just assigned magasin
         if (userMagasin) {
           setUserMagasinsAccess([{ id: parseInt(userMagasin), nom: "Magasin assigné" }]);
         }
@@ -100,18 +96,24 @@ export function ProductsList() {
     }
   }, [userRole, userMagasin, headers]);
 
-  // Fetch products with filters
-  const fetchProducts = useCallback(async (search = '', appliedFilters = { magasin: '', famille: '' }) => {
-    console.log('🟢 fetchProducts called with:', { search, appliedFilters });
-    
-    // Prevent multiple simultaneous fetches
+  // Fetch products with pagination
+  const fetchProducts = useCallback(async (search = '', appliedFilters = { magasin: '', famille: '' }, isReset = true) => {
     if (fetchInProgress.current) {
-      console.log('⚠️ fetchProducts: Already in progress, skipping');
       return;
     }
     
     fetchInProgress.current = true;
-    setLoading(true);
+    
+    if (isReset) {
+      setLoading(true);
+      setProducts([]);
+      setNextPageUrl(null);
+      setHasMore(true);
+    } else {
+      setLoadingMore(true);
+    }
+    
+    currentFiltersRef.current = { search, filters: appliedFilters };
     
     const params = new URLSearchParams();
 
@@ -119,10 +121,6 @@ export function ProductsList() {
 
     // Filter by magasin based on role and access
     if (userRole !== "admin") {
-      // For non-admin users, determine which magasin(s) to filter by
-      const magasinFilter = appliedFilters.magasin;
-      
-      // Get user's access type
       let userAccessType = "assigned_only";
       try {
         const userId = localStorage.getItem("user_id");
@@ -135,49 +133,43 @@ export function ProductsList() {
       }
       
       if (userAccessType === "all_magasins") {
-        // User can see all magasins, apply filter if selected
-        if (magasinFilter) {
-          params.append("magasin", magasinFilter);
-          console.log('📦 All magasins access, applying magasin filter:', magasinFilter);
+        if (appliedFilters.magasin) {
+          params.append("magasin", appliedFilters.magasin);
         }
       } else if (userAccessType === "selected_magasins") {
-        // User can see multiple magasins
-        if (magasinFilter) {
-          params.append("magasin", magasinFilter);
-          console.log('📦 Selected magasins access, applying magasin filter:', magasinFilter);
+        if (appliedFilters.magasin) {
+          params.append("magasin", appliedFilters.magasin);
         }
       } else {
-        // assigned_only - only their assigned magasin
         params.append("magasin", userMagasin);
-        console.log('📦 Assigned only access, using assigned magasin:', userMagasin);
       }
     } else if (appliedFilters.magasin) {
       params.append("magasin", appliedFilters.magasin);
-      console.log('📦 Admin user, adding magasin filter:', appliedFilters.magasin);
     }
 
     if (appliedFilters.famille) params.append("famille", appliedFilters.famille);
+    
+    params.append("page_size", "50");
 
     const url = `prod/produits/?${params.toString()}`;
-    console.log('🌐 API Request URL:', url);
 
     try {
       const response = await axios.get(url, { headers });
-      console.log('✅ API Response received:', response.status);
+      
+      if (currentFiltersRef.current.search !== search || 
+          JSON.stringify(currentFiltersRef.current.filters) !== JSON.stringify(appliedFilters)) {
+        return;
+      }
       
       let productsData = response.data.results || [];
-      console.log('📦 Products data count:', productsData.length);
-      
-      let backendTotaux = response.data.totaux;
+      const nextUrl = response.data.next;
+      const backendTotaux = response.data.totaux;
       
       // If magasin filter is applied, calculate quantity for that specific magasin
-      if ((appliedFilters.magasin && (userRole === "admin" || userRole !== "admin")) || 
-          (userRole !== "admin" && userMagasinsAccess.length > 1 && appliedFilters.magasin)) {
-        console.log('🔍 Applying magasin filter for quantity calculation');
+      if (appliedFilters.magasin && (userRole === "admin" || userRole !== "admin")) {
         productsData = productsData.map(product => {
           let magasinQuantity = 0;
           
-          // Get quantity from magasins array
           if (product.magasins && Array.isArray(product.magasins)) {
             const magasinEntry = product.magasins.find(mag => mag.id == appliedFilters.magasin);
             if (magasinEntry) {
@@ -192,97 +184,157 @@ export function ProductsList() {
         });
       }
       
-      // Calculate totals
-      let totalQuantity = 0;
-      let totalValue = 0;
-      let totalCapital = 0;
-      
-      if ((appliedFilters.magasin && (userRole === "admin" || userRole !== "admin")) ||
-          (userRole !== "admin" && userMagasinsAccess.length > 1 && appliedFilters.magasin)) {
-        // Calculate from filtered quantities
-        totalQuantity = productsData.reduce((sum, p) => sum + (p.filtered_quantity || 0), 0);
-        totalValue = productsData.reduce((sum, p) => {
-          const price = p.prix_vente_cache || 0;
-          const qty = p.filtered_quantity || 0;
-          return sum + (price * qty);
-        }, 0);
-        totalCapital = productsData.reduce((sum, p) => {
-          const price = p.prix_vente_3 || 0;
-          const qty = p.filtered_quantity || 0;
-          return sum + (price * qty);
-        }, 0);
-        console.log('📊 Filtered totals:', { totalQuantity, totalValue, totalCapital });
-      } else if (backendTotaux) {
-        totalQuantity = backendTotaux.total_quantite || 0;
-        totalValue = backendTotaux.total_valeur || 0;
-        totalCapital = backendTotaux.total_capital || 0;
-        console.log('📊 Backend totals:', { totalQuantity, totalValue, totalCapital });
+      if (isReset) {
+        setProducts(productsData);
       } else {
-        totalQuantity = productsData.reduce((sum, p) => sum + (p.quantite_totale || 0), 0);
-        totalValue = productsData.reduce((sum, p) => {
-          const price = p.prix_vente_cache || 0;
-          const qty = p.quantite_totale || 0;
-          return sum + (price * qty);
-        }, 0);
-        totalCapital = productsData.reduce((sum, p) => {
-          const price = p.prix_vente_3 || 0;
-          const qty = p.quantite_totale || 0;
-          return sum + (price * qty);
-        }, 0);
-        console.log('📊 Calculated totals:', { totalQuantity, totalValue, totalCapital });
+        setProducts(prev => [...prev, ...productsData]);
       }
       
-      // Calculate total quantity for ALL products (without filters)
-      let totalQuantityAll = totalQuantity;
-      try {
-        console.log('🌐 Fetching all products for total quantity...');
-        const allProductsResponse = await axios.get(`prod/produits/`, { headers });
-        const allProductsData = allProductsResponse.data.results || [];
-        totalQuantityAll = allProductsData.reduce((sum, p) => {
-          let productQty = 0;
-          if (p.magasins && Array.isArray(p.magasins)) {
-            productQty = p.magasins.reduce((magSum, mag) => magSum + (mag.codes_barres?.length || 0), 0);
-          }
-          return sum + productQty;
-        }, 0);
-        console.log('📊 All products total quantity:', totalQuantityAll);
-      } catch (err) {
-        console.error('❌ Error fetching all products:', err);
+      setNextPageUrl(nextUrl);
+      setHasMore(!!nextUrl);
+      setTotalCount(response.data.count || 0);
+      
+      // Use backend totals
+      if (backendTotaux) {
+        setTotaux({
+          total_quantite: backendTotaux.total_quantite || 0,
+          total_valeur: backendTotaux.total_valeur || 0,
+          total_capital: backendTotaux.total_capital || 0,
+          total_quantite_all_products: backendTotaux.total_quantite_all_products || backendTotaux.total_quantite || 0,
+          count: response.data.count || productsData.length,
+        });
+      } else {
+        let totalQuantity = 0;
+        let totalValue = 0;
+        let totalCapital = 0;
+        
+        if (appliedFilters.magasin) {
+          totalQuantity = productsData.reduce((sum, p) => sum + (p.filtered_quantity || 0), 0);
+          totalValue = productsData.reduce((sum, p) => {
+            const price = p.prix_vente_cache || 0;
+            const qty = p.filtered_quantity || 0;
+            return sum + (price * qty);
+          }, 0);
+          totalCapital = productsData.reduce((sum, p) => {
+            const price = p.prix_vente_3 || 0;
+            const qty = p.filtered_quantity || 0;
+            return sum + (price * qty);
+          }, 0);
+        } else {
+          totalQuantity = productsData.reduce((sum, p) => sum + (p.quantite_totale || 0), 0);
+          totalValue = productsData.reduce((sum, p) => {
+            const price = p.prix_vente_cache || 0;
+            const qty = p.quantite_totale || 0;
+            return sum + (price * qty);
+          }, 0);
+          totalCapital = productsData.reduce((sum, p) => {
+            const price = p.prix_vente_3 || 0;
+            const qty = p.quantite_totale || 0;
+            return sum + (price * qty);
+          }, 0);
+        }
+        
+        setTotaux({
+          total_quantite: totalQuantity,
+          total_valeur: totalValue,
+          total_capital: totalCapital,
+          total_quantite_all_products: totalQuantity,
+          count: response.data.count || productsData.length,
+        });
       }
-      
-      setTotaux({
-        total_quantite: totalQuantity,
-        total_valeur: totalValue,
-        total_capital: totalCapital,
-        total_quantite_all_products: totalQuantityAll,
-        count: response.data.count || productsData.length,
-      });
-      
-      setProducts(productsData);
-      console.log('✅ Products set to state. Count:', productsData.length);
       
       setInitialLoading(false);
       
     } catch (err) {
-      console.error("❌ Erreur lors du chargement des produits :", err);
-      toast.error("خطأ في تحميل المنتجات");
-      setProducts([]);
-      setTotaux({
-        total_quantite: 0,
-        total_valeur: 0,
-        total_capital: 0,
-        total_quantite_all_products: 0,
-        count: 0
-      });
+      console.error("Error loading products:", err);
+      if (isReset) {
+        toast.error("خطأ في تحميل المنتجات");
+        setProducts([]);
+        setTotaux({
+          total_quantite: 0,
+          total_valeur: 0,
+          total_capital: 0,
+          total_quantite_all_products: 0,
+          count: 0
+        });
+      }
       setInitialLoading(false);
     } finally {
-      setLoading(false);
+      if (isReset) {
+        setLoading(false);
+      } else {
+        setLoadingMore(false);
+      }
       fetchInProgress.current = false;
-      console.log('🏁 fetchProducts completed. loading set to false');
     }
-  }, [userRole, userMagasin, headers, userMagasinsAccess]);
+  }, [userRole, userMagasin, headers]);
 
-  // Update selected magasin filter display when magasinsOptions changes
+  // Load more products
+  const loadMore = useCallback(async () => {
+    if (!hasMore || loadingMore || fetchInProgress.current || !nextPageUrl) return;
+    
+    setLoadingMore(true);
+    fetchInProgress.current = true;
+    
+    try {
+      const response = await axios.get(nextPageUrl, { headers });
+      
+      let productsData = response.data.results || [];
+      const nextUrl = response.data.next;
+      
+      if (filters.magasin && (userRole === "admin" || userRole !== "admin")) {
+        productsData = productsData.map(product => {
+          let magasinQuantity = 0;
+          if (product.magasins && Array.isArray(product.magasins)) {
+            const magasinEntry = product.magasins.find(mag => mag.id == filters.magasin);
+            if (magasinEntry) {
+              magasinQuantity = magasinEntry.codes_barres?.length || 0;
+            }
+          }
+          return {
+            ...product,
+            filtered_quantity: magasinQuantity,
+          };
+        });
+      }
+      
+      setProducts(prev => [...prev, ...productsData]);
+      setNextPageUrl(nextUrl);
+      setHasMore(!!nextUrl);
+      
+    } catch (err) {
+      console.error("Error loading more products:", err);
+      toast.error("خطأ في تحميل المزيد من المنتجات");
+    } finally {
+      setLoadingMore(false);
+      fetchInProgress.current = false;
+    }
+  }, [nextPageUrl, hasMore, loadingMore, headers, filters.magasin, userRole]);
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    const currentTrigger = loadingTriggerRef.current;
+    if (!currentTrigger || !hasMore || loadingMore || fetchInProgress.current) return;
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !fetchInProgress.current) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    );
+    
+    observer.observe(currentTrigger);
+    
+    return () => {
+      if (currentTrigger) {
+        observer.unobserve(currentTrigger);
+      }
+    };
+  }, [hasMore, loadingMore, loadMore]);
+
+  // Update selected magasin filter display
   useEffect(() => {
     if (filters.magasin && magasinsOptions.length > 0) {
       const selectedMag = magasinsOptions.find(m => m.value == filters.magasin);
@@ -293,29 +345,22 @@ export function ProductsList() {
   // Check if user should see the filter button
   const shouldShowFilter = useCallback(() => {
     if (userRole === "admin") return true;
-    
-    // For non-admin users, check their access type
     const userAccessType = localStorage.getItem("magasin_access_type");
     return userAccessType === "all_magasins" || 
            userAccessType === "selected_magasins" || 
            userMagasinsAccess.length > 1;
   }, [userRole, userMagasinsAccess]);
 
-  // Fetch magasins and familles - only once
+  // Initialize data
   useEffect(() => {
     if (hasInitialized.current) return;
     hasInitialized.current = true;
     
-    console.log('🟡 Initialization useEffect running');
-    
     const initializeData = async () => {
       try {
-        // First, get user's magasin access
         await fetchUserMagasinAccess();
         
-        // Fetch magasins based on user's access
         if (userRole === "admin") {
-          console.log('🌐 Fetching all magasins...');
           const magasinsRes = await axios.get("param/magasins/", { headers });
           const dataArray = Array.isArray(magasinsRes.data.results) ? magasinsRes.data.results : [];
           const options = dataArray.map((magasin) => ({
@@ -323,41 +368,27 @@ export function ProductsList() {
             label: magasin.nom,
           }));
           setMagasinsOptions([{ value: "", label: "الكل" }, ...options]);
-          console.log('✅ Magasins loaded:', options.length);
         } else {
-          // For non-admin users, fetch only accessible magasins
-          console.log('🌐 Fetching accessible magasins for non-admin user...');
-          
           let accessibleMagasins = [];
-          
-          // Get user's access type and allowed magasins
           const userId = localStorage.getItem("user_id");
           if (userId) {
             const userResponse = await axios.get(`/auth/users/${userId}/`, { headers });
             const userData = userResponse.data;
             const accessType = userData.magasin_access_type;
-            
-            // Store access type in localStorage for easy access
             localStorage.setItem("magasin_access_type", accessType);
             
             if (accessType === "all_magasins") {
-              // Fetch all magasins
               const magasinsRes = await axios.get("param/magasins/", { headers });
               accessibleMagasins = magasinsRes.data.results || [];
-              console.log('✅ User has access to ALL magasins');
             } else if (accessType === "selected_magasins") {
-              // Get only allowed magasins
               accessibleMagasins = userData.magasins_acces_detail || [];
-              console.log('✅ User has access to selected magasins:', accessibleMagasins.length);
             } else {
-              // assigned_only - only their assigned magasin
               if (userMagasin) {
                 const magasinsRes = await axios.get(`param/magasins/${userMagasin}/`, { headers });
                 if (magasinsRes.data) {
                   accessibleMagasins = [magasinsRes.data];
                 }
               }
-              console.log('✅ User has access to assigned magasin only');
             }
           }
           
@@ -366,21 +397,16 @@ export function ProductsList() {
             label: magasin.nom,
           }));
           
-          // Only show filter options if user has access to multiple magasins
           if (accessibleMagasins.length > 1) {
             setMagasinsOptions([{ value: "", label: "الكل" }, ...options]);
           } else {
             setMagasinsOptions([]);
-            // Auto-select the only magasin they have access to
             if (accessibleMagasins.length === 1) {
               setFilters(prev => ({ ...prev, magasin: accessibleMagasins[0].id.toString() }));
             }
           }
-          console.log('✅ Magasins options loaded:', options.length);
         }
 
-        // Fetch familles
-        console.log('🌐 Fetching familles...');
         const famillesRes = await axios.get("prod/produits/familles/", { headers });
         const familles = Array.isArray(famillesRes.data.familles) ? famillesRes.data.familles : [];
         const famillesOptionsData = familles.map((fam) => ({
@@ -388,15 +414,11 @@ export function ProductsList() {
           label: fam.famille,
         }));
         setFamillesOptions([{ value: "", label: "الكل" }, ...famillesOptionsData]);
-        console.log('✅ Familles loaded:', famillesOptionsData.length);
         
-        // After fetching options, load products once
-        console.log('🟢 Starting initial products fetch...');
-        await fetchProducts('', { magasin: '', famille: '' });
-        console.log('✅ Initial products fetch completed');
+        await fetchProducts('', { magasin: '', famille: '' }, true);
         
       } catch (err) {
-        console.error("❌ Erreur lors du chargement des données:", err);
+        console.error("Error initializing data:", err);
         setInitialLoading(false);
       }
     };
@@ -404,21 +426,21 @@ export function ProductsList() {
     initializeData();
     
     return () => {
-      console.log('🔴 Component unmounting');
       isMounted.current = false;
     };
-  }, []); // Empty dependency array - runs only once
+  }, []);
 
-  // Debounced search - only when searchTerm or filters change
+  // Debounced search
   useEffect(() => {
+    if (!hasInitialized.current) return;
+    
     if (!initialLoadDone.current) {
       initialLoadDone.current = true;
       return;
     }
     
-    console.log('🔍 Search/filters changed:', { searchTerm, filters });
     const timeoutId = setTimeout(() => {
-      fetchProducts(searchTerm, filters);
+      fetchProducts(searchTerm, filters, true);
     }, 500);
 
     return () => clearTimeout(timeoutId);
@@ -444,7 +466,7 @@ export function ProductsList() {
     try {
       await axios.delete(`/prod/produits/${selectedId}/`, { headers });
       toast.success("تم حذف المنتج بنجاح");
-      await fetchProducts(searchTerm, filters);
+      await fetchProducts(searchTerm, filters, true);
     } catch (err) {
       console.error(err);
       toast.error("فشل حذف المنتج");
@@ -471,7 +493,7 @@ export function ProductsList() {
         toast.success("تم تصدير المنتجات بنجاح");
       })
       .catch((err) => {
-        console.error("Erreur export Excel :", err);
+        console.error("Export error:", err);
         toast.error("فشل تصدير المنتجات");
       });
   };
@@ -491,20 +513,15 @@ export function ProductsList() {
     setOpenDetailDialog(true);
   };
 
-  // Get the correct quantity based on filters
   const getProductQuantity = (product) => {
-    if (filters.magasin && (userRole === "admin" || userRole !== "admin")) {
+    if (filters.magasin) {
       return product.filtered_quantity || 0;
     }
     return product.quantite_totale || 0;
   };
 
-  // Calculate statistics based on displayed products
-  const totalProducts = products.length;
   const totalValue = totaux?.total_valeur || 0;
   const totalQuantity = totaux?.total_quantite || 0;
-  const totalQuantityAll = totaux?.total_quantite_all_products || 0;
-  const totalCount = totaux?.count || totalProducts;
   
   const lowStockCount = products.filter(p => {
     const quantity = getProductQuantity(p);
@@ -529,15 +546,13 @@ export function ProductsList() {
   };
 
   const formatPrice = (price) => {
-    return price ? Math.round(price): '0';
+    return price ? Math.round(price) : '0';
   };
 
-  console.log('🎨 Rendering component. initialLoading:', initialLoading, 'products.length:', products.length, 'loading:', loading);
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-8">
       {/* Header with Stats */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex items-center justify-between gap-4 flex-wrap top-0 z-20  backdrop-blur-sm py-4 -mt-4 px-4 rounded-lg">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="bg-gradient-to-r from-purple-500/20 to-purple-600/20 border border-purple-500/30 rounded-lg px-4 py-2">
             <div className="flex items-center gap-2">
@@ -558,7 +573,6 @@ export function ProductsList() {
               <div className="text-lg text-emerald-400">{totalQuantity}</div>
             </div>
           </div>
-         
           <div className="bg-gradient-to-r from-yellow-500/20 to-orange-600/20 border border-yellow-500/30 rounded-lg px-4 py-2">
             <div className="flex items-center gap-2">
               <div className="text-xs text-yellow-300">مخزون منخفض:</div>
@@ -582,7 +596,6 @@ export function ProductsList() {
           )}
         </div>
 
-        {/* Action Buttons */}
         <div className="flex gap-2">
           {userRole === "admin" && (
             <>
@@ -610,7 +623,7 @@ export function ProductsList() {
       </div>
 
       {/* Search and Filters */}
-      <div className="flex gap-2">
+      <div className="flex gap-2  top-24 z-20 backdrop-blur-sm py-2 px-4 rounded-lg">
         <div className="relative flex-1">
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4" />
           <input
@@ -621,7 +634,6 @@ export function ProductsList() {
             className="w-full bg-slate-700/50 text-white border border-amber-500/30 rounded-lg px-10 py-2 text-sm outline-none focus:border-amber-500 placeholder-slate-400"
           />
         </div>
-        {/* Only show filter button for users who have access to multiple magasins or are admin */}
         {shouldShowFilter() && (
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -639,13 +651,13 @@ export function ProductsList() {
         )}
       </div>
 
-      {/* Filter Panel - Only show if there are filter options */}
+      {/* Filter Panel */}
       {showFilters && shouldShowFilter() && magasinsOptions.length > 0 && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className="bg-slate-800/50 rounded-lg p-4 border border-amber-500/30"
+          className="bg-slate-800/50 rounded-lg p-4 border border-amber-500/30 mx-4"
         >
           <div className="flex gap-4 flex-wrap">
             {magasinsOptions.length > 0 && (
@@ -697,7 +709,7 @@ export function ProductsList() {
       )}
 
       {/* Products Table */}
-      <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm border border-amber-500/20 rounded-xl overflow-hidden shadow-lg">
+      <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm border border-amber-500/20 rounded-xl overflow-hidden shadow-lg mx-4">
         <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-4 py-3">
           <h2 className="text-white text-lg flex items-center gap-2">
             <Package className="w-5 h-5" />
@@ -707,15 +719,21 @@ export function ProductsList() {
                 (الكميات الخاصة بمخزن {selectedMagasinFilter.label})
               </span>
             )}
+            {loading && (
+              <span className="text-xs bg-white/20 px-2 py-1 rounded ml-2">
+                جاري التحميل...
+              </span>
+            )}
           </h2>
         </div>
         
-        {loading ? (
-          <div className="flex justify-center items-center py-20">
+        {loading && products.length === 0 ? (
+          <div className="flex justify-center items-center py-32">
             <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-slate-400 mr-3">جاري تحميل المنتجات...</span>
           </div>
         ) : products.length === 0 ? (
-          <div className="text-center py-20 text-slate-400">
+          <div className="text-center py-32 text-slate-400">
             <Package className="w-12 h-12 mx-auto mb-2 text-slate-500" />
             لا توجد منتجات
             <div className="text-xs mt-2 text-slate-500">
@@ -725,124 +743,144 @@ export function ProductsList() {
             </div>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gradient-to-r from-purple-600 to-purple-700 text-white">
-                  <th className="px-4 py-3 text-right">الرقم</th>
-                  <th className="px-4 py-3 text-right">المرجع</th>
-                  <th className="px-4 py-3 text-right">اسم المنتج</th>
-                  <th className="px-4 py-3 text-right">الفئة</th>
-                  {userRole === "admin" && (
-                    <>
-                      <th className="px-4 py-3 text-right">ن.ف</th>
-                      <th className="px-4 py-3 text-right">ن.ف.ت</th>
-                      <th className="px-4 py-3 text-right">سعر الشراء</th>
-                    </>
-                  )}
-                  <th className="px-4 py-3 text-right">سعر كاش</th>
-                  <th className="px-4 py-3 text-right">سعر 3</th>
-                  <th className="px-4 py-3 text-right">سعر 5</th>
-                  <th className="px-4 py-3 text-right">سعر 6</th>
-                  <th className="px-4 py-3 text-right">سعر 8</th>
-                  <th className="px-4 py-3 text-right">سعر 9</th>
-                  <th className="px-4 py-3 text-right">سعر 10</th>
-                  <th className="px-4 py-3 text-right">سعر 12</th>
-                  <th className="px-4 py-3 text-right">سعر 15</th>
-                  <th className="px-4 py-3 text-right">الكمية</th>
-                  <th className="px-4 py-3 text-right">الحالة</th>
-                  <th className="px-4 py-3 text-right">الإجراءات</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((product, index) => {
-                  const displayQuantity = getProductQuantity(product);
-                  return (
-                    <motion.tr
-                      key={product.id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: index * 0.05 }}
-                      onClick={() => handleRowClick(product)}
-                      className={`border-b border-slate-700/50 transition-all cursor-pointer hover:bg-purple-500/10 ${
-                        index % 2 === 0 ? 'bg-slate-800/30' : 'bg-slate-900/30'
-                      }`}
-                    >
-                      <td className="px-4 py-3 text-purple-300">{product.id}</td>
-                      <td className="px-4 py-3 text-blue-300 font-mono text-xs">{product.reference || '—'}</td>
-                      <td className="px-4 py-3 text-white font-medium">{product.nom}</td>
-                      <td className="px-4 py-3 text-slate-300">{product.famille || '—'}</td>
-                      
-                      {userRole === "admin" && (
-                        <>
-                          <td className="px-4 py-3 text-emerald-300">{product.taux_benefice_cache || '-'}</td>
-                          <td className="px-4 py-3 text-amber-300">{product.moyenne_pourcentage_facilite || '-'}</td>
-                          <td className="px-4 py-3 text-cyan-300">{formatPrice(product.prix_achat)} دج</td>
-                        </>
-                      )}
-                      
-                      <td className="px-4 py-3 text-emerald-300">{formatPrice(product.prix_vente_cache)} دج</td>
-                      <td className="px-4 py-3 text-amber-300">{formatPrice(product.prix_vente_3)} دج</td>
-                      <td className="px-4 py-3 text-amber-300">{formatPrice(product.prix_vente_5)} دج</td>
-                      <td className="px-4 py-3 text-amber-300">{formatPrice(product.prix_vente_6)} دج</td>
-                      <td className="px-4 py-3 text-amber-300">{formatPrice(product.prix_vente_8)} دج</td>
-                      <td className="px-4 py-3 text-amber-300">{formatPrice(product.prix_vente_9)} دج</td>
-                      <td className="px-4 py-3 text-amber-300">{formatPrice(product.prix_vente_10)} دج</td>
-                      <td className="px-4 py-3 text-amber-300">{formatPrice(product.prix_vente_12)} d</td>
-                      <td className="px-4 py-3 text-amber-300">{formatPrice(product.prix_vente_15)}</td>
-                      
-                      <td className="px-4 py-3">
-                        <div>
-                          <span className={`font-bold ${
-                            displayQuantity === 0 ? 'text-red-400' : 
-                            displayQuantity <= 5 ? 'text-yellow-400' : 'text-white'
-                          }`}>
-                            {displayQuantity}
-                          </span>
-                          {filters.magasin && displayQuantity !== product.quantite_totale && (
-                            <span className="text-xs text-slate-500 block">
-                              (الإجمالي: {product.quantite_totale || 0})
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gradient-to-r from-purple-600 to-purple-700 text-white">
+                    <th className="px-4 py-3 text-right whitespace-nowrap">الرقم</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">المرجع</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">اسم المنتج</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">الفئة</th>
+                    {userRole === "admin" && (
+                      <>
+                        <th className="px-4 py-3 text-right whitespace-nowrap">ن.ف</th>
+                        <th className="px-4 py-3 text-right whitespace-nowrap">ن.ف.ت</th>
+                        <th className="px-4 py-3 text-right whitespace-nowrap">سعر الشراء</th>
+                      </>
+                    )}
+                    <th className="px-4 py-3 text-right whitespace-nowrap">سعر كاش</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">سعر 3</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">سعر 5</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">سعر 6</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">سعر 8</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">سعر 9</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">سعر 10</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">سعر 12</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">سعر 15</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">الكمية</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">الحالة</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">الإجراءات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map((product, index) => {
+                    const displayQuantity = getProductQuantity(product);
+                    return (
+                      <motion.tr
+                        key={product.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: Math.min(index * 0.01, 0.5) }}
+                        onClick={() => handleRowClick(product)}
+                        className={`border-b border-slate-700/50 transition-all cursor-pointer hover:bg-purple-500/10 ${
+                          index % 2 === 0 ? 'bg-slate-800/30' : 'bg-slate-900/30'
+                        }`}
+                      >
+                        <td className="px-4 py-3 text-purple-300 whitespace-nowrap">{product.id}</td>
+                        <td className="px-4 py-3 text-blue-300 font-mono text-xs whitespace-nowrap">{product.reference || '—'}</td>
+                        <td className="px-4 py-3 text-white font-medium whitespace-nowrap">{product.nom}</td>
+                        <td className="px-4 py-3 text-slate-300 whitespace-nowrap">{product.famille || '—'}</td>
+                        
+                        {userRole === "admin" && (
+                          <>
+                            <td className="px-4 py-3 text-emerald-300 whitespace-nowrap">{product.taux_benefice_cache || '-'}</td>
+                            <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{product.moyenne_pourcentage_facilite || '-'}</td>
+                            <td className="px-4 py-3 text-cyan-300 whitespace-nowrap">{formatPrice(product.prix_achat)} دج</td>
+                          </>
+                        )}
+                        
+                        <td className="px-4 py-3 text-emerald-300 whitespace-nowrap">{formatPrice(product.prix_vente_cache)} دج</td>
+                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_3)} دج</td>
+                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_5)} دج</td>
+                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_6)} دج</td>
+                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_8)} دج</td>
+                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_9)} دج</td>
+                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_10)} دج</td>
+                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_12)} d</td>
+                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_15)}</td>
+                        
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div>
+                            <span className={`font-bold ${
+                              displayQuantity === 0 ? 'text-red-400' : 
+                              displayQuantity <= 5 ? 'text-yellow-400' : 'text-white'
+                            }`}>
+                              {displayQuantity}
                             </span>
-                          )}
-                        </div>
-                       </td>
-                      
-                      <td className="px-4 py-3">
-                        <span className={`px-3 py-1 rounded-full text-xs ${getStatusColor(displayQuantity)}`}>
-                          {getStatusText(displayQuantity)}
-                        </span>
-                       </td>
-                      
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex gap-2">
-                          {userRole === "admin" && (
+                            {filters.magasin && displayQuantity !== product.quantite_totale && (
+                              <span className="text-xs text-slate-500 block">
+                                (الإجمالي: {product.quantite_totale || 0})
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className={`px-3 py-1 rounded-full text-xs ${getStatusColor(displayQuantity)}`}>
+                            {getStatusText(displayQuantity)}
+                          </span>
+                        </td>
+                        
+                        <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex gap-2">
+                            {userRole === "admin" && (
+                              <motion.button
+                                whileHover={{ scale: 1.2 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={() => handleOpenEditDialog(product)}
+                                className="p-2 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg text-blue-400"
+                                title="تعديل"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </motion.button>
+                            )}
                             <motion.button
                               whileHover={{ scale: 1.2 }}
                               whileTap={{ scale: 0.9 }}
-                              onClick={() => handleOpenEditDialog(product)}
-                              className="p-2 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg text-blue-400"
-                              title="تعديل"
+                              onClick={() => handleDelete(product.id)}
+                              className="p-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-red-400"
+                              title="حذف"
                             >
-                              <Edit className="w-4 h-4" />
+                              <Trash2 className="w-4 h-4" />
                             </motion.button>
-                          )}
-                          <motion.button
-                            whileHover={{ scale: 1.2 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => handleDelete(product.id)}
-                            className="p-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-red-400"
-                            title="حذف"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </motion.button>
-                        </div>
-                       </td>
-                    </motion.tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                          </div>
+                        </td>
+                      </motion.tr>
+                    );
+                  })}
+                </tbody>
+               </table>
+            </div>
+            
+            {/* Loading trigger for infinite scroll */}
+            <div ref={loadingTriggerRef} className="h-4 w-full"></div>
+            
+            {/* Loading more indicator */}
+            {loadingMore && (
+              <div className="flex justify-center items-center py-4 bg-slate-800/50">
+                <div className="w-6 h-6 border-3 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-slate-400 mr-2">جاري تحميل المزيد...</span>
+              </div>
+            )}
+            
+            {/* End of products message */}
+            {!hasMore && products.length > 0 && (
+              <div className="text-center py-4 text-slate-500 text-sm">
+                تم تحميل جميع المنتجات ({products.length} من {totalCount})
+              </div>
+            )}
+          </>
         )}
 
         {/* Table Footer */}
@@ -871,7 +909,6 @@ export function ProductsList() {
         )}
       </div>
 
-      {/* Single Dialog for Add/Edit */}
       <AddProduitDialog
         open={openDialog}
         onClose={() => {
@@ -879,7 +916,7 @@ export function ProductsList() {
           setSelectedProduct(null);
         }}
         onSuccess={() => {
-          fetchProducts(searchTerm, filters);
+          fetchProducts(searchTerm, filters, true);
         }}
         productToEdit={selectedProduct}
       />

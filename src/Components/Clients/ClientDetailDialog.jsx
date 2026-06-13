@@ -517,6 +517,13 @@ const VenteDetailCash = ({ clientId }) => {
   );
 };
 
+const calculateDateFin = (dateDebut, nombreMois) => {
+  const months = Number(nombreMois) || 0;
+  if (!dateDebut || months <= 0) return null;
+
+  return dayjs(dateDebut).add(months, "month").subtract(1, "month").format("YYYY-MM-DD");
+};
+
 // Client Paiement Info Component - Only main info, progress bar, and summary
 const ClientPaiementInfo = ({ clientId }) => {
   const [ventes, setVentes] = useState([]);
@@ -566,14 +573,16 @@ const ClientPaiementInfo = ({ clientId }) => {
               }
               
               const paymentInfo = paiementData[0] || {};
+              const dateDebut = paymentInfo.date_debut || vente.date_debut;
+              const nombreMois = paymentInfo.nombre_mois || vente.nombre_mois || 0;
               
               return {
                 vente_id: vente.id,
-                date_debut: paymentInfo.date_debut || vente.date_debut,
-                date_fin: paymentInfo.date_fin || vente.date_fin,
+                date_debut: dateDebut,
+                date_fin: calculateDateFin(dateDebut, nombreMois),
                 montant_total: (paymentInfo.reste_vente || 0) + (paymentInfo.total_verse_effectif || 0),
                 montant_mensuel: paymentInfo.montant_mensuel || vente.montant_mensuel || 0,
-                nombre_mois: paymentInfo.nombre_mois || vente.nombre_mois || 0,
+                nombre_mois: nombreMois,
                 total_verse_effectif: paymentInfo.total_verse_effectif || 0,
                 reste_vente: paymentInfo.reste_vente || 0,
                 solde_regle: paymentInfo.solde_regle || false
@@ -583,7 +592,7 @@ const ClientPaiementInfo = ({ clientId }) => {
               return {
                 vente_id: vente.id,
                 date_debut: vente.date_debut,
-                date_fin: vente.date_fin,
+                date_fin: calculateDateFin(vente.date_debut, vente.nombre_mois),
                 montant_total: parseFloat(vente.montant_total) || 0,
                 montant_mensuel: parseFloat(vente.montant_mensuel) || 0,
                 nombre_mois: vente.nombre_mois || 0,
@@ -653,6 +662,10 @@ const ClientPaiementInfo = ({ clientId }) => {
                   <span className="text-amber-400">الفترة:</span>{" "}
                   {vente.date_debut ? dayjs(vente.date_debut).format("DD/MM/YYYY") : "--"} 
                   {vente.date_fin ? ` - ${dayjs(vente.date_fin).format("DD/MM/YYYY")}` : ""}
+                </div>
+                <div className="text-sm text-slate-400">
+                  <span className="text-amber-400">تاريخ النهاية:</span>{" "}
+                  {vente.date_fin ? dayjs(vente.date_fin).format("DD/MM/YYYY") : "--"}
                 </div>
                 {vente.nombre_mois > 0 && (
                   <div className="text-sm text-slate-400">
@@ -742,6 +755,7 @@ const ClientPaiementInfo = ({ clientId }) => {
     </div>
   );
 };
+
 // Main Component
 export default function ClientDetailDialog({ open, onClose, client }) {
   const [activeTab, setActiveTab] = useState(0);
@@ -749,7 +763,7 @@ export default function ClientDetailDialog({ open, onClose, client }) {
   const [statut, setStatut] = useState("non_classifie");
   const [note, setNote] = useState("");
   const [isEditingNote, setIsEditingNote] = useState(false);
-  const [deleteFileChecked, setDeleteFileChecked] = useState(false);
+  const [recupererFichiers, setRecupererFichiers] = useState(false);
   const [openConfirm, setOpenConfirm] = useState(false);
   const [actionType, setActionType] = useState("");
   const [loading, setLoading] = useState(false);
@@ -776,51 +790,76 @@ export default function ClientDetailDialog({ open, onClose, client }) {
   ];
 
   // Fetch client details including debt information
- // Fetch client details including debt information
-const fetchClientDetails = async () => {
-  if (!client?.id) return;
-  
-  setLoadingDetails(true);
-  try {
-    // Fetch client basic info
-    const response = await axios.get(`/auth/clients/${client.id}/`);
+  const fetchClientDetails = async () => {
+    if (!client?.id) return;
     
-    // Fetch client's vente facilite data to get debt info
-    const venteResponse = await axios.get(`/vente/ventes-facilite/?client=${client.id}`);
-    
-    let ventesData = [];
-    if (venteResponse.data && venteResponse.data.results) {
-      if (venteResponse.data.results.ventes && Array.isArray(venteResponse.data.results.ventes)) {
-        ventesData = venteResponse.data.results.ventes;
-      } else if (Array.isArray(venteResponse.data.results)) {
-        ventesData = venteResponse.data.results;
+    setLoadingDetails(true);
+    try {
+      // Fetch client basic info
+      const response = await axios.get(`/auth/clients/${client.id}/`);
+      
+      // Fetch client's vente facilite data to get debt info
+      const venteResponse = await axios.get(`/vente/ventes-facilite/?client=${client.id}`);
+      console.log("Vente Facilite Response:", venteResponse.data);
+      
+      let ventesData = [];
+      if (venteResponse.data && venteResponse.data.results) {
+        if (venteResponse.data.results.ventes && Array.isArray(venteResponse.data.results.ventes)) {
+          ventesData = venteResponse.data.results.ventes;
+        } else if (Array.isArray(venteResponse.data.results)) {
+          ventesData = venteResponse.data.results;
+        }
+      } else if (venteResponse.data.ventes && Array.isArray(venteResponse.data.ventes)) {
+        ventesData = venteResponse.data.ventes;
       }
-    } else if (venteResponse.data.ventes && Array.isArray(venteResponse.data.ventes)) {
-      ventesData = venteResponse.data.ventes;
+      
+      // Calculate totals from ventes
+      const totalMontantTotal = ventesData.reduce((sum, v) => sum + (parseFloat(v.montant_total) || 0), 0);
+      const totalMontantVerse = ventesData.reduce((sum, v) => sum + (parseFloat(v.montant_verse) || 0), 0);
+      const totalMontantRestant = ventesData.reduce((sum, v) => sum + (parseFloat(v.montant_restant) || 0), 0);
+      
+      // Also fetch payment details to get total_verse_effectif if needed
+      let totalVerseEffectif = 0;
+      for (const vente of ventesData) {
+        try {
+          const paiementRes = await axios.get(`/vente/vente/payer/${vente.id}/`);
+          let paiementData = [];
+          if (paiementRes.data) {
+            if (Array.isArray(paiementRes.data)) {
+              paiementData = paiementRes.data;
+            } else if (paiementRes.data.results && Array.isArray(paiementRes.data.results)) {
+              paiementData = paiementRes.data.results;
+            } else {
+              paiementData = [paiementRes.data];
+            }
+          }
+          const paymentInfo = paiementData[0] || {};
+          totalVerseEffectif += parseFloat(paymentInfo.total_verse_effectif) || 0;
+        } catch (err) {
+          console.error(`Error fetching payment info for vente ${vente.id}:`, err);
+          // Fall back to montant_verse if payment endpoint fails
+          totalVerseEffectif += parseFloat(vente.montant_verse) || 0;
+        }
+      }
+      
+      setClientDetails({
+        ...response.data,
+        dette_totale_client: totalMontantTotal,
+        montant_paye_effectif: totalVerseEffectif, // Use the calculated value
+        dette_actuelle_client: totalMontantRestant,
+      });
+      
+      setBloque(response.data.bloque ?? false);
+      setStatut(response.data.statut ?? "non_classifie");
+      setNote(response.data.note ?? "");
+      setRecupererFichiers(response.data.recuperer_fichiers ?? false);
+    } catch (error) {
+      console.error("Error fetching client details:", error);
+      toast.error("فشل تحميل تفاصيل العميل");
+    } finally {
+      setLoadingDetails(false);
     }
-    
-    // Calculate totals from ventes
-    const totalMontantTotal = ventesData.reduce((sum, v) => sum + (parseFloat(v.montant_total) || 0), 0);
-    const totalMontantVerse = ventesData.reduce((sum, v) => sum + (parseFloat(v.montant_verse) || 0), 0);
-    const totalMontantRestant = ventesData.reduce((sum, v) => sum + (parseFloat(v.montant_restant) || 0), 0);
-    
-    setClientDetails({
-      ...response.data,
-      dette_totale_client: totalMontantTotal,
-      montant_paye_effectif: totalMontantTotal - totalMontantRestant,
-      dette_actuelle_client: totalMontantRestant,
-    });
-    
-    setBloque(response.data.bloque ?? false);
-    setStatut(response.data.statut ?? "non_classifie");
-    setNote(response.data.note ?? "");
-  } catch (error) {
-    console.error("Error fetching client details:", error);
-    toast.error("فشل تحميل تفاصيل العميل");
-  } finally {
-    setLoadingDetails(false);
-  }
-};
+  };
 
   useEffect(() => {
     if (open && client) {
@@ -834,14 +873,6 @@ const fetchClientDetails = async () => {
   };
 
   const handleConfirm = async () => {
-    if (actionType === "deleteFiles") {
-      for (const file of clientDetails?.fichiers || []) {
-        await handleDeleteFile(file.id);
-      }
-      setDeleteFileChecked(false);
-      // Refresh client details after deletion
-      await fetchClientDetails();
-    }
     if (actionType === "updateClient") {
       await handleUpdateClient();
     }
@@ -851,7 +882,11 @@ const fetchClientDetails = async () => {
   const handleUpdateClient = async () => {
     setLoading(true);
     try {
-      await axios.patch(`/auth/clients/${client.id}/`, { bloque, statut });
+      await axios.patch(`/auth/clients/${client.id}/`, { 
+        bloque, 
+        statut,
+        recuperer_fichiers: recupererFichiers
+      });
       toast.success("✅ تم تحديث حالة الزبون بنجاح");
       // Refresh client details
       await fetchClientDetails();
@@ -883,6 +918,8 @@ const fetchClientDetails = async () => {
     try {
       await axios.delete(`/auth/clients/files/${fileId}/`);
       toast.success("✅ تم حذف الملف بنجاح");
+      // Refresh client details after deletion
+      await fetchClientDetails();
     } catch (error) {
       console.error(error);
       toast.error("❌ فشل حذف الملف");
@@ -911,6 +948,13 @@ const fetchClientDetails = async () => {
   const formatNumber = (num) => {
     if (num === undefined || num === null) return "0";
     return Number(num);
+  };
+
+  const formatTelephones = (telephones) => {
+    if (!Array.isArray(telephones)) return "--";
+
+    const validTelephones = telephones.filter((phone) => phone && phone.trim() !== "");
+    return validTelephones.length > 0 ? validTelephones.join(" / ") : "--";
   };
 
   const renderContent = () => {
@@ -951,7 +995,7 @@ const fetchClientDetails = async () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">الهاتف:</span>
-                    <span className="text-white">{currentClient.telephone || "--"}</span>
+                    <span className="text-white">{formatTelephones(currentClient.telephones)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">رقم الزبون:</span>
@@ -992,21 +1036,23 @@ const fetchClientDetails = async () => {
 
                 <div className="mb-4">
                   <div className="flex justify-between items-center mb-2">
-                    <label className="text-slate-400 text-sm">استرجاع الملف</label>
-                    <button
-                      onClick={() => {
-                        if (clientFiles?.length > 0) {
-                          handleOpenConfirm("deleteFiles");
-                        } else {
-                          toast.info("لا توجد ملفات لاسترجاعها");
-                        }
-                      }}
-                      disabled={clientFiles?.length === 0}
-                      className="text-red-400 text-sm hover:text-red-300 transition disabled:opacity-50"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <label className="text-slate-400 text-sm">استرجاع الملفات</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="recupererFichiers"
+                        checked={recupererFichiers}
+                        onChange={(e) => setRecupererFichiers(e.target.checked)}
+                        className="w-4 h-4 rounded border-slate-500 bg-slate-700 text-amber-500 focus:ring-amber-500 focus:ring-offset-0"
+                      />
+                      <label htmlFor="recupererFichiers" className="text-slate-300 text-sm cursor-pointer">
+                        {recupererFichiers ? "نعم" : "لا"}
+                      </label>
+                    </div>
                   </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    تفعيل هذا الخيار لاسترجاع ملفات العميل
+                  </p>
                 </div>
 
                 <div className="mb-4">
@@ -1183,19 +1229,17 @@ const fetchClientDetails = async () => {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-slate-800 rounded-xl w-[400px] overflow-hidden shadow-2xl border border-red-500/30"
+            className="bg-slate-800 rounded-xl w-[400px] overflow-hidden shadow-2xl border border-amber-500/30"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4">
+            <div className="bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-4">
               <h2 className="text-white text-xl font-bold">تأكيد العملية</h2>
             </div>
             <div className="p-6">
               <div className="flex items-center gap-3 mb-4">
-                <AlertCircle className="w-8 h-8 text-red-400" />
+                <AlertCircle className="w-8 h-8 text-amber-400" />
                 <p className="text-slate-300">
-                  {actionType === "deleteFiles"
-                    ? "هل أنت متأكد من استرجاع جميع الملفات؟"
-                    : "هل تريد تحديث حالة الزبون؟"}
+                  هل تريد تحديث حالة الزبون؟
                 </p>
               </div>
               <div className="flex gap-3">
@@ -1207,7 +1251,7 @@ const fetchClientDetails = async () => {
                 </button>
                 <button
                   onClick={handleConfirm}
-                  className="flex-1 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:shadow-red-500/50 transition"
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg hover:shadow-amber-500/50 transition"
                 >
                   تأكيد
                 </button>

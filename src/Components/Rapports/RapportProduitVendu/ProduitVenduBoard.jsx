@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Calendar, Filter, X, Package, TrendingUp, DollarSign, CreditCard, Eye } from "lucide-react";
+import { Search, Calendar, Filter, X, Package, TrendingUp, DollarSign, CreditCard, Eye, Phone } from "lucide-react";
 import axios from "../../../api/axiosInstance";
 import dayjs from "dayjs";
 
@@ -122,12 +122,12 @@ export default function SalesReport() {
               name: product.nom,
               qFacilite: 0,
               qCash: 0,
-              magasin: product.magasin_detail?.nom || "",
-              quantiteActuelle: product.quantite || 0,
+              magasin: product.magasin_principal_detail?.nom || "",
+              quantiteActuelle: product.quantite_totale || 0,
             };
           } else {
-            uniqueProducts[product.id].magasin = product.magasin_detail?.nom || "";
-            uniqueProducts[product.id].quantiteActuelle = product.quantite || 0;
+            uniqueProducts[product.id].magasin = product.magasin_principal_detail?.nom || "";
+            uniqueProducts[product.id].quantiteActuelle = product.quantite_totale || 0;
           }
         });
 
@@ -182,9 +182,9 @@ export default function SalesReport() {
           name: product.nom,
           qFacilite: installmentMap[product.id] || 0,
           qCash: cashMap[product.id] || 0,
-          magasin: product.magasin_detail?.nom || "غير محدد",
-          magasinId: product.magasin_detail?.id || null,
-          quantiteActuelle: product.quantite || 0,
+          magasin: product.magasin_principal_detail?.nom || "غير محدد",
+          magasinId: product.magasin_principal_detail?.id || null,
+          quantiteActuelle: product.quantite_totale || 0,
         })).sort((a, b) => b.id - a.id);
         
         setRows(formattedRows);

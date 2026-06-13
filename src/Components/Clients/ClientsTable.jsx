@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom"; // Add this import
+import { useNavigate } from "react-router-dom";
 import axios from "../../api/axiosInstance";
 import ConfirmationDialog from "../Cards/ConfirmationDialog";
 import AddClientDialog from "./AddClientDialog";
@@ -29,7 +29,7 @@ const statusColors = {
 };
 
 export function ClientsTable() {
-  const navigate = useNavigate(); // Initialize navigate
+  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
@@ -42,7 +42,6 @@ export function ClientsTable() {
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  // Filter states
   const [filters, setFilters] = useState({
     status: "",
     blocked: "",
@@ -52,13 +51,11 @@ export function ClientsTable() {
     Authorization: `Bearer ${localStorage.getItem("access_token")}`,
   };
 
-  // ✅ money formatter
   const formatMoney = (num) => {
     const number = Number(num || 0);
-    return isNaN(number) ? "0" : number.toLocaleString("fr-DZ");
+    return isNaN(number) ? "0" : number;
   };
 
-  // ✅ Get status color and label
   const getStatusDisplay = (statut) => {
     const status = statusColors[statut] || statusColors.non_classifie;
     return {
@@ -68,7 +65,6 @@ export function ClientsTable() {
     };
   };
 
-  // ✅ FETCH CLIENTS (without detailed stats - just basic info)
   const fetchClients = async () => {
     setLoading(true);
     try {
@@ -85,7 +81,6 @@ export function ClientsTable() {
       const clients = res.data.results;
       setTotalClients(res.data.count);
       
-      // Only set basic client info without detailed stats
       setRows(clients.sort((a, b) => b.id - a.id));
     } catch (err) {
       console.error(err);
@@ -99,7 +94,6 @@ export function ClientsTable() {
     fetchClients();
   }, [searchTerm, filters]);
 
-  // ✅ DELETE
   const handleDelete = (id) => {
     setSelectedId(id);
     setConfirmationOpen(true);
@@ -118,7 +112,6 @@ export function ClientsTable() {
       });
   };
 
-  // ✅ Refresh after dialog close
   const handleDialogClose = () => {
     setOpenDialog(false);
     setClientToEdit(null);
@@ -131,7 +124,6 @@ export function ClientsTable() {
     fetchClients();
   };
 
-  // ✅ Handle sale receipt button click
   const handleSaleReceipt = (client) => {
     navigate('/New/Facilitevente', { 
       state: { 
@@ -143,7 +135,6 @@ export function ClientsTable() {
     });
   };
 
-  // ✅ Filter handlers
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters(prev => ({ ...prev, [name]: value }));
@@ -154,7 +145,6 @@ export function ClientsTable() {
     setSearchTerm("");
   };
 
-  // Get row background color based on blocked status
   const getRowBackground = (client, index) => {
     if (client.bloque) {
       return "bg-red-900/30 border-l-4 border-l-red-500";
@@ -162,7 +152,6 @@ export function ClientsTable() {
     return index % 2 === 0 ? "bg-slate-800/30" : "bg-slate-900/30";
   };
 
-  // Status options for filter
   const statusOptions = [
     { value: "", label: "الكل" },
     ...Object.values(statusColors).map(status => ({
@@ -183,8 +172,6 @@ export function ClientsTable() {
         {/* HEADER */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3 flex-wrap">
-            
-            {/* CLIENT COUNT */}
             <div className="min-w-[160px] max-w-[240px] bg-gradient-to-r from-blue-500/20 to-cyan-600/20 border border-blue-500/30 rounded-lg px-4 py-2">
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-blue-400" />
@@ -205,7 +192,6 @@ export function ClientsTable() {
             >
               + زبون جديد
             </button>
-            {/* Updated Sale Receipt button - now it's a normal button that will be enabled/disabled based on selection */}
             <button 
               className={`px-4 py-2 rounded text-white transition-all duration-200 ${
                 selectedClient 
@@ -347,7 +333,6 @@ export function ClientsTable() {
                             setOpenDetailDialog(true);
                           }}
                           onClick={() => {
-                            // Single click selects the client for sale receipt
                             setSelectedClient(client);
                           }}
                           className={`border-b transition-all cursor-pointer ${getRowBackground(client, index)} ${
@@ -355,10 +340,25 @@ export function ClientsTable() {
                           }`}
                         >
                           <td className="px-4 py-3 text-blue-300">{client.id}</td>
-                          <td className="px-4 py-3 text-white">{client.prenom_ar}</td>
-                          <td className="px-4 py-3 text-white">{client.nom_famille_ar}</td>
+                          <td className="px-4 py-3 text-white">{client.prenom_ar || client.prenom_fr || "--"}</td>
+                          <td className="px-4 py-3 text-white">{client.nom_famille_ar || client.nom_famille_fr || "--"}</td>
                           <td className="px-4 py-3 text-slate-300">{client.adresse || "--"}</td>
-                          <td className="px-4 py-3 text-green-300">{client.telephone || "--"}</td>
+                          
+                          {/* ✅ FIXED: Using telephones array instead of telephone */}
+                          <td className="px-4 py-3">
+                            {client.telephones && client.telephones.length > 0 ? (
+                              <div className="space-y-1">
+                                {client.telephones.map((phone, idx) => (
+                                  <div key={idx} className="text-green-300 text-xs">
+                                    {phone}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-slate-500 text-xs">--</span>
+                            )}
+                          </td>
+                          
                           <td className="px-4 py-3 text-yellow-300">{client.ccp || "--"}</td>
                           <td className="px-4 py-3">
                             <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${statusDisplay.bg} ${statusDisplay.text}`}>

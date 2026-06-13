@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Search, 
@@ -30,7 +30,13 @@ export default function MatrixTable() {
   const [rows, setRows] = useState([]);
   const [filteredRows, setFilteredRows] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedCell, setSelectedCell] = useState({ row: null, col: null, montant: 0 });
+  const [selectedCell, setSelectedCell] = useState({ 
+    row: null, 
+    col: null, 
+    montant: 0,
+    venteId: null,
+    monthIndex: null
+  });
   const [selectedStatus, setSelectedStatus] = useState("pending");
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -44,168 +50,145 @@ export default function MatrixTable() {
   
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [itemsPerPage] = useState(50);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [nextPageUrl, setNextPageUrl] = useState(null);
   const [prevPageUrl, setPrevPageUrl] = useState(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async (url = null) => {
+  // Fetch data from the new endpoint
+  const fetchData = useCallback(async (url = null) => {
     setLoading(true);
     setError(null);
     try {
-      const apiUrl = url || "/vente/ventes-facilite/";
-      const res = await axios.get(apiUrl, {
-        params: { page_size: itemsPerPage }
-      });
+      const apiUrl = url || "/vente/dashboard-paiements/";
+      const params = new URLSearchParams();
       
-      console.log("📦 API Response:", res.data);
+      if (yearFilter) params.append('year', yearFilter);
+      if (statusFilter !== 'all') params.append('status', statusFilter);
+      if (searchQuery) params.append('search', searchQuery);
       
-      setNextPageUrl(res.data.next);
-      setPrevPageUrl(res.data.previous);
-      setTotalItems(res.data.count || 0);
-      setTotalPages(Math.ceil((res.data.count || 0) / itemsPerPage));
+      const fullUrl = params.toString() 
+        ? `${apiUrl}?${params.toString()}` 
+        : apiUrl;
       
-      let ventes = [];
-      if (res.data.results && res.data.results.ventes && Array.isArray(res.data.results.ventes)) {
-        ventes = res.data.results.ventes;
-      } else if (res.data.ventes && Array.isArray(res.data.ventes)) {
-        ventes = res.data.ventes;
-      } else if (Array.isArray(res.data)) {
-        ventes = res.data;
+      const res = await axios.get(fullUrl);
+      
+      console.log("📦 Dashboard Paiements Response:", res.data);
+      
+      // Handle pagination if present
+      if (res.data.next) setNextPageUrl(res.data.next);
+      if (res.data.previous) setPrevPageUrl(res.data.previous);
+      setTotalItems(res.data.count || res.data.length || 0);
+      setTotalPages(Math.ceil((res.data.count || res.data.length || 0) / itemsPerPage));
+      
+      let payments = [];
+      if (Array.isArray(res.data)) {
+        payments = res.data;
       } else if (res.data.results && Array.isArray(res.data.results)) {
-        ventes = res.data.results;
+        payments = res.data.results;
+      } else if (res.data.payments && Array.isArray(res.data.payments)) {
+        payments = res.data.payments;
+      } else {
+        payments = [];
       }
       
-      if (ventes.length === 0) {
+      if (payments.length === 0) {
         setRows([]);
         setFilteredRows([]);
         setLoading(false);
         return;
       }
 
+      // Extract years from payments
       let yearsSet = new Set();
+      payments.forEach(payment => {
+        if (payment.year) yearsSet.add(payment.year);
+      });
       
-      // Add current and future years
+      // Add current and surrounding years
       for (let y = 2020; y <= 2030; y++) {
         yearsSet.add(y);
       }
       
-      const processedRows = await Promise.all(ventes.map(async (vente) => {
-        let saleDetails = vente;
-        try {
-          const detailRes = await axios.get(`/vente/ventes-facilite/${vente.id}/`);
-          saleDetails = detailRes.data;
-        } catch (err) {
-          console.error(`Error fetching details for sale ${vente.id}:`, err);
-        }
-        
-        const clientDetail = saleDetails.client_detail || {};
-        const clientName = clientDetail.nom_famille_ar && clientDetail.prenom_ar
-          ? `${clientDetail.nom_famille_ar} ${clientDetail.prenom_ar}`
-          : clientDetail.nom_famille_fr && clientDetail.prenom_fr
-          ? `${clientDetail.nom_famille_fr} ${clientDetail.prenom_fr}`
-          : clientDetail.nom || vente.client_name || "عميل غير معروف";
-        
-        const montantMensuel = Number(saleDetails.montant_mensuel) || 0;
-        const nombreMois = Number(saleDetails.nombre_mois) || 0;
-        const montantsParMois = saleDetails.montants_par_mois || [];
-        
-        let startDate = null;
-        if (saleDetails.date_debut) {
-          startDate = dayjs(saleDetails.date_debut);
-        }
-        
-        // Create arrays for all 12 months of the year
-        const values = Array(12).fill(null);
-        const moisStatus = Array(12).fill(null);
-        const moisYears = Array(12).fill(null);
-        
-        // Fill payments
-        for (let i = 0; i < nombreMois; i++) {
-          if (startDate) {
-            const paymentDate = startDate.add(i, 'month');
-            const monthIndex = paymentDate.month();
-            const year = paymentDate.year();
-            
-            const amount = montantsParMois[i] || montantMensuel;
-            
-            // Store in the month's position (only the first payment for that month)
-            // If multiple payments in same month, we need to handle it
-            if (values[monthIndex] === null) {
-              values[monthIndex] = amount;
-              moisYears[monthIndex] = year;
-              yearsSet.add(year);
-              
-              let status = "pending";
-              if (saleDetails.paiements && Array.isArray(saleDetails.paiements)) {
-                const payment = saleDetails.paiements.find(p => p.month_index === i);
-                if (payment) {
-                  status = payment.status;
-                }
-              }
-              moisStatus[monthIndex] = status;
-            } else {
-              // If multiple payments in same month, add them together
-              values[monthIndex] = (values[monthIndex] || 0) + amount;
-            }
-          }
-        }
-        
-        return {
-          vente_id: saleDetails.id,
-          name: clientName,
-          account: clientDetail.ccp || "غير محدد",
-          values,
-          mois_status: moisStatus,
-          mois_years: moisYears,
-          montant_mensuel: montantMensuel,
-          nombre_mois: nombreMois,
-          date_debut: saleDetails.date_debut
-        };
-      }));
-      
       const allYears = Array.from(yearsSet).sort((a, b) => a - b);
       setAvailableYears(allYears);
-      console.log("Available years:", allYears);
+      
+      // Group payments by client name and account
+      const groupedByClient = {};
+      
+      payments.forEach(payment => {
+        const clientKey = `${payment.name}|${payment.account}`;
+        
+        if (!groupedByClient[clientKey]) {
+          groupedByClient[clientKey] = {
+            name: payment.name,
+            account: payment.account,
+            payments: [],
+            clientStatus: payment.clientStatus,
+            months: Array(12).fill(null),
+            monthsStatus: Array(12).fill(null),
+            monthsYear: Array(12).fill(null),
+            monthsAmount: Array(12).fill(0)
+          };
+        }
+        
+        // Add payment to the client's list
+        groupedByClient[clientKey].payments.push(payment);
+        
+        // Update the month data for this payment
+        const monthIndex = payment.month_index;
+        const year = payment.year;
+        const amount = payment.amount;
+        const status = payment.status;
+        
+        // If multiple payments for same month, sum them
+        if (groupedByClient[clientKey].monthsYear[monthIndex] === year) {
+          groupedByClient[clientKey].monthsAmount[monthIndex] += amount;
+        } else if (groupedByClient[clientKey].monthsYear[monthIndex] === null) {
+          groupedByClient[clientKey].monthsAmount[monthIndex] = amount;
+          groupedByClient[clientKey].monthsYear[monthIndex] = year;
+          groupedByClient[clientKey].monthsStatus[monthIndex] = status;
+        }
+      });
+      
+      // Convert grouped object to array
+      const processedRows = Object.values(groupedByClient).map(client => ({
+        name: client.name,
+        account: client.account,
+        clientStatus: client.clientStatus,
+        values: client.monthsAmount,
+        mois_status: client.monthsStatus,
+        mois_years: client.monthsYear,
+        payments: client.payments
+      }));
       
       setRows(processedRows);
+      console.log(`Processed ${processedRows.length} clients`);
       
     } catch (err) {
-      console.error("Error fetching ventes:", err);
+      console.error("Error fetching payments:", err);
       setError(err.response?.data?.message || err.message || "خطأ في تحميل البيانات");
       toast.error("فشل تحميل البيانات");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [yearFilter, statusFilter, searchQuery, itemsPerPage]);
 
-  // Apply filters - FIXED YEAR FILTER LOGIC
+  // Initial fetch
   useEffect(() => {
-    let filtered = rows.filter((row) => {
-      const searchOk =
-        searchQuery === "" ||
-        row.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        row.account?.includes(searchQuery);
+    fetchData();
+  }, [fetchData]);
 
-      const statusOk =
-        statusFilter === "all" || row.mois_status.some((s) => s === statusFilter);
-
-      // Check if any payment month belongs to the selected year
-      const yearOk = row.mois_years.some((year) => year === yearFilter);
-
-      return searchOk && statusOk && yearOk;
-    });
+  // Re-fetch when filters change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchData();
+    }, 500);
     
-    setFilteredRows(filtered);
-    console.log(`Filtered rows for year ${yearFilter}:`, filtered.length);
-    
-  }, [rows, searchQuery, statusFilter, yearFilter]);
+    return () => clearTimeout(timer);
+  }, [yearFilter, statusFilter, searchQuery]);
 
   const getStatusStyle = (status) => {
     switch (status) {
@@ -229,19 +212,21 @@ export default function MatrixTable() {
     }
   };
 
-  const handleCellClick = (rowIndex, colIndex, montant) => {
-    const row = filteredRows[rowIndex];
-    if (!montant) return;
+  const handleCellClick = (rowIndex, colIndex, montant, status, venteId, monthIndex) => {
+    if (!montant || montant === 0) return;
+    if (!status || status === "paid") {
+      toast.info("هذا الدفع مكتمل بالفعل");
+      return;
+    }
     
     setSelectedCell({ 
       row: rowIndex, 
       col: colIndex, 
       montant: montant,
-      venteId: row.vente_id,
-      monthIndex: colIndex
+      venteId: venteId,
+      monthIndex: monthIndex
     });
-    const currentStatus = row.mois_status[colIndex];
-    setSelectedStatus(currentStatus === "paid" ? "paid" : currentStatus === "pending" ? "pending" : "unpaid");
+    setSelectedStatus(status === "paid" ? "paid" : status === "pending" ? "pending" : "unpaid");
     setDialogOpen(true);
   };
 
@@ -255,24 +240,26 @@ export default function MatrixTable() {
     }
 
     try {
+      // Update local state
       const updatedRows = [...rows];
-      const rowToUpdate = updatedRows.find(r => r.vente_id === venteId);
-      if (rowToUpdate) {
-        rowToUpdate.mois_status[col] = selectedStatus;
+      if (updatedRows[rowIndex]) {
+        updatedRows[rowIndex].mois_status[col] = selectedStatus;
         setRows(updatedRows);
       }
       
+      // Call API to update payment status
       const payload = {
         montant: montant,
         month: monthIndex,
         status: selectedStatus,
       };
       
-      await axios.post(`/vente/vente/payer/${venteId}/`, payload);
+      await axios.patch(`/vente/vente/payer/${venteId}/`, payload);
       
       toast.success("تم تحديث حالة الدفع بنجاح");
-      const currentUrl = nextPageUrl ? `/vente/ventes-facilite/?page=${currentPage}` : null;
-      fetchData(currentUrl);
+      
+      // Refresh data
+      fetchData();
     } catch (err) {
       console.error("Error saving status:", err);
       toast.error(err.response?.data?.error || "فشل تحديث حالة الدفع");
@@ -282,13 +269,14 @@ export default function MatrixTable() {
     setDialogOpen(false);
   };
 
+  // Calculate totals for display
   const statusTotals = {
     paid: { count: 0, label: "مدفوع", icon: CheckCircle, color: "emerald" },
     pending: { count: 0, label: "معلق", icon: Clock, color: "amber" },
     unpaid: { count: 0, label: "غير مدفوع", icon: XCircle, color: "red" },
   };
 
-  filteredRows.forEach((row) => {
+  rows.forEach((row) => {
     row.mois_status.forEach((status, i) => {
       if (status && row.mois_years[i] === yearFilter && statusTotals[status]) {
         statusTotals[status].count++;
@@ -296,7 +284,7 @@ export default function MatrixTable() {
     });
   });
 
-  const totalUnpaid = filteredRows.reduce((sum, row) => {
+  const totalUnpaid = rows.reduce((sum, row) => {
     return sum + row.mois_status.filter((s, i) => 
       s === "unpaid" && row.mois_years[i] === yearFilter
     ).length;
@@ -311,7 +299,6 @@ export default function MatrixTable() {
 
   const handleRefresh = () => {
     setRefreshing(true);
-    setRows([]);
     fetchData();
   };
 
@@ -338,7 +325,7 @@ export default function MatrixTable() {
             <div className="flex items-center gap-2">
               <User className="w-4 h-4 text-blue-400" />
               <div className="text-xs text-blue-300">العملاء:</div>
-              <div className="text-lg text-white">{filteredRows.length}</div>
+              <div className="text-lg text-white">{rows.length}</div>
             </div>
           </div>
           <div className="bg-gradient-to-r from-red-500/20 to-rose-600/20 border border-red-500/30 rounded-lg px-4 py-2">
@@ -349,13 +336,15 @@ export default function MatrixTable() {
             </div>
           </div>
           {Object.entries(statusTotals).map(([key, data]) => (
-            <div key={key} className={`bg-gradient-to-r from-${data.color}-500/20 to-${data.color}-600/20 border border-${data.color}-500/30 rounded-lg px-4 py-2`}>
-              <div className="flex items-center gap-2">
-                <data.icon className={`w-4 h-4 text-${data.color}-400`} />
-                <div className={`text-xs text-${data.color}-300`}>{data.label}:</div>
-                <div className={`text-lg text-${data.color}-400`}>{data.count}</div>
+            data.count > 0 && (
+              <div key={key} className={`bg-gradient-to-r from-${data.color}-500/20 to-${data.color}-600/20 border border-${data.color}-500/30 rounded-lg px-4 py-2`}>
+                <div className="flex items-center gap-2">
+                  <data.icon className={`w-4 h-4 text-${data.color}-400`} />
+                  <div className={`text-xs text-${data.color}-300`}>{data.label}:</div>
+                  <div className={`text-lg text-${data.color}-400`}>{data.count}</div>
+                </div>
               </div>
-            </div>
+            )
           ))}
         </div>
 
@@ -507,81 +496,73 @@ export default function MatrixTable() {
                 <tr className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
                   <th className="px-4 py-3 text-right min-w-[180px] sticky left-0 bg-blue-600 z-20">الاسم و اللقب</th>
                   <th className="px-4 py-3 text-right min-w-[120px] sticky left-[180px] bg-blue-600 z-20">رقم الحساب</th>
-                  {months.map((month) => (
+                  {months.map((month, idx) => (
                     <th key={month} className="px-3 py-3 text-center min-w-[85px]">
                       {month}
                     </th>
                   ))}
                   <th className="px-4 py-3 text-center min-w-[85px] bg-red-600/50">المتأخرات</th>
-                 </tr>
+                </tr>
               </thead>
               <tbody>
-                {filteredRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={14} className="px-4 py-8 text-center text-slate-400">
-                      <CreditCard className="w-12 h-12 mx-auto mb-2 text-slate-500" />
-                      لا توجد بيانات تطابق الفلتر
-                    </td>
-                  </tr>
-                ) : (
-                  filteredRows.map((row, rowIndex) => {
-                    const unpaidThisYear = row.mois_status.filter(
-                      (s, i) =>
-                        s === "unpaid" &&
-                        row.mois_years[i] === yearFilter
-                    ).length;
+                {rows.map((row, rowIndex) => {
+                  const unpaidThisYear = row.mois_status.filter(
+                    (s, i) =>
+                      s === "unpaid" &&
+                      row.mois_years[i] === yearFilter
+                  ).length;
 
-                    return (
-                      <motion.tr
-                        key={row.vente_id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: rowIndex * 0.05 }}
-                        className={`border-b border-slate-700/50 transition-all hover:bg-blue-500/10 ${
-                          rowIndex % 2 === 0 ? 'bg-slate-800/30' : 'bg-slate-900/30'
-                        }`}
-                      >
-                        <td className="px-4 py-3 text-white font-medium sticky left-0 bg-inherit z-10">
-                          {row.name}
-                        </td>
-                        <td className="px-4 py-3 text-blue-300 font-mono sticky left-[180px] bg-inherit z-10">
-                          {row.account}
-                        </td>
+                  return (
+                    <motion.tr
+                      key={`${row.name}-${row.account}`}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: rowIndex * 0.02 }}
+                      className={`border-b border-slate-700/50 transition-all hover:bg-blue-500/10 ${
+                        rowIndex % 2 === 0 ? 'bg-slate-800/30' : 'bg-slate-900/30'
+                      }`}
+                    >
+                      <td className="px-4 py-3 text-white font-medium sticky left-0 bg-inherit z-10">
+                        {row.name}
+                       </td>
+                      <td className="px-4 py-3 text-blue-300 font-mono sticky left-[180px] bg-inherit z-10">
+                        {row.account}
+                      </td>
 
-                        {row.values.map((val, colIndex) => {
-                          const cellStatus = row.mois_status[colIndex];
-                          const cellYear = row.mois_years[colIndex];
-                          const statusStyle = getStatusStyle(cellStatus);
+                      {months.map((_, colIndex) => {
+                        const val = row.values[colIndex];
+                        const cellStatus = row.mois_status[colIndex];
+                        const cellYear = row.mois_years[colIndex];
+                        const statusStyle = getStatusStyle(cellStatus);
 
-                          if (!val || cellYear !== yearFilter) {
-                            return (
-                              <td key={colIndex} className="px-3 py-3 text-center text-slate-500">
-                                —
-                              </td>
-                            );
-                          }
-
+                        if (!val || val === 0 || cellYear !== yearFilter) {
                           return (
-                            <td
-                              key={colIndex}
-                              className={`px-3 py-3 text-center transition-all hover:scale-105 rounded-lg ${statusStyle}`}
-                              onClick={() => cellStatus && handleCellClick(rowIndex, colIndex, val)}
-                            >
-                              <div className="flex flex-col items-center">
-                                <span className="font-bold">{Number(val)}</span>
-                                <span className="text-xs opacity-75">{getStatusText(cellStatus)}</span>
-                              </div>
+                            <td key={colIndex} className="px-3 py-3 text-center text-slate-500">
+                              —
                             </td>
                           );
-                        })}
+                        }
 
-                        <td className="px-4 py-3 text-center bg-red-500/10 text-red-400 font-bold">
-                          {unpaidThisYear}
-                        </td>
-                      </motion.tr>
-                    );
-                  })
-                )}
+                        return (
+                          <td
+                            key={colIndex}
+                            className={`px-3 py-3 text-center transition-all hover:scale-105 rounded-lg ${statusStyle}`}
+                            onClick={() => handleCellClick(rowIndex, colIndex, val, cellStatus, null, colIndex)}
+                          >
+                            <div className="flex flex-col items-center">
+                              <span className="font-bold">{Number(val)} </span>
+                              <span className="text-xs opacity-75">{getStatusText(cellStatus)}</span>
+                            </div>
+                          </td>
+                        );
+                      })}
+
+                      <td className="px-4 py-3 text-center bg-red-500/10 text-red-400 font-bold">
+                        {unpaidThisYear}
+                      </td>
+                    </motion.tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -591,7 +572,7 @@ export default function MatrixTable() {
             <div className="bg-gradient-to-r from-slate-800 to-slate-900 px-4 py-3 border-t border-slate-700">
               <div className="flex justify-between items-center text-sm flex-wrap gap-2">
                 <div className="text-slate-400">
-                  عرض {filteredRows.length} من {totalItems} عملية بيع
+                  عرض {rows.length} من {totalItems} عملية بيع
                 </div>
                 <div className="flex gap-6">
                   <div className="text-emerald-400">
@@ -607,27 +588,29 @@ export default function MatrixTable() {
               </div>
               
               {/* Pagination Controls */}
-              <div className="flex justify-center items-center gap-2 mt-3">
-                <button
-                  onClick={handlePrevPage}
-                  disabled={!prevPageUrl}
-                  className="px-4 py-2 bg-slate-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600 transition flex items-center gap-2"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                  <span>السابق</span>
-                </button>
-                <span className="px-4 py-2 bg-blue-500/20 text-blue-300 rounded-lg">
-                  صفحة {currentPage} من {totalPages}
-                </span>
-                <button
-                  onClick={handleNextPage}
-                  disabled={!nextPageUrl}
-                  className="px-4 py-2 bg-slate-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600 transition flex items-center gap-2"
-                >
-                  <span>التالي</span>
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-              </div>
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center gap-2 mt-3">
+                  <button
+                    onClick={handlePrevPage}
+                    disabled={!prevPageUrl}
+                    className="px-4 py-2 bg-slate-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600 transition flex items-center gap-2"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                    <span>السابق</span>
+                  </button>
+                  <span className="px-4 py-2 bg-blue-500/20 text-blue-300 rounded-lg">
+                    صفحة {currentPage} من {totalPages}
+                  </span>
+                  <button
+                    onClick={handleNextPage}
+                    disabled={!nextPageUrl}
+                    className="px-4 py-2 bg-slate-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600 transition flex items-center gap-2"
+                  >
+                    <span>التالي</span>
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -655,7 +638,7 @@ export default function MatrixTable() {
               <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
                 <h2 className="text-white text-xl font-bold">تغيير حالة الدفع</h2>
                 <p className="text-white/70 text-sm mt-1">
-                  المبلغ: {Number(selectedCell.montant)} دج
+                  المبلغ: {Number(selectedCell.montant)} 
                 </p>
               </div>
               <div className="p-6">

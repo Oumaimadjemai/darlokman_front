@@ -564,7 +564,7 @@ export function ProductsList() {
           <div className="bg-gradient-to-r from-blue-500/20 to-cyan-600/20 border border-blue-500/30 rounded-lg px-4 py-2">
             <div className="flex items-center gap-2">
               <div className="text-xs text-blue-300">القيمة الإجمالية:</div>
-              <div className="text-lg text-white">{formatPrice(totalValue)} دج</div>
+              <div className="text-lg text-white">{formatPrice(totalValue)} </div>
             </div>
           </div>
           <div className="bg-gradient-to-r from-emerald-500/20 to-green-600/20 border border-emerald-500/30 rounded-lg px-4 py-2">
@@ -796,18 +796,18 @@ export function ProductsList() {
                           <>
                             <td className="px-4 py-3 text-emerald-300 whitespace-nowrap">{product.taux_benefice_cache || '-'}</td>
                             <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{product.moyenne_pourcentage_facilite || '-'}</td>
-                            <td className="px-4 py-3 text-cyan-300 whitespace-nowrap">{formatPrice(product.prix_achat)} دج</td>
+                            <td className="px-4 py-3 text-cyan-300 whitespace-nowrap">{formatPrice(product.prix_achat)} </td>
                           </>
                         )}
                         
-                        <td className="px-4 py-3 text-emerald-300 whitespace-nowrap">{formatPrice(product.prix_vente_cache)} دج</td>
-                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_3)} دج</td>
-                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_5)} دج</td>
-                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_6)} دج</td>
-                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_8)} دج</td>
-                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_9)} دج</td>
-                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_10)} دج</td>
-                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_12)} d</td>
+                        <td className="px-4 py-3 text-emerald-300 whitespace-nowrap">{formatPrice(product.prix_vente_cache)} </td>
+                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_3)} </td>
+                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_5)} </td>
+                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_6)} </td>
+                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_8)} </td>
+                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_9)} </td>
+                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_10)} </td>
+                        <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_12)} </td>
                         <td className="px-4 py-3 text-amber-300 whitespace-nowrap">{formatPrice(product.prix_vente_15)}</td>
                         
                         <td className="px-4 py-3 whitespace-nowrap">
@@ -892,7 +892,7 @@ export function ProductsList() {
               </div>
               <div className="flex gap-4 flex-wrap">
                 <div className="text-emerald-400">
-                  إجمالي قيمة المخزون: <span className="font-bold">{formatPrice(totalValue)} دج</span>
+                  إجمالي قيمة المخزون: <span className="font-bold">{formatPrice(totalValue)} </span>
                 </div>
                 <div className="text-cyan-400">
                   إجمالي الكمية: <span className="font-bold">{totalQuantity}</span>

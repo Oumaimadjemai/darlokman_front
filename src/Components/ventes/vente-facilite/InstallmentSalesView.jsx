@@ -57,12 +57,13 @@ export function InstallmentSalesView() {
   const MAX_ADVANCE_PERCENT = 0.5;
   const moisOptions = [3, 5, 6, 8, 9, 10, 12, 15];
 
-  // Status mapping for warnings
+  // Status mapping for warnings - UPDATED with recuperer_fichiers
   const statusWarnings = {
     suspendu: { message: "⚠️ هذا الزبون موقوف مؤقتاً. هل تريد متابعة البيع؟", color: "yellow", allow: true, label: "موقوف", bgClass: "bg-yellow-500/20", borderClass: "border-yellow-500/30", textClass: "text-yellow-400" },
     perdu: { message: "⚠️ هذا الزبون معدوم. لا يمكن البيع له.", color: "red", allow: false, label: "معدوم", bgClass: "bg-red-500/20", borderClass: "border-red-500/30", textClass: "text-red-400" },
     banque_bloquee: { message: "⚠️ حساب هذا الزبون مغلق من البنك. لا يمكن البيع له.", color: "red", allow: false, label: "حساب مغلق", bgClass: "bg-red-500/20", borderClass: "border-red-500/30", textClass: "text-red-400" },
     cash_only: { message: "⚠️ هذا الزبون مسموح له بالدفع نقداً فقط. لا يمكن البيع بالتقسيط.", color: "orange", allow: false, label: "نقدي فقط", bgClass: "bg-orange-500/20", borderClass: "border-orange-500/30", textClass: "text-orange-400" },
+    recuperer_fichiers: { message: "⚠️ هذا الزبون مطلوب لاسترجاع ملفاته. لا يمكن إجراء أي عملية بيع له حتى يتم تسوية وضعه.", color: "red", allow: false, label: "استرجاع الملفات", bgClass: "bg-red-500/20", borderClass: "border-red-500/30", textClass: "text-red-400" },
   };
 
   // Fetch the salary limit setting from API
@@ -105,37 +106,35 @@ export function InstallmentSalesView() {
     return parts;
   };
 
-  // Replace the updateBreakdownValue function with this:
-
-const updateBreakdownValue = (index, newValue) => {
-  const newBreakdown = [...breakdown];
-  const oldValue = newBreakdown[index];
-  const difference = newValue - oldValue;
-  
-  newBreakdown[index] = newValue;
-  
-  // Only adjust the last payment when difference exists
-  if (difference !== 0 && newBreakdown.length > 0) {
-    const lastIndex = newBreakdown.length - 1;
+  const updateBreakdownValue = (index, newValue) => {
+    const newBreakdown = [...breakdown];
+    const oldValue = newBreakdown[index];
+    const difference = newValue - oldValue;
     
-    // If we're not changing the last payment
-    if (index !== lastIndex) {
-      // Adjust only the last payment
-      newBreakdown[lastIndex] = newBreakdown[lastIndex] - difference;
+    newBreakdown[index] = newValue;
+    
+    // Only adjust the last payment when difference exists
+    if (difference !== 0 && newBreakdown.length > 0) {
+      const lastIndex = newBreakdown.length - 1;
       
-      // Ensure last payment doesn't go negative
-      if (newBreakdown[lastIndex] < 0) {
-        newBreakdown[lastIndex] = 0;
-        // Optional: Show warning that last payment can't be negative
-        toast.warning("لا يمكن أن يكون القسط الأخير سالباً");
-      }
-    } 
-    // If we ARE changing the last payment, don't adjust anything else
-    // The last payment can be any value (the user is directly editing it)
-  }
-  
-  setBreakdown(newBreakdown);
-};
+      // If we're not changing the last payment
+      if (index !== lastIndex) {
+        // Adjust only the last payment
+        newBreakdown[lastIndex] = newBreakdown[lastIndex] - difference;
+        
+        // Ensure last payment doesn't go negative
+        if (newBreakdown[lastIndex] < 0) {
+          newBreakdown[lastIndex] = 0;
+          // Optional: Show warning that last payment can't be negative
+          toast.warning("لا يمكن أن يكون القسط الأخير سالباً");
+        }
+      } 
+      // If we ARE changing the last payment, don't adjust anything else
+      // The last payment can be any value (the user is directly editing it)
+    }
+    
+    setBreakdown(newBreakdown);
+  };
 
   const getProductPrice = (produit, moisValue) => {
     if (!produit) return 0;
@@ -200,6 +199,82 @@ const updateBreakdownValue = (index, newValue) => {
     
     return null;
   };
+
+  // Check client eligibility - UPDATED with recuperer_fichiers check
+  const checkClientEligibility = (client) => {
+    if (client.bloque) {
+      setClientBlocked(true);
+      setClientWarning({
+        message: "⛔ هذا الزبون محظور. لا يمكن إجراء أي عملية بيع له.",
+        color: "red",
+        allow: false,
+        bgClass: "bg-red-500/20",
+        borderClass: "border-red-500/30",
+        textClass: "text-red-400"
+      });
+      return false;
+    }
+
+    // Check if client has recuperer_fichiers flag enabled
+    if (client.recuperer_fichiers === true) {
+      setClientBlocked(true);
+      setClientWarning(statusWarnings.recuperer_fichiers);
+      return false;
+    }
+
+    const statusWarning = statusWarnings[client.statut];
+    if (statusWarning) {
+      setClientBlocked(!statusWarning.allow);
+      setClientWarning(statusWarning);
+      return statusWarning.allow;
+    }
+
+    if (client.assurance_militaire && client.date_expedition) {
+      const expiration = dayjs(client.date_expedition);
+      if (expiration.isBefore(dayjs(), "day")) {
+        setClientBlocked(true);
+        setClientWarning({
+          message: "⚠️ تأمين هذا الزبون منتهي الصلاحية. لا يمكن البيع له.",
+          color: "red",
+          allow: false,
+          bgClass: "bg-red-500/20",
+          borderClass: "border-red-500/30",
+          textClass: "text-red-400"
+        });
+        return false;
+      }
+    }
+
+    setClientBlocked(false);
+    setClientWarning(null);
+    return true;
+  };
+
+  // Handle client selection
+  const handleClientSelect = (client) => {
+    setSelectedClient(client);
+    setClientSearchTerm(`${client.nom_famille_ar} ${client.prenom_ar}`);
+    setShowClientResults(false);
+    checkClientEligibility(client);
+  };
+
+  // Auto-select client from client board
+  useEffect(() => {
+    if (fromClientBoard && clientId && !isEditMode) {
+      const fetchClient = async () => {
+        try {
+          const token = localStorage.getItem("access_token");
+          const response = await axios.get(`/auth/clients/${clientId}/`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          handleClientSelect(response.data);
+        } catch (error) {
+          console.error("Error fetching client:", error);
+        }
+      };
+      fetchClient();
+    }
+  }, [fromClientBoard, clientId, isEditMode]);
 
   // Fetch user's accessible magasins
   const fetchUserAccessibleMagasins = async () => {
@@ -334,75 +409,6 @@ const updateBreakdownValue = (index, newValue) => {
     }
   };
 
-  // Check client eligibility
-  const checkClientEligibility = (client) => {
-    if (client.bloque) {
-      setClientBlocked(true);
-      setClientWarning({
-        message: "⛔ هذا الزبون محظور. لا يمكن إجراء أي عملية بيع له.",
-        color: "red",
-        allow: false,
-        bgClass: "bg-red-500/20",
-        borderClass: "border-red-500/30",
-        textClass: "text-red-400"
-      });
-      return false;
-    }
-
-    const statusWarning = statusWarnings[client.statut];
-    if (statusWarning) {
-      setClientBlocked(!statusWarning.allow);
-      setClientWarning(statusWarning);
-      return statusWarning.allow;
-    }
-
-    if (client.assurance_militaire && client.date_expedition) {
-      const expiration = dayjs(client.date_expedition);
-      if (expiration.isBefore(dayjs(), "day")) {
-        setClientBlocked(true);
-        setClientWarning({
-          message: "⚠️ تأمين هذا الزبون منتهي الصلاحية. لا يمكن البيع له.",
-          color: "red",
-          allow: false,
-          bgClass: "bg-red-500/20",
-          borderClass: "border-red-500/30",
-          textClass: "text-red-400"
-        });
-        return false;
-      }
-    }
-
-    setClientBlocked(false);
-    setClientWarning(null);
-    return true;
-  };
-
-  // Handle client selection
-  const handleClientSelect = (client) => {
-    setSelectedClient(client);
-    setClientSearchTerm(`${client.nom_famille_ar} ${client.prenom_ar}`);
-    setShowClientResults(false);
-    checkClientEligibility(client);
-  };
-
-  // Auto-select client from client board
-  useEffect(() => {
-    if (fromClientBoard && clientId && !isEditMode) {
-      const fetchClient = async () => {
-        try {
-          const token = localStorage.getItem("access_token");
-          const response = await axios.get(`/auth/clients/${clientId}/`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          handleClientSelect(response.data);
-        } catch (error) {
-          console.error("Error fetching client:", error);
-        }
-      };
-      fetchClient();
-    }
-  }, [fromClientBoard, clientId, isEditMode]);
-
   // Fetch clients with search
   useEffect(() => {
     const fetchClients = async () => {
@@ -528,24 +534,22 @@ const updateBreakdownValue = (index, newValue) => {
   const monthlyAmount = mois > 0 && montantRestant > 0 ? Math.floor(montantRestant / mois) : 0;
 
   // Recalculate breakdown when monthlyAmount or prelevement changes
- // Replace the useEffect for breakdown calculation with this:
-
-useEffect(() => {
-  if (prelevement > 0 && monthlyAmount > 0) {
-    let parts = diviserMontantMensuel(monthlyAmount, prelevement);
-    
-    // Ensure the sum of parts equals monthlyAmount
-    const currentSum = parts.reduce((a, b) => a + b, 0);
-    if (currentSum !== monthlyAmount && parts.length > 0) {
-      // Adjust the last element to fix rounding
-      parts[parts.length - 1] += (monthlyAmount - currentSum);
+  useEffect(() => {
+    if (prelevement > 0 && monthlyAmount > 0) {
+      let parts = diviserMontantMensuel(monthlyAmount, prelevement);
+      
+      // Ensure the sum of parts equals monthlyAmount
+      const currentSum = parts.reduce((a, b) => a + b, 0);
+      if (currentSum !== monthlyAmount && parts.length > 0) {
+        // Adjust the last element to fix rounding
+        parts[parts.length - 1] += (monthlyAmount - currentSum);
+      }
+      
+      setBreakdown(parts);
+    } else {
+      setBreakdown([]);
     }
-    
-    setBreakdown(parts);
-  } else {
-    setBreakdown([]);
-  }
-}, [prelevement, monthlyAmount]);
+  }, [prelevement, monthlyAmount]);
 
   // Update all cart items when months change
   useEffect(() => {
@@ -977,18 +981,22 @@ useEffect(() => {
                   {clients.map((client) => {
                     const isBlocked = client.bloque;
                     const hasStatusWarning = statusWarnings[client.statut];
+                    const hasRecupererFichiers = client.recuperer_fichiers === true;
+                    const isDisabled = isBlocked || (hasStatusWarning && !hasStatusWarning.allow) || hasRecupererFichiers;
+                    
                     return (
                       <button
                         key={client.id}
                         onClick={() => handleClientSelect(client)}
-                        disabled={isBlocked || (hasStatusWarning && !hasStatusWarning.allow)}
+                        disabled={isDisabled}
                         className={`w-full text-right p-2 hover:bg-slate-700 transition border-b border-slate-600 last:border-b-0 ${
                           selectedClient?.id === client.id ? 'bg-red-500/20' : ''
-                        } ${(isBlocked || (hasStatusWarning && !hasStatusWarning.allow)) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                         <div className="text-white text-sm">
                           {client.nom_famille_ar} {client.prenom_ar}
                           {isBlocked && <span className="text-red-400 text-xs mr-2">(محظور)</span>}
+                          {hasRecupererFichiers && <span className="text-red-400 text-xs mr-2">(استرجاع ملفات)</span>}
                           {hasStatusWarning && !hasStatusWarning.allow && (
                             <span className={`text-${hasStatusWarning.color}-400 text-xs mr-2`}>({hasStatusWarning.label})</span>
                           )}
@@ -1001,17 +1009,23 @@ useEffect(() => {
               )}
             </div>
 
-            {/* Selected Client Info */}
+            {/* Selected Client Info - UPDATED with recuperer_fichiers display */}
             {selectedClient && (
               <div className={`rounded-lg p-3 space-y-1 ${clientBlocked ? 'bg-red-500/10 border border-red-500/30' : 'bg-red-500/10 border border-red-500/30'}`}>
                 <div className="text-white font-medium">
                   {selectedClient.nom_famille_ar} {selectedClient.prenom_ar}
                   {selectedClient.bloque && <span className="text-red-400 text-xs mr-2">(محظور)</span>}
+                  {selectedClient.recuperer_fichiers === true && <span className="text-red-400 text-xs mr-2">(استرجاع ملفات)</span>}
                 </div>
                 <div className="text-sm text-slate-300">رقم الحساب: {selectedClient.ccp}/{selectedClient.cle}</div>
                 <div className="text-sm text-slate-300">الدخل: {formatMoney(selectedClient.revenu)} دج</div>
                 {selectedClient.jour && (
                   <div className="text-sm text-slate-300">تاريخ الدفع: {selectedClient.jour} من كل شهر</div>
+                )}
+                {selectedClient.recuperer_fichiers === true && (
+                  <div className="text-sm text-red-400 mt-1">
+                    ⚠️ هذا الزبون مطلوب لاسترجاع ملفاته - لا يمكن البيع
+                  </div>
                 )}
                 {selectedClient.statut && statusWarnings[selectedClient.statut] && (
                   <div className={`text-sm text-${statusWarnings[selectedClient.statut].color}-400 mt-1`}>

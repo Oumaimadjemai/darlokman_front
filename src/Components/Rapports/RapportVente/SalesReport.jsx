@@ -19,6 +19,13 @@ import { toast } from 'sonner';
 import axios from '../../../api/axiosInstance';
 import dayjs from 'dayjs';
 
+const formatTelephones = (telephones) => {
+  if (!Array.isArray(telephones)) return "--";
+
+  const validTelephones = telephones.filter((phone) => phone && phone.trim() !== "");
+  return validTelephones.length > 0 ? validTelephones.join(" / ") : "--";
+};
+
 export function Rapportvente() {
   const [filters, setFilters] = useState({
     periode: "this_month",
@@ -636,7 +643,7 @@ function ClientDetailDialog({ client }) {
         <div className="grid grid-cols-2 gap-4">
           <div><span className="text-slate-400">الاسم:</span> <span className="text-white">{client.nom_famille_ar} {client.prenom_ar}</span></div>
           <div><span className="text-slate-400">رقم الحساب:</span> <span className="text-white">{client.ccp}/{client.cle}</span></div>
-          <div><span className="text-slate-400">الهاتف:</span> <span className="text-white">{client.telephone}</span></div>
+          <div><span className="text-slate-400">الهاتف:</span> <span className="text-white">{formatTelephones(client.telephones)}</span></div>
           <div><span className="text-slate-400">العنوان:</span> <span className="text-white">{client.adresse}</span></div>
           <div><span className="text-slate-400">الدين الإجمالي (تقسيط):</span> <span className="text-red-400">{formatMoney(client.total_facilite)} دج</span></div>
           <div><span className="text-slate-400">المدفوع (تقسيط):</span> <span className="text-emerald-400">{formatMoney(client.paye_facilite)} دج</span></div>

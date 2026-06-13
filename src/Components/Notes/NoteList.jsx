@@ -68,7 +68,7 @@ export default function NoteList({ notes, onDelete, onEdit }) {
             <Stack direction="row" justifyContent="flex-end" spacing={1}>
               {note.date && (
                 <Typography variant="caption" color="text.secondary">
-                  {new Date(note.date).toLocaleString("fr-FR")}
+                  {note.date}
                 </Typography>
               )}
               <IconButton onClick={() => onEdit(index)} size="small">

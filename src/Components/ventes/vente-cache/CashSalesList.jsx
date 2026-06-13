@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, Search, Eye, Trash2, Printer, Filter, X, Calendar, User, DollarSign, Plus, RefreshCw, BarChart3 } from 'lucide-react';
+import { 
+  ShoppingCart, Search, Eye, Trash2, Printer, Filter, X, 
+  Calendar, User, DollarSign, Plus, RefreshCw, BarChart3,
+  Building2 
+} from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import axios from '../../../api/axiosInstance';
@@ -10,7 +14,7 @@ export function CashSalesList() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [sales, setSales] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [openConfirmationDialog, setOpenConfirmationDialog] = useState(false);
   const [openDetailDialog, setOpenDetailDialog] = useState(false);
@@ -20,6 +24,8 @@ export function CashSalesList() {
   const [showFilters, setShowFilters] = useState(false);
   const [users, setUsers] = useState([]);
   const [usersLoaded, setUsersLoaded] = useState(false);
+  const [magasins, setMagasins] = useState([]);
+  const [selectedMagasinId, setSelectedMagasinId] = useState(null);
   const [totaux, setTotaux] = useState({
     total_montant: 0,
     nombre_de_ventes: 0,
@@ -33,7 +39,6 @@ export function CashSalesList() {
   // Filter states
   const [filters, setFilters] = useState({
     periode: '',
-    users: '',
     date_from: null,
     date_to: null,
   });
@@ -41,6 +46,7 @@ export function CashSalesList() {
   const initialLoadDone = useRef(false);
   const abortControllerRef = useRef(null);
   const usersFetched = useRef(false);
+  const magasinsFetched = useRef(false);
   const searchDebounceRef = useRef(null);
   const filterDebounceRef = useRef(null);
   const isMounted = useRef(true);
@@ -70,19 +76,13 @@ export function CashSalesList() {
     isMounted.current = true;
     return () => {
       isMounted.current = false;
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      if (searchDebounceRef.current) {
-        clearTimeout(searchDebounceRef.current);
-      }
-      if (filterDebounceRef.current) {
-        clearTimeout(filterDebounceRef.current);
-      }
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+      if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current);
     };
   }, []);
 
-  // Function to fetch current user ID from API if not in localStorage
+  // Fetch current user ID
   const fetchCurrentUserId = useCallback(async () => {
     let userId = localStorage.getItem("user_id");
     if (userId) {
@@ -144,8 +144,7 @@ export function CashSalesList() {
           timeout: 15000,
         });
         if (isMounted.current) {
-          const usersList = response.data.results || response.data || [];
-          setUsers(usersList);
+          setUsers(response.data.results || response.data || []);
           setUsersLoaded(true);
         }
       } catch (error) {
@@ -159,55 +158,78 @@ export function CashSalesList() {
     fetchUsers();
   }, []);
 
+  // Fetch magasins for filter (admin only)
+  useEffect(() => {
+    if (magasinsFetched.current) return;
+    if (role !== "admin") return;
+    magasinsFetched.current = true;
+
+    const fetchMagasins = async () => {
+      try {
+        const token = localStorage.getItem("access_token");
+        const response = await axios.get("/param/magasins/", {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { page_size: 100 },
+          timeout: 10000,
+        });
+        if (isMounted.current) {
+          setMagasins(response.data.results || []);
+        }
+      } catch (error) {
+        console.error("Error fetching magasins:", error);
+      }
+    };
+    fetchMagasins();
+  }, [role]);
+
   // Fetch sales with filters
   const fetchSales = useCallback(async (forceRefresh = false) => {
     if (role !== 'admin') {
       const userId = currentUserId || userIdRef.current;
       if (!userId) {
-        console.log("Waiting for user ID...");
         setLoading(false);
         return;
       }
     }
 
-    if (fetchInProgress.current && !forceRefresh) {
-      console.log("Fetch already in progress, skipping...");
-      return;
-    }
+    if (fetchInProgress.current && !forceRefresh) return;
 
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
+    if (abortControllerRef.current) abortControllerRef.current.abort();
 
     const newAbortController = new AbortController();
     abortControllerRef.current = newAbortController;
     fetchInProgress.current = true;
 
-    if (forceRefresh) {
-      setRefreshing(true);
-    }
+    if (forceRefresh) setRefreshing(true);
     setLoading(true);
 
     const params = {};
     
-    if (role === 'admin' && selectedUserId) {
-      params.users = selectedUserId;
-      console.log("Admin filtering by user ID:", selectedUserId);
-    } else if (role !== 'admin') {
+    // User filter
+    if (role === 'admin') {
+      if (selectedUserId) {
+        params.users = selectedUserId;
+      }
+    } else {
       const userId = currentUserId || userIdRef.current;
       if (userId) {
         params.users = userId;
-        console.log("Regular user filtering by user ID:", userId);
       }
     }
     
-    if (searchTerm) params.search = searchTerm;
+    // Magasin filter (admin only via dropdown)
+    if (role === 'admin' && selectedMagasinId) {
+      params.magasin = selectedMagasinId;
+    }
+    
+    if (searchTerm.trim()) params.search = searchTerm;
     if (filters.periode) params.periode = filters.periode;
     if (filters.date_from) params.date_from = filters.date_from;
     if (filters.date_to) params.date_to = filters.date_to;
 
+    console.log("📡 Cash API PARAMS:", params);
+
     try {
-      console.log("Making API request with params:", params);
       const response = await axios.get(`/vente/liste/`, {
         headers,
         params,
@@ -229,13 +251,8 @@ export function CashSalesList() {
         nombre_de_ventes: response.data.nombre_de_ventes || 0,
       });
     } catch (err) {
-      if (err.name === "CanceledError" || err.code === "ERR_CANCELED") {
-        console.log("Request cancelled");
-        return;
-      }
-      
+      if (err.name === "CanceledError" || err.code === "ERR_CANCELED") return;
       if (!isMounted.current) return;
-      
       console.error("Erreur lors du chargement des ventes :", err);
       toast.error("خطأ في تحميل المبيعات");
     } finally {
@@ -245,41 +262,26 @@ export function CashSalesList() {
         fetchInProgress.current = false;
       }
     }
-  }, [searchTerm, filters, role, currentUserId, selectedUserId]);
+  }, [searchTerm, filters, role, currentUserId, selectedUserId, selectedMagasinId]);
 
   // Initial load
   useEffect(() => {
     const init = async () => {
       if (initialLoadDone.current) return;
       
-      console.log("Initializing CashSalesList...");
-      console.log("User role:", role);
-      
       if (role !== 'admin') {
         const userId = await fetchCurrentUserId();
-        console.log("Current user ID:", userId);
-        
         if (userId) {
           setCurrentUserId(userId);
           userIdRef.current = userId;
           setIsInitialized(true);
-          setTimeout(() => {
-            if (isMounted.current) {
-              fetchSales();
-            }
-          }, 100);
+          setTimeout(() => { if (isMounted.current) fetchSales(); }, 100);
         } else {
-          console.error("Could not determine current user ID");
           setLoading(false);
         }
       } else {
-        console.log("Admin user - will fetch all sales");
         setIsInitialized(true);
-        setTimeout(() => {
-          if (isMounted.current) {
-            fetchSales();
-          }
-        }, 100);
+        setTimeout(() => { if (isMounted.current) fetchSales(); }, 100);
       }
       initialLoadDone.current = true;
     };
@@ -287,45 +289,112 @@ export function CashSalesList() {
     init();
   }, [fetchCurrentUserId, role]);
 
-  // Debounced search and filters
+  // Dedicated effect for selectedUserId changes
+  useEffect(() => {
+    if (!isInitialized) return;
+    if (role !== 'admin' && !currentUserId) return;
+    fetchSales();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedUserId]);
+
+  // Dedicated effect for selectedMagasinId changes
+  useEffect(() => {
+    if (!isInitialized) return;
+    fetchSales();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMagasinId]);
+
+  // Debounced search
   useEffect(() => {
     if (!isInitialized) return;
     if (role !== 'admin' && !currentUserId) return;
 
-    if (searchDebounceRef.current) {
-      clearTimeout(searchDebounceRef.current);
-    }
-
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(() => {
       fetchSales();
     }, 500);
 
-    return () => {
-      if (searchDebounceRef.current) {
-        clearTimeout(searchDebounceRef.current);
-      }
-    };
-  }, [searchTerm, fetchSales, isInitialized, currentUserId, role, selectedUserId]);
+    return () => clearTimeout(searchDebounceRef.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, isInitialized, currentUserId, role]);
 
   // Debounced filters
   useEffect(() => {
     if (!isInitialized) return;
     if (role !== 'admin' && !currentUserId) return;
 
-    if (filterDebounceRef.current) {
-      clearTimeout(filterDebounceRef.current);
-    }
-
+    if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current);
     filterDebounceRef.current = setTimeout(() => {
       fetchSales();
     }, 500);
 
-    return () => {
-      if (filterDebounceRef.current) {
-        clearTimeout(filterDebounceRef.current);
+    return () => clearTimeout(filterDebounceRef.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.periode, filters.date_from, filters.date_to, isInitialized, currentUserId, role]);
+
+  // Download file
+  const downloadFile = async (url, filename) => {
+    try {
+      setIsDownloading(true);
+      setDownloadProgress(0);
+      
+      const token = localStorage.getItem("access_token");
+      const progressInterval = setInterval(() => {
+        setDownloadProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+      
+      const response = await axios.get(url, {
+        responseType: "blob",
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 30000,
+      });
+      
+      clearInterval(progressInterval);
+      setDownloadProgress(100);
+      
+      const blob = response.data;
+      
+      if ('showSaveFilePicker' in window) {
+        try {
+          const fileHandle = await window.showSaveFilePicker({
+            suggestedName: filename,
+            types: [{
+              description: 'Word Document',
+              accept: { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] }
+            }]
+          });
+          const writable = await fileHandle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          toast.success("تم حفظ الملف بنجاح");
+          setOpenPrintDialog(false);
+          return;
+        } catch (err) {
+          if (err.name !== 'AbortError') console.error("File System Access API error:", err);
+        }
       }
-    };
-  }, [filters.periode, filters.date_from, filters.date_to, filters.users, fetchSales, isInitialized, currentUserId, role, selectedUserId]);
+      
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      toast.success("تم تحميل الملف بنجاح");
+      setOpenPrintDialog(false);
+      
+    } catch (error) {
+      console.error("Erreur lors du téléchargement :", error);
+      toast.error("فشل تحميل الملف");
+    } finally {
+      setTimeout(() => {
+        setIsDownloading(false);
+        setDownloadProgress(null);
+      }, 500);
+    }
+  };
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -335,19 +404,18 @@ export function CashSalesList() {
   const handleUserFilterChange = (e) => {
     const userId = e.target.value;
     setSelectedUserId(userId === "" ? null : parseInt(userId));
-    fetchSales();
+  };
+
+  const handleMagasinFilterChange = (e) => {
+    const magasinId = e.target.value;
+    setSelectedMagasinId(magasinId === "" ? null : parseInt(magasinId));
   };
 
   const clearFilters = () => {
-    setFilters({
-      periode: '',
-      users: '',
-      date_from: null,
-      date_to: null,
-    });
+    setFilters({ periode: '', date_from: null, date_to: null });
     setSelectedUserId(null);
+    setSelectedMagasinId(null);
     setSearchTerm('');
-    fetchSales();
   };
 
   const handleDelete = (id) => {
@@ -377,80 +445,6 @@ export function CashSalesList() {
     } catch (error) {
       console.error("Erreur lors du chargement du détail:", error);
       toast.error("فشل تحميل تفاصيل البيع");
-    }
-  };
-
-  // Improved download function with save dialog support
-  const downloadFile = async (url, filename) => {
-    try {
-      setIsDownloading(true);
-      setDownloadProgress(0);
-      
-      const token = localStorage.getItem("access_token");
-      
-      // Progress simulation
-      const progressInterval = setInterval(() => {
-        setDownloadProgress(prev => Math.min(prev + 10, 90));
-      }, 200);
-      
-      const response = await axios.get(url, {
-        responseType: "blob",
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 30000,
-      });
-      
-      clearInterval(progressInterval);
-      setDownloadProgress(100);
-      
-      const blob = response.data;
-      
-      // Try to use File System Access API (modern browsers) for save dialog
-      if ('showSaveFilePicker' in window) {
-        try {
-          const fileHandle = await window.showSaveFilePicker({
-            suggestedName: filename,
-            types: [{
-              description: 'Word Document',
-              accept: { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] }
-            }]
-          });
-          
-          const writable = await fileHandle.createWritable();
-          await writable.write(blob);
-          await writable.close();
-          
-          toast.success("تم حفظ الملف بنجاح");
-          setOpenPrintDialog(false);
-          return;
-        } catch (err) {
-          if (err.name !== 'AbortError') {
-            console.error("File System Access API error:", err);
-          }
-          // User cancelled or error occurred, fall through to traditional method
-        }
-      }
-      
-      // Fallback: Create download link (traditional method)
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
-      
-      toast.success("تم تحميل الملف بنجاح");
-      setOpenPrintDialog(false);
-      
-    } catch (error) {
-      console.error("Erreur lors du téléchargement :", error);
-      toast.error("فشل تحميل الملف");
-    } finally {
-      setTimeout(() => {
-        setIsDownloading(false);
-        setDownloadProgress(null);
-      }, 500);
     }
   };
 
@@ -490,10 +484,7 @@ export function CashSalesList() {
             </div>
             <p className="text-white font-medium mb-2">جاري تحميل الملف...</p>
             <div className="w-full bg-slate-700 rounded-full h-2 mt-2">
-              <div 
-                className="bg-amber-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${downloadProgress || 0}%` }}
-              />
+              <div className="bg-amber-500 h-2 rounded-full transition-all duration-300" style={{ width: `${downloadProgress || 0}%` }} />
             </div>
             <p className="text-slate-400 text-sm mt-2">{downloadProgress || 0}%</p>
           </div>
@@ -525,9 +516,7 @@ export function CashSalesList() {
             onClick={handleManualRefresh}
             disabled={refreshing}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
-              refreshing
-                ? "bg-slate-700 text-slate-300 opacity-50 cursor-not-allowed"
-                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+              refreshing ? "bg-slate-700 text-slate-300 opacity-50 cursor-not-allowed" : "bg-slate-700 text-slate-300 hover:bg-slate-600"
             }`}
             title="تحديث البيانات"
           >
@@ -550,6 +539,7 @@ export function CashSalesList() {
 
       {/* Search and Filters */}
       <div className="flex gap-2 flex-wrap">
+        {/* Search */}
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4" />
           <input
@@ -563,7 +553,7 @@ export function CashSalesList() {
         
         {/* User Filter for Admin */}
         {role === 'admin' && (
-          <div className="relative min-w-[200px]">
+          <div className="relative min-w-[180px]">
             <User className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4 z-10" />
             <select
               value={selectedUserId || ""}
@@ -572,14 +562,30 @@ export function CashSalesList() {
             >
               <option value="">جميع المستخدمين</option>
               {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.username}
-                </option>
+                <option key={user.id} value={user.id}>{user.username}</option>
               ))}
             </select>
           </div>
         )}
         
+        {/* Magasin Filter for Admin */}
+        {role === 'admin' && (
+          <div className="relative min-w-[180px]">
+            <Building2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4 z-10" />
+            <select
+              value={selectedMagasinId || ""}
+              onChange={handleMagasinFilterChange}
+              className="w-full bg-slate-700/50 text-white border border-amber-500/30 rounded-lg px-10 py-2 text-sm outline-none focus:border-amber-500"
+            >
+              <option value="">جميع المخازن</option>
+              {magasins.map((mag) => (
+                <option key={mag.id} value={mag.id}>{mag.nom}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        
+        {/* Date from */}
         <div className="relative">
           <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4 z-10" />
           <input
@@ -587,9 +593,10 @@ export function CashSalesList() {
             value={filters.date_from || ''}
             onChange={(e) => setFilters(prev => ({ ...prev, date_from: e.target.value }))}
             className="bg-slate-700/50 text-white border border-amber-500/30 rounded-lg px-10 py-2 text-sm outline-none focus:border-amber-500"
-            placeholder="من تاريخ"
           />
         </div>
+        
+        {/* Date to */}
         <div className="relative">
           <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4 z-10" />
           <input
@@ -597,17 +604,16 @@ export function CashSalesList() {
             value={filters.date_to || ''}
             onChange={(e) => setFilters(prev => ({ ...prev, date_to: e.target.value }))}
             className="bg-slate-700/50 text-white border border-amber-500/30 rounded-lg px-10 py-2 text-sm outline-none focus:border-amber-500"
-            placeholder="إلى تاريخ"
           />
         </div>
+        
+        {/* Filter toggle */}
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => setShowFilters(!showFilters)}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-            showFilters || filters.periode || filters.users || selectedUserId
-              ? 'bg-amber-500 text-white'
-              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+            showFilters || filters.periode ? 'bg-amber-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
           }`}
         >
           <Filter className="w-4 h-4" />
@@ -642,7 +648,7 @@ export function CashSalesList() {
               <p className="text-white text-sm py-2">من تاريخ إلى تاريخ</p>
             </div>
           </div>
-          {(filters.periode || filters.date_from || filters.date_to || selectedUserId) && (
+          {(filters.periode || filters.date_from || filters.date_to || selectedUserId || selectedMagasinId) && (
             <div className="flex justify-end mt-4">
               <button
                 onClick={clearFilters}
@@ -666,6 +672,11 @@ export function CashSalesList() {
               : role === 'admin' 
                 ? 'قائمة المبيعات كاش (جميع المستخدمين)' 
                 : 'مبيعاتي كاش'}
+            {role === 'admin' && selectedMagasinId && (
+              <span className="text-sm font-normal opacity-80">
+                — {magasins.find(m => m.id === selectedMagasinId)?.nom || ''}
+              </span>
+            )}
           </h2>
           <p className="text-sm text-white/70 mt-1">
             {role === 'admin' && selectedUserId
@@ -693,7 +704,7 @@ export function CashSalesList() {
                     <th className="px-4 py-3 text-right">البائع</th>
                   )}
                   <th className="px-4 py-3 text-right">الإجراءات</th>
-                 </tr>
+                </tr>
               </thead>
               <tbody>
                 {sales.length > 0 ? (

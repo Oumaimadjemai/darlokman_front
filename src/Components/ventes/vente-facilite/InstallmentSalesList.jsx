@@ -37,6 +37,8 @@ export function InstallmentSalesList() {
   const [showFilters, setShowFilters] = useState(false);
   const [users, setUsers] = useState([]);
   const [usersLoaded, setUsersLoaded] = useState(false);
+  const [magasins, setMagasins] = useState([]);
+  const [selectedMagasinId, setSelectedMagasinId] = useState(null);
   const [totaux, setTotaux] = useState({
     total_ventes: 0,
     total_montant_total: 0,
@@ -56,7 +58,7 @@ export function InstallmentSalesList() {
   const [printSaleDetails, setPrintSaleDetails] = useState(null);
   const [loadingPrintDetails, setLoadingPrintDetails] = useState(false);
   const [userAccessibleMagasins, setUserAccessibleMagasins] = useState([]);
-  const [userMagasinAccessType, setUserMagasinAccessType] = useState('assigned_only');
+  const [userMagasinAccessType, setUserMagasinAccessType] = useState("assigned_only");
   const [currentUserId, setCurrentUserId] = useState(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null);
@@ -67,12 +69,12 @@ export function InstallmentSalesList() {
     periode: "",
     date_from: null,
     date_to: null,
-    user: null,
   });
 
   const initialLoadDone = useRef(false);
   const abortControllerRef = useRef(null);
   const usersFetched = useRef(false);
+  const magasinsFetched = useRef(false);
   const searchDebounceRef = useRef(null);
   const filterDebounceRef = useRef(null);
   const isMounted = useRef(true);
@@ -82,7 +84,7 @@ export function InstallmentSalesList() {
   const role = localStorage.getItem("role");
   const userMagasinId = localStorage.getItem("magasin_id");
   const currentUsername = localStorage.getItem("username");
-  
+
   const headers = {
     Authorization: `Bearer ${localStorage.getItem("access_token")}`,
     "Content-Type": "application/json",
@@ -103,19 +105,13 @@ export function InstallmentSalesList() {
     isMounted.current = true;
     return () => {
       isMounted.current = false;
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      if (searchDebounceRef.current) {
-        clearTimeout(searchDebounceRef.current);
-      }
-      if (filterDebounceRef.current) {
-        clearTimeout(filterDebounceRef.current);
-      }
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+      if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current);
     };
   }, []);
 
-  // Function to fetch current user ID from API if not in localStorage
+  // Fetch current user ID
   const fetchCurrentUserId = useCallback(async () => {
     let userId = localStorage.getItem("user_id");
     if (userId) {
@@ -123,11 +119,11 @@ export function InstallmentSalesList() {
       setCurrentUserId(userId);
       return userId;
     }
-    
+
     try {
       const token = localStorage.getItem("access_token");
       if (token) {
-        const payload = JSON.parse(atob(token.split('.')[1]));
+        const payload = JSON.parse(atob(token.split(".")[1]));
         userId = payload.user_id || payload.sub || payload.id;
         if (userId) {
           localStorage.setItem("user_id", userId);
@@ -139,7 +135,7 @@ export function InstallmentSalesList() {
     } catch (e) {
       console.error("Failed to decode token", e);
     }
-    
+
     if (currentUsername) {
       try {
         const token = localStorage.getItem("access_token");
@@ -160,7 +156,7 @@ export function InstallmentSalesList() {
         console.error("Failed to fetch user by username", err);
       }
     }
-    
+
     return null;
   }, [currentUsername]);
 
@@ -168,46 +164,43 @@ export function InstallmentSalesList() {
   const fetchUserAccessibleMagasins = useCallback(async () => {
     try {
       const token = localStorage.getItem("access_token");
-      const userId = currentUserId || userIdRef.current || await fetchCurrentUserId();
-      
-      if (!userId && role !== 'admin') {
-        console.warn("No user_id found for non-admin user");
-        if (userMagasinId) {
-          setUserAccessibleMagasins([parseInt(userMagasinId)]);
-        }
+      const userId = currentUserId || userIdRef.current || (await fetchCurrentUserId());
+
+      if (!userId && role !== "admin") {
+        if (userMagasinId) setUserAccessibleMagasins([parseInt(userMagasinId)]);
         return;
       }
-      
-      if (role === 'admin') {
+
+      if (role === "admin") {
         setUserAccessibleMagasins([]);
         return;
       }
-      
+
       const response = await axios.get(`/auth/users/${userId}/`, {
         headers: { Authorization: `Bearer ${token}` },
         timeout: 10000,
       });
-      
+
       if (!isMounted.current) return;
-      
+
       const userData = response.data;
-      setUserMagasinAccessType(userData.magasin_access_type || 'assigned_only');
-      
+      setUserMagasinAccessType(userData.magasin_access_type || "assigned_only");
+
       let accessibleMagasinIds = [];
-      
-      if (userData.magasin_access_type === 'all_magasins') {
+
+      if (userData.magasin_access_type === "all_magasins") {
         const magasinsResponse = await axios.get("/param/magasins/", {
           headers: { Authorization: `Bearer ${token}` },
           timeout: 10000,
         });
         if (isMounted.current) {
-          accessibleMagasinIds = (magasinsResponse.data.results || []).map(m => m.id);
+          accessibleMagasinIds = (magasinsResponse.data.results || []).map((m) => m.id);
           setUserAccessibleMagasins(accessibleMagasinIds);
         }
-      } else if (userData.magasin_access_type === 'selected_magasins') {
-        accessibleMagasinIds = (userData.magasins_acces_detail || []).map(m => m.id);
+      } else if (userData.magasin_access_type === "selected_magasins") {
+        accessibleMagasinIds = (userData.magasins_acces_detail || []).map((m) => m.id);
         if (isMounted.current) setUserAccessibleMagasins(accessibleMagasinIds);
-      } else if (userData.magasin_access_type === 'assigned_only' && userData.magasin_detail) {
+      } else if (userData.magasin_access_type === "assigned_only" && userData.magasin_detail) {
         accessibleMagasinIds = [userData.magasin_detail.id];
         if (isMounted.current) setUserAccessibleMagasins(accessibleMagasinIds);
       }
@@ -232,8 +225,7 @@ export function InstallmentSalesList() {
           timeout: 15000,
         });
         if (isMounted.current) {
-          const usersList = response.data.results || response.data || [];
-          setUsers(usersList);
+          setUsers(response.data.results || response.data || []);
           setUsersLoaded(true);
         }
       } catch (error) {
@@ -247,111 +239,118 @@ export function InstallmentSalesList() {
     fetchUsers();
   }, []);
 
+  // Fetch magasins for filter (only once, admin only)
+  useEffect(() => {
+    if (magasinsFetched.current) return;
+    if (role !== "admin") return;
+    magasinsFetched.current = true;
+
+    const fetchMagasins = async () => {
+      try {
+        const token = localStorage.getItem("access_token");
+        const response = await axios.get("/param/magasins/", {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { page_size: 100 },
+          timeout: 10000,
+        });
+        if (isMounted.current) {
+          setMagasins(response.data.results || []);
+        }
+      } catch (error) {
+        console.error("Error fetching magasins:", error);
+      }
+    };
+    fetchMagasins();
+  }, [role]);
+
   // Fetch stats
   const fetchStats = useCallback(async () => {
     if (!isMounted.current) return;
-    
-    if (role !== 'admin' && !currentUserId) return;
-    
-    setLoadingStats(true);
+    if (role !== "admin" && !currentUserId) return;
 
+    setLoadingStats(true);
     const params = {};
     if (filters.periode) params.periode = filters.periode;
     if (filters.date_from) params.date_from = filters.date_from;
     if (filters.date_to) params.date_to = filters.date_to;
-    
-    if (role === 'admin' && selectedUserId) {
-      params.user = selectedUserId;
-    } else if (role !== 'admin' && currentUserId) {
-      params.user = currentUserId;
+
+    if (role === "admin" && selectedUserId) {
+      params.users = selectedUserId;
+    } else if (role !== "admin" && currentUserId) {
+      params.users = currentUserId;
     }
 
     try {
       const response = await axios.get(`/vente/ventes-facilite/stats/`, {
         headers,
         params,
-        timeout: 30000
+        timeout: 30000,
       });
-      if (isMounted.current) {
-        setStats(response.data);
-      }
+      if (isMounted.current) setStats(response.data);
     } catch (error) {
       console.error("Error fetching stats:", error);
-      if (isMounted.current) {
-        toast.error("فشل تحميل الإحصائيات");
-      }
+      if (isMounted.current) toast.error("فشل تحميل الإحصائيات");
     } finally {
-      if (isMounted.current) {
-        setLoadingStats(false);
-      }
+      if (isMounted.current) setLoadingStats(false);
     }
   }, [filters, currentUserId, role, selectedUserId]);
 
-  // Improved download function with file save dialog for both browser and Tauri
+  // Download file
   const downloadFile = async (url, filename) => {
     try {
       setIsDownloading(true);
       setDownloadProgress(0);
-      
+
       const token = localStorage.getItem("access_token");
-      
-      // Progress simulation
       const progressInterval = setInterval(() => {
-        setDownloadProgress(prev => Math.min(prev + 10, 90));
+        setDownloadProgress((prev) => Math.min(prev + 10, 90));
       }, 200);
-      
+
       const response = await axios.get(url, {
         responseType: "blob",
         headers: { Authorization: `Bearer ${token}` },
         timeout: 30000,
       });
-      
+
       clearInterval(progressInterval);
       setDownloadProgress(100);
-      
+
       const blob = response.data;
-      
-      // Try to use File System Access API (modern browsers)
-      if ('showSaveFilePicker' in window) {
+
+      if ("showSaveFilePicker" in window) {
         try {
-          // Create file handle
           const fileHandle = await window.showSaveFilePicker({
             suggestedName: filename,
-            types: [{
-              description: 'Word Document',
-              accept: { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] }
-            }]
+            types: [
+              {
+                description: "Word Document",
+                accept: {
+                  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+                },
+              },
+            ],
           });
-          
-          // Create writable stream
           const writable = await fileHandle.createWritable();
           await writable.write(blob);
           await writable.close();
-          
           toast.success("تم حفظ الملف بنجاح");
           setOpenPrintDialog(false);
           return;
         } catch (err) {
-          if (err.name !== 'AbortError') {
-            console.error("File System Access API error:", err);
-          }
-          // Fall through to traditional method if user cancels or error occurs
+          if (err.name !== "AbortError") console.error("File System Access API error:", err);
         }
       }
-      
-      // Fallback: Create download link (traditional method)
+
       const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = downloadUrl;
       link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
-      
       toast.success("تم تحميل الملف بنجاح");
       setOpenPrintDialog(false);
-      
     } catch (error) {
       console.error("Erreur lors du téléchargement :", error);
       toast.error("فشل تحميل الملف");
@@ -363,144 +362,65 @@ export function InstallmentSalesList() {
     }
   };
 
-  // Alternative download function using a dialog approach
-  const downloadFileWithDialog = async (url, filename) => {
-    try {
-      setIsDownloading(true);
-      setDownloadProgress(0);
-      
-      const token = localStorage.getItem("access_token");
-      
-      // Progress simulation
-      const progressInterval = setInterval(() => {
-        setDownloadProgress(prev => Math.min(prev + 10, 90));
-      }, 200);
-      
-      const response = await axios.get(url, {
-        responseType: "blob",
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 30000,
-      });
-      
-      clearInterval(progressInterval);
-      setDownloadProgress(100);
-      
-      const blob = response.data;
-      
-      // Create a hidden input to trigger file save
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.style.display = 'none';
-      
-      // Create a promise that resolves when file is saved
-      const savePromise = new Promise((resolve, reject) => {
-        // For browsers that support the File System Access API
-        if ('showSaveFilePicker' in window) {
-          window.showSaveFilePicker({
-            suggestedName: filename,
-            types: [{
-              description: 'Word Document',
-              accept: { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] }
-            }]
-          }).then(async (fileHandle) => {
-            const writable = await fileHandle.createWritable();
-            await writable.write(blob);
-            await writable.close();
-            resolve();
-          }).catch(err => {
-            if (err.name !== 'AbortError') {
-              reject(err);
-            } else {
-              resolve(); // User cancelled
-            }
-          });
-        } else {
-          // Fallback for older browsers
-          const downloadUrl = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = downloadUrl;
-          link.download = filename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(downloadUrl);
-          resolve();
-        }
-      });
-      
-      await savePromise;
-      toast.success("تم حفظ الملف بنجاح");
-      setOpenPrintDialog(false);
-      
-    } catch (error) {
-      console.error("Erreur lors du téléchargement :", error);
-      toast.error("فشل تحميل الملف");
-    } finally {
-      setTimeout(() => {
-        setIsDownloading(false);
-        setDownloadProgress(null);
-      }, 500);
-    }
-  };
-
-  // Fetch sales with filters
+  // ============================================================
+  // FETCH SALES — selectedUserId read directly from closure
+  // ============================================================
   const fetchSales = useCallback(
     async (page = 1, forceRefresh = false) => {
-      if (role !== 'admin') {
+      if (role !== "admin") {
         const userId = currentUserId || userIdRef.current;
         if (!userId) {
-          console.log("Waiting for user ID...");
           setLoading(false);
           return;
         }
       }
 
-      if (fetchInProgress.current && !forceRefresh) {
-        console.log("Fetch already in progress, skipping...");
-        return;
-      }
+      if (fetchInProgress.current && !forceRefresh) return;
 
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      if (abortControllerRef.current) abortControllerRef.current.abort();
 
       const newAbortController = new AbortController();
       abortControllerRef.current = newAbortController;
       fetchInProgress.current = true;
 
-      if (forceRefresh) {
-        setRefreshing(true);
-      }
+      if (forceRefresh) setRefreshing(true);
       setLoading(true);
       setError(null);
 
-      const params = {
-        page: page,
-        page_size: 50,
-      };
+      const params = { page, page_size: 50 };
 
-      if (role === 'admin' && selectedUserId) {
-        params.users = selectedUserId;
-        console.log("Admin filtering by user ID:", selectedUserId);
-      } else if (role !== 'admin') {
+      // User filter
+      if (role === "admin") {
+        if (selectedUserId) {
+          params.users = selectedUserId;
+        }
+      } else {
         const userId = currentUserId || userIdRef.current;
-        if (userId) {
-          params.users = userId;
-          console.log("Regular user filtering by user ID:", userId);
+        if (userId) params.users = userId;
+      }
+
+      // Magasin filter (admin only via dropdown)
+      if (role === "admin" && selectedMagasinId) {
+        params.magasin = selectedMagasinId;
+      }
+
+      // Non-admin accessible magasins
+      if (role !== "admin" && userAccessibleMagasins.length > 0) {
+        if (userAccessibleMagasins.length === 1) {
+          params.magasin = userAccessibleMagasins[0];
+        } else {
+          params.magasins = userAccessibleMagasins.join(",");
         }
       }
 
-      if (searchTerm) params.search = searchTerm;
+      if (searchTerm.trim()) params.search = searchTerm;
       if (filters.periode) params.periode = filters.periode;
       if (filters.date_from) params.date_from = filters.date_from;
       if (filters.date_to) params.date_to = filters.date_to;
-      
-      if (role !== 'admin' && userAccessibleMagasins.length > 0) {
-        params.magasins = userAccessibleMagasins.join(',');
-      }
+
+      console.log("📡 API PARAMS:", params);
 
       try {
-        console.log("Making API request with params:", params);
         const response = await axios.get(`/vente/ventes-facilite/`, {
           headers,
           params,
@@ -512,34 +432,28 @@ export function InstallmentSalesList() {
 
         const responseData = response.data;
         const apiResults = responseData.results;
-        
+
         let salesList = [];
         let totalVentes = 0;
         let totalMontantTotal = 0;
         let totalMontantVerse = 0;
         let totalMontantRestant = 0;
-        
+
         if (apiResults && apiResults.ventes) {
           salesList = apiResults.ventes;
           totalVentes = apiResults.total_ventes || salesList.length;
           totalMontantTotal = parseFloat(apiResults.total_montant_total) || 0;
           totalMontantVerse = parseFloat(apiResults.total_montant_verse) || 0;
           totalMontantRestant = parseFloat(apiResults.total_montant_restant) || 0;
-          
-          console.log(`Fetched ${salesList.length} sales`);
         } else if (Array.isArray(apiResults)) {
           salesList = apiResults;
           totalVentes = salesList.length;
-          totalMontantTotal = salesList.reduce((sum, sale) => sum + (parseFloat(sale.montant_total) || 0), 0);
-          totalMontantVerse = salesList.reduce((sum, sale) => sum + (parseFloat(sale.montant_verse) || 0), 0);
-          totalMontantRestant = salesList.reduce((sum, sale) => sum + (parseFloat(sale.montant_restant) || 0), 0);
-        } else {
-          console.warn("Unexpected API response structure:", responseData);
-          salesList = [];
+          totalMontantTotal = salesList.reduce((s, x) => s + (parseFloat(x.montant_total) || 0), 0);
+          totalMontantVerse = salesList.reduce((s, x) => s + (parseFloat(x.montant_verse) || 0), 0);
+          totalMontantRestant = salesList.reduce((s, x) => s + (parseFloat(x.montant_restant) || 0), 0);
         }
-        
+
         setSales(salesList);
-        
         setTotaux({
           total_ventes: totalVentes,
           total_montant_total: totalMontantTotal,
@@ -554,15 +468,9 @@ export function InstallmentSalesList() {
           currentPage: page,
           totalPages: totalPages > 0 ? totalPages : 1,
         });
-        
       } catch (err) {
-        if (err.name === "CanceledError" || err.code === "ERR_CANCELED") {
-          console.log("Request cancelled");
-          return;
-        }
-        
+        if (err.name === "CanceledError" || err.code === "ERR_CANCELED") return;
         if (!isMounted.current) return;
-        
         console.error("Error fetching sales:", err);
         setError("حدث خطأ في تحميل المبيعات");
         toast.error("حدث خطأ في تحميل المبيعات");
@@ -574,116 +482,111 @@ export function InstallmentSalesList() {
         }
       }
     },
-    [searchTerm, filters, userAccessibleMagasins, role, currentUserId, selectedUserId],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [searchTerm, filters, userAccessibleMagasins, role, currentUserId, selectedUserId, selectedMagasinId]
   );
 
   // Initial load
   useEffect(() => {
     const init = async () => {
       if (initialLoadDone.current) return;
-      
-      console.log("Initializing InstallmentSalesList...");
-      console.log("User role:", role);
-      
-      if (role !== 'admin') {
+
+      if (role !== "admin") {
         const userId = await fetchCurrentUserId();
-        console.log("Current user ID:", userId);
-        
         if (userId) {
           setCurrentUserId(userId);
           userIdRef.current = userId;
           await fetchUserAccessibleMagasins();
           setIsInitialized(true);
-          setTimeout(() => {
-            if (isMounted.current) {
-              fetchSales(1);
-            }
-          }, 100);
+          setTimeout(() => { if (isMounted.current) fetchSales(1); }, 100);
         } else {
-          console.error("Could not determine current user ID");
           setError("لا يمكن تحديد المستخدم الحالي");
           setLoading(false);
         }
       } else {
-        console.log("Admin user - will fetch all sales");
         setIsInitialized(true);
         await fetchUserAccessibleMagasins();
-        setTimeout(() => {
-          if (isMounted.current) {
-            fetchSales(1);
-          }
-        }, 100);
+        setTimeout(() => { if (isMounted.current) fetchSales(1); }, 100);
       }
       initialLoadDone.current = true;
     };
-    
+
     init();
   }, [fetchCurrentUserId, fetchUserAccessibleMagasins, role]);
 
-  // Fetch sales when dependencies change
+  // ── Dedicated effect for selectedUserId changes ──────────────
   useEffect(() => {
     if (!isInitialized) return;
-    if (role !== 'admin' && !currentUserId) return;
+    if (role !== "admin" && !currentUserId) return;
+    fetchSales(1);
+    setStats(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedUserId]);
 
-    if (searchDebounceRef.current) {
-      clearTimeout(searchDebounceRef.current);
-    }
+  // ── Dedicated effect for selectedMagasinId changes ───────────
+  useEffect(() => {
+    if (!isInitialized) return;
+    fetchSales(1);
+    setStats(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMagasinId]);
 
+  // ── Search debounce (NO selectedUserId / selectedMagasinId) ──
+  useEffect(() => {
+    if (!isInitialized) return;
+    if (role !== "admin" && !currentUserId) return;
+
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(() => {
       fetchSales(1);
       setStats(null);
     }, 500);
 
-    return () => {
-      if (searchDebounceRef.current) {
-        clearTimeout(searchDebounceRef.current);
-      }
-    };
-  }, [searchTerm, fetchSales, isInitialized, currentUserId, role, selectedUserId]);
+    return () => clearTimeout(searchDebounceRef.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, isInitialized, currentUserId, role]);
 
-  // Debounced filters
+  // ── Filter debounce (NO selectedUserId / selectedMagasinId) ──
   useEffect(() => {
     if (!isInitialized) return;
-    if (role !== 'admin' && !currentUserId) return;
+    if (role !== "admin" && !currentUserId) return;
 
-    if (filterDebounceRef.current) {
-      clearTimeout(filterDebounceRef.current);
-    }
-
+    if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current);
     filterDebounceRef.current = setTimeout(() => {
       fetchSales(1);
       setStats(null);
     }, 500);
 
-    return () => {
-      if (filterDebounceRef.current) {
-        clearTimeout(filterDebounceRef.current);
-      }
-    };
-  }, [filters.periode, filters.date_from, filters.date_to, fetchSales, isInitialized, currentUserId, role, selectedUserId]);
+    return () => clearTimeout(filterDebounceRef.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.periode, filters.date_from, filters.date_to, isInitialized, currentUserId, role]);
+
+  // ── Handlers ─────────────────────────────────────────────────
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters((prev) => ({ ...prev, [name]: value }));
   };
 
+  // FIX: only set state — dedicated useEffect triggers the fetch
   const handleUserFilterChange = (e) => {
     const userId = e.target.value;
     setSelectedUserId(userId === "" ? null : parseInt(userId));
-    fetchSales(1);
   };
 
+  // FIX: only set state — dedicated useEffect triggers the fetch
+  const handleMagasinFilterChange = (e) => {
+    const magasinId = e.target.value;
+    setSelectedMagasinId(magasinId === "" ? null : parseInt(magasinId));
+  };
+
+  // FIX: no direct fetchSales call — state resets trigger their effects
   const clearFilters = () => {
-    setFilters({
-      periode: "",
-      date_from: null,
-      date_to: null,
-      user: null,
-    });
+    setFilters({ periode: "", date_from: null, date_to: null });
     setSelectedUserId(null);
+    setSelectedMagasinId(null);
     setSearchTerm("");
     setStats(null);
-    fetchSales(1);
   };
 
   const handleDelete = (id) => {
@@ -718,7 +621,6 @@ export function InstallmentSalesList() {
         headers,
         timeout: 15000,
       });
-      
       setSelectedSale(response.data);
       setOpenDetailDialog(true);
     } catch (error) {
@@ -730,13 +632,11 @@ export function InstallmentSalesList() {
   const handlePrint = async (sale) => {
     setLoadingPrintDetails(true);
     setOpenPrintDialog(true);
-    
     try {
       const response = await axios.get(`/vente/ventes-facilite/${sale.id}/`, {
         headers,
         timeout: 15000,
       });
-      
       setPrintSaleDetails(response.data);
     } catch (error) {
       console.error("Error fetching sale details for print:", error);
@@ -747,9 +647,7 @@ export function InstallmentSalesList() {
     }
   };
 
-  const handleAddSale = () => {
-    navigate("/New/Facilitevente");
-  };
+  const handleAddSale = () => navigate("/New/Facilitevente");
 
   const handleManualRefresh = () => {
     fetchSales(pagination.currentPage, true);
@@ -758,16 +656,12 @@ export function InstallmentSalesList() {
   };
 
   const handleToggleStats = () => {
-    if (!showStats) {
-      fetchStats();
-    }
+    if (!showStats) fetchStats();
     setShowStats(!showStats);
   };
 
   const handlePageChange = (newPage) => {
-    if (newPage > 0 && newPage <= pagination.totalPages) {
-      fetchSales(newPage);
-    }
+    if (newPage > 0 && newPage <= pagination.totalPages) fetchSales(newPage);
   };
 
   const formatMoney = (num) => {
@@ -775,6 +669,7 @@ export function InstallmentSalesList() {
     return Number(num);
   };
 
+  // ── Render ────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
       {/* Download Progress Overlay */}
@@ -783,16 +678,13 @@ export function InstallmentSalesList() {
           <div className="bg-slate-800 rounded-xl p-6 w-80 text-center border border-amber-500/30">
             <div className="w-16 h-16 mx-auto mb-4">
               <svg className="animate-spin w-16 h-16 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
             </div>
             <p className="text-white font-medium mb-2">جاري تحميل الملف...</p>
             <div className="w-full bg-slate-700 rounded-full h-2 mt-2">
-              <div 
-                className="bg-amber-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${downloadProgress || 0}%` }}
-              />
+              <div className="bg-amber-500 h-2 rounded-full transition-all duration-300" style={{ width: `${downloadProgress || 0}%` }} />
             </div>
             <p className="text-slate-400 text-sm mt-2">{downloadProgress || 0}%</p>
           </div>
@@ -806,7 +698,7 @@ export function InstallmentSalesList() {
             <div className="flex items-center gap-2">
               <ShoppingCart className="w-4 h-4 text-red-400" />
               <div className="text-xs text-red-300">
-                {role === 'admin' && selectedUserId ? 'مبيعات المستخدم:' : role === 'admin' ? 'إجمالي المبيعات:' : 'مبيعاتي:'}
+                {role === "admin" && selectedUserId ? "مبيعات المستخدم:" : role === "admin" ? "إجمالي المبيعات:" : "مبيعاتي:"}
               </div>
               <div className="text-lg text-white">{totaux.total_ventes}</div>
             </div>
@@ -815,36 +707,26 @@ export function InstallmentSalesList() {
             <div className="flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-emerald-400" />
               <div className="text-xs text-emerald-300">المبلغ الإجمالي:</div>
-              <div className="text-lg text-white">
-                {formatMoney(totaux.total_montant_total)} دج
-              </div>
+              <div className="text-lg text-white">{formatMoney(totaux.total_montant_total)} دج</div>
             </div>
           </div>
           <div className="bg-gradient-to-r from-amber-500/20 to-yellow-600/20 border border-amber-500/30 rounded-lg px-4 py-2">
             <div className="flex items-center gap-2">
               <div className="text-xs text-amber-300">المدفوع:</div>
-              <div className="text-lg text-amber-400">
-                {formatMoney(totaux.total_montant_verse)} دج
-              </div>
+              <div className="text-lg text-amber-400">{formatMoney(totaux.total_montant_verse)} دج</div>
             </div>
           </div>
           <div className="bg-gradient-to-r from-red-500/20 to-rose-600/20 border border-red-500/30 rounded-lg px-4 py-2">
             <div className="flex items-center gap-2">
               <div className="text-xs text-red-300">المتبقي:</div>
-              <div className="text-lg text-red-400">
-                {formatMoney(totaux.total_montant_restant)} دج
-              </div>
+              <div className="text-lg text-red-400">{formatMoney(totaux.total_montant_restant)} دج</div>
             </div>
           </div>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleToggleStats}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
-              showStats
-                ? "bg-purple-500 text-white"
-                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-            }`}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${showStats ? "bg-purple-500 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"}`}
             title="إحصائيات الأرباح"
           >
             <BarChart3 className="w-4 h-4" />
@@ -858,17 +740,11 @@ export function InstallmentSalesList() {
             whileTap={{ scale: 0.95 }}
             onClick={handleManualRefresh}
             disabled={refreshing}
-            className={`flex items-center gap-2 bg-gradient-to-r from-slate-600 to-slate-700 text-white px-4 py-2 rounded-lg shadow-lg hover:shadow-slate-500/50 transition-all text-sm ${
-              refreshing ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-            title="تحديث البيانات"
+            className={`flex items-center gap-2 bg-gradient-to-r from-slate-600 to-slate-700 text-white px-4 py-2 rounded-lg shadow-lg hover:shadow-slate-500/50 transition-all text-sm ${refreshing ? "opacity-50 cursor-not-allowed" : ""}`}
           >
-            <RefreshCw
-              className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
-            />
+            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
             <span>{refreshing ? "جاري التحديث..." : "تحديث"}</span>
           </motion.button>
-
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -891,57 +767,40 @@ export function InstallmentSalesList() {
         >
           {loadingStats ? (
             <div className="flex justify-center items-center py-4">
-              <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-              <span className="mr-2 text-purple-400">
-                جاري تحميل الإحصائيات...
-              </span>
+              <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+              <span className="mr-2 text-purple-400">جاري تحميل الإحصائيات...</span>
             </div>
           ) : stats ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center">
-                <div className="text-sm text-slate-400">
-                  تكلفة الشراء الإجمالية
-                </div>
-                <div className="text-lg font-bold text-cyan-400">
-                  {formatMoney(stats.cout_achat_total)} دج
-                </div>
+                <div className="text-sm text-slate-400">تكلفة الشراء الإجمالية</div>
+                <div className="text-lg font-bold text-cyan-400">{formatMoney(stats.cout_achat_total)} دج</div>
               </div>
               <div className="text-center">
                 <div className="text-sm text-slate-400">إجمالي الأرباح</div>
-                <div className="text-lg font-bold text-emerald-400">
-                  {formatMoney(stats.benefice_total)} دج
-                </div>
+                <div className="text-lg font-bold text-emerald-400">{formatMoney(stats.benefice_total)} دج</div>
               </div>
               <div className="text-center">
                 <div className="text-sm text-slate-400">نسبة الأرباح</div>
-                <div className="text-lg font-bold text-amber-400">
-                  {stats.pourcentage_benefice_total}%
-                </div>
+                <div className="text-lg font-bold text-amber-400">{stats.pourcentage_benefice_total}%</div>
               </div>
               {stats.quantite_vendue_produit > 0 && (
                 <div className="text-center col-span-2 md:col-span-1">
                   <div className="text-sm text-slate-400">المنتج المحدد</div>
-                  <div className="text-sm text-purple-400">
-                    الكمية: {stats.quantite_vendue_produit} | القيمة:{" "}
-                    {formatMoney(stats.montant_total_produit)} دج
-                  </div>
-                  <div className="text-sm text-emerald-400">
-                    الربح: {formatMoney(stats.benefice_produit)} دج (
-                    {stats.pourcentage_benefice_produit}%)
-                  </div>
+                  <div className="text-sm text-purple-400">الكمية: {stats.quantite_vendue_produit} | القيمة: {formatMoney(stats.montant_total_produit)} دج</div>
+                  <div className="text-sm text-emerald-400">الربح: {formatMoney(stats.benefice_produit)} دج ({stats.pourcentage_benefice_produit}%)</div>
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-center text-slate-400 py-2">
-              لا توجد إحصائيات متاحة
-            </div>
+            <div className="text-center text-slate-400 py-2">لا توجد إحصائيات متاحة</div>
           )}
         </motion.div>
       )}
 
       {/* Search and Filters */}
       <div className="flex gap-2 flex-wrap">
+        {/* Search */}
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4" />
           <input
@@ -952,10 +811,10 @@ export function InstallmentSalesList() {
             className="w-full bg-slate-700/50 text-white border border-amber-500/30 rounded-lg px-10 py-2 text-sm outline-none focus:border-amber-500 placeholder-slate-400"
           />
         </div>
-        
-        {/* User Filter for Admin */}
-        {role === 'admin' && (
-          <div className="relative min-w-[200px]">
+
+        {/* User Filter — admin only */}
+        {role === "admin" && (
+          <div className="relative min-w-[180px]">
             <User className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4 z-10" />
             <select
               value={selectedUserId || ""}
@@ -964,47 +823,57 @@ export function InstallmentSalesList() {
             >
               <option value="">جميع المستخدمين</option>
               {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.username}
-                </option>
+                <option key={user.id} value={user.id}>{user.username}</option>
               ))}
             </select>
           </div>
         )}
-        
+
+        {/* Magasin Filter — admin only */}
+        {role === "admin" && (
+          <div className="relative min-w-[180px]">
+            <Building2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4 z-10" />
+            <select
+              value={selectedMagasinId || ""}
+              onChange={handleMagasinFilterChange}
+              className="w-full bg-slate-700/50 text-white border border-amber-500/30 rounded-lg px-10 py-2 text-sm outline-none focus:border-amber-500"
+            >
+              <option value="">جميع المخازن</option>
+              {magasins.map((mag) => (
+                <option key={mag.id} value={mag.id}>{mag.nom}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Date from */}
         <div className="relative">
           <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4 z-10" />
           <input
             type="date"
             value={filters.date_from || ""}
-            onChange={(e) =>
-              setFilters((prev) => ({ ...prev, date_from: e.target.value }))
-            }
+            onChange={(e) => setFilters((prev) => ({ ...prev, date_from: e.target.value }))}
             className="bg-slate-700/50 text-white border border-amber-500/30 rounded-lg px-10 py-2 text-sm outline-none focus:border-amber-500"
-            placeholder="من تاريخ"
           />
         </div>
+
+        {/* Date to */}
         <div className="relative">
           <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4 z-10" />
           <input
             type="date"
             value={filters.date_to || ""}
-            onChange={(e) =>
-              setFilters((prev) => ({ ...prev, date_to: e.target.value }))
-            }
+            onChange={(e) => setFilters((prev) => ({ ...prev, date_to: e.target.value }))}
             className="bg-slate-700/50 text-white border border-amber-500/30 rounded-lg px-10 py-2 text-sm outline-none focus:border-amber-500"
-            placeholder="إلى تاريخ"
           />
         </div>
+
+        {/* Filter toggle */}
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => setShowFilters(!showFilters)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-            showFilters || filters.periode
-              ? "bg-amber-500 text-white"
-              : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-          }`}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${showFilters || filters.periode ? "bg-amber-500 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"}`}
         >
           <Filter className="w-4 h-4" />
           <span>فلترة</span>
@@ -1021,9 +890,7 @@ export function InstallmentSalesList() {
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-slate-400 mb-1">
-                الفترة
-              </label>
+              <label className="block text-sm text-slate-400 mb-1">الفترة</label>
               <select
                 name="periode"
                 value={filters.periode}
@@ -1031,20 +898,16 @@ export function InstallmentSalesList() {
                 className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
               >
                 {periodeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
+                  <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm text-slate-400 mb-1">
-                الفترة المحددة
-              </label>
+              <label className="block text-sm text-slate-400 mb-1">الفترة المحددة</label>
               <p className="text-white text-sm py-2">من تاريخ إلى تاريخ</p>
             </div>
           </div>
-          {(filters.periode || filters.date_from || filters.date_to || selectedUserId) && (
+          {(filters.periode || filters.date_from || filters.date_to || selectedUserId || selectedMagasinId) && (
             <div className="flex justify-end mt-4">
               <button
                 onClick={clearFilters}
@@ -1063,24 +926,29 @@ export function InstallmentSalesList() {
         <div className="bg-gradient-to-r from-red-500 to-red-600 px-4 py-3">
           <h2 className="text-white text-lg flex items-center gap-2">
             <CreditCard className="w-5 h-5" />
-            {role === 'admin' && selectedUserId 
-              ? `مبيعات المستخدم ${users.find(u => u.id === selectedUserId)?.username || ''}` 
-              : role === 'admin' 
-                ? 'مبيعات التقسيط (جميع المستخدمين)' 
-                : 'مبيعاتي بالتقسيط'}
+            {role === "admin" && selectedUserId
+              ? `مبيعات المستخدم ${users.find((u) => u.id === selectedUserId)?.username || ""}`
+              : role === "admin"
+              ? "مبيعات التقسيط (جميع المستخدمين)"
+              : "مبيعاتي بالتقسيط"}
+            {role === "admin" && selectedMagasinId && (
+              <span className="text-sm font-normal opacity-80">
+                — {magasins.find((m) => m.id === selectedMagasinId)?.nom || ""}
+              </span>
+            )}
           </h2>
           <p className="text-sm text-white/70 mt-1">
-            {role === 'admin' && selectedUserId
-              ? `عرض مبيعات المستخدم المحدد`
-              : role === 'admin' 
-                ? 'عرض جميع عمليات البيع بالتقسيط من جميع المستخدمين' 
-                : 'عرض المبيعات التي قمت بإجرائها'}
+            {role === "admin" && selectedUserId
+              ? "عرض مبيعات المستخدم المحدد"
+              : role === "admin"
+              ? "عرض جميع عمليات البيع بالتقسيط من جميع المستخدمين"
+              : "عرض المبيعات التي قمت بإجرائها"}
           </p>
         </div>
 
         {loading ? (
           <div className="flex justify-center items-center py-20">
-            <div className="w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : error ? (
           <div className="text-center py-12 text-red-400">
@@ -1095,10 +963,8 @@ export function InstallmentSalesList() {
         ) : sales.length === 0 ? (
           <div className="text-center py-12 text-slate-400">
             <ShoppingCart className="w-12 h-12 mx-auto mb-2 text-slate-500" />
-            <p>لا توجد مبيعات بالتقسيط {role === 'admin' ? '' : 'قمت بإجرائها'}</p>
-            {searchTerm && (
-              <p className="text-sm mt-2">نتيجة بحث: "{searchTerm}"</p>
-            )}
+            <p>لا توجد مبيعات بالتقسيط {role === "admin" ? "" : "قمت بإجرائها"}</p>
+            {searchTerm && <p className="text-sm mt-2">نتيجة بحث: "{searchTerm}"</p>}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -1108,15 +974,13 @@ export function InstallmentSalesList() {
                   <th className="px-4 py-3 text-right">#</th>
                   <th className="px-4 py-3 text-right">التاريخ</th>
                   <th className="px-4 py-3 text-right">الزبون</th>
-                  {role === 'admin' && (
-                    <th className="px-4 py-3 text-right">المستخدم</th>
-                  )}
+                  {role === "admin" && <th className="px-4 py-3 text-right">المستخدم</th>}
                   <th className="px-4 py-3 text-right">المبلغ الإجمالي</th>
                   <th className="px-4 py-3 text-right">عدد الأشهر</th>
                   <th className="px-4 py-3 text-right">المبلغ الشهري</th>
                   <th className="px-4 py-3 text-right">المخزن</th>
                   <th className="px-4 py-3 text-right">الإجراءات</th>
-                 </tr>
+                </tr>
               </thead>
               <tbody>
                 {sales.map((sale, index) => (
@@ -1126,65 +990,30 @@ export function InstallmentSalesList() {
                     animate={{ opacity: 1 }}
                     transition={{ delay: Math.min(index * 0.05, 0.5) }}
                     whileHover={{ backgroundColor: "rgba(239, 68, 68, 0.1)" }}
-                    className={`border-b border-slate-700/50 transition-all cursor-pointer ${
-                      index % 2 === 0 ? "bg-slate-800/30" : "bg-slate-900/30"
-                    }`}
+                    className={`border-b border-slate-700/50 transition-all cursor-pointer ${index % 2 === 0 ? "bg-slate-800/30" : "bg-slate-900/30"}`}
                     onDoubleClick={() => handleViewDetails(sale)}
                   >
                     <td className="px-4 py-3 text-red-300">{sale.id}</td>
                     <td className="px-4 py-3 text-slate-300">
-                      {sale.date_formatee ||
-                        new Date(sale.date_creation).toLocaleDateString(
-                          "ar-DZ",
-                        )}
+                      {sale.date_formatee || new Date(sale.date_creation).toLocaleDateString("ar-DZ")}
                     </td>
-                    <td className="px-4 py-3 text-white font-medium">
-                      {sale.client_name || "غير معروف"}
-                    </td>
-                    {role === 'admin' && (
-                      <td className="px-4 py-3 text-cyan-300">
-                        {sale.utilisateur_name || "-"}
-                      </td>
+                    <td className="px-4 py-3 text-white font-medium">{sale.client_name || "غير معروف"}</td>
+                    {role === "admin" && (
+                      <td className="px-4 py-3 text-cyan-300">{sale.utilisateur_name || "-"}</td>
                     )}
-                    <td className="px-4 py-3 text-emerald-300 font-medium">
-                      {formatMoney(sale.montant_total)} دج
-                    </td>
-                    <td className="px-4 py-3 text-blue-300">
-                      {sale.nombre_mois} أشهر
-                    </td>
-                    <td className="px-4 py-3 text-amber-300">
-                      {formatMoney(sale.montant_mensuel)} دج
-                    </td>
-                    <td className="px-4 py-3 text-cyan-300">
-                      {sale.magasin_name || "-"}
-                    </td>
+                    <td className="px-4 py-3 text-emerald-300 font-medium">{formatMoney(sale.montant_total)} دج</td>
+                    <td className="px-4 py-3 text-blue-300">{sale.nombre_mois} أشهر</td>
+                    <td className="px-4 py-3 text-amber-300">{formatMoney(sale.montant_mensuel)} دج</td>
+                    <td className="px-4 py-3 text-cyan-300">{sale.magasin_name || "-"}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
-                        <motion.button
-                          whileHover={{ scale: 1.2 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => handleViewDetails(sale)}
-                          className="p-2 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg text-blue-400"
-                          title="عرض التفاصيل"
-                        >
+                        <motion.button whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }} onClick={() => handleViewDetails(sale)} className="p-2 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg text-blue-400" title="عرض التفاصيل">
                           <Eye className="w-4 h-4" />
                         </motion.button>
-                        <motion.button
-                          whileHover={{ scale: 1.2 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => handlePrint(sale)}
-                          className="p-2 bg-emerald-500/20 hover:bg-emerald-500/30 rounded-lg text-emerald-400"
-                          title="طباعة"
-                        >
+                        <motion.button whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }} onClick={() => handlePrint(sale)} className="p-2 bg-emerald-500/20 hover:bg-emerald-500/30 rounded-lg text-emerald-400" title="طباعة">
                           <Printer className="w-4 h-4" />
                         </motion.button>
-                        <motion.button
-                          whileHover={{ scale: 1.2 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => handleDelete(sale.id)}
-                          className="p-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-red-400"
-                          title="حذف"
-                        >
+                        <motion.button whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }} onClick={() => handleDelete(sale.id)} className="p-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-red-400" title="حذف">
                           <Trash2 className="w-4 h-4" />
                         </motion.button>
                       </div>
@@ -1196,54 +1025,22 @@ export function InstallmentSalesList() {
           </div>
         )}
 
-        {/* Table Footer with Pagination */}
+        {/* Footer + Pagination */}
         {sales.length > 0 && !loading && (
           <div className="bg-gradient-to-r from-slate-800 to-slate-900 px-4 py-3 border-t border-slate-700">
             <div className="flex justify-between items-center text-sm flex-wrap gap-2">
-              <div className="text-slate-400">
-                عرض {sales.length} من {totaux.total_ventes} عملية بيع
-              </div>
+              <div className="text-slate-400">عرض {sales.length} من {totaux.total_ventes} عملية بيع</div>
               <div className="flex gap-4 flex-wrap">
-                <div className="text-emerald-400">
-                  الإجمالي:{" "}
-                  <span className="font-bold">
-                    {formatMoney(totaux.total_montant_total)} دج
-                  </span>
-                </div>
-                <div className="text-amber-400">
-                  المدفوع:{" "}
-                  <span className="font-bold">
-                    {formatMoney(totaux.total_montant_verse)} دج
-                  </span>
-                </div>
-                <div className="text-red-400">
-                  المتبقي:{" "}
-                  <span className="font-bold">
-                    {formatMoney(totaux.total_montant_restant)} دج
-                  </span>
-                </div>
+                <div className="text-emerald-400">الإجمالي: <span className="font-bold">{formatMoney(totaux.total_montant_total)} دج</span></div>
+                <div className="text-amber-400">المدفوع: <span className="font-bold">{formatMoney(totaux.total_montant_verse)} دج</span></div>
+                <div className="text-red-400">المتبقي: <span className="font-bold">{formatMoney(totaux.total_montant_restant)} دج</span></div>
               </div>
             </div>
-
             {pagination.totalPages > 1 && (
               <div className="flex justify-center gap-2 mt-3">
-                <button
-                  onClick={() => handlePageChange(pagination.currentPage - 1)}
-                  disabled={pagination.currentPage === 1}
-                  className="px-3 py-1 bg-slate-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600 transition"
-                >
-                  السابق
-                </button>
-                <span className="px-3 py-1 bg-red-500/20 rounded-lg">
-                  صفحة {pagination.currentPage} من {pagination.totalPages}
-                </span>
-                <button
-                  onClick={() => handlePageChange(pagination.currentPage + 1)}
-                  disabled={pagination.currentPage === pagination.totalPages}
-                  className="px-3 py-1 bg-slate-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600 transition"
-                >
-                  التالي
-                </button>
+                <button onClick={() => handlePageChange(pagination.currentPage - 1)} disabled={pagination.currentPage === 1} className="px-3 py-1 bg-slate-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600 transition">السابق</button>
+                <span className="px-3 py-1 bg-red-500/20 rounded-lg">صفحة {pagination.currentPage} من {pagination.totalPages}</span>
+                <button onClick={() => handlePageChange(pagination.currentPage + 1)} disabled={pagination.currentPage === pagination.totalPages} className="px-3 py-1 bg-slate-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600 transition">التالي</button>
               </div>
             )}
           </div>
@@ -1262,14 +1059,9 @@ export function InstallmentSalesList() {
             <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <CreditCard className="w-5 h-5 text-white" />
-                <h2 className="text-white text-xl font-bold">
-                  تفاصيل عملية البيع #{selectedSale.id}
-                </h2>
+                <h2 className="text-white text-xl font-bold">تفاصيل عملية البيع #{selectedSale.id}</h2>
               </div>
-              <button
-                onClick={() => setOpenDetailDialog(false)}
-                className="text-white hover:bg-white/20 rounded-lg p-1 transition"
-              >
+              <button onClick={() => setOpenDetailDialog(false)} className="text-white hover:bg-white/20 rounded-lg p-1 transition">
                 <X className="w-6 h-6" />
               </button>
             </div>
@@ -1289,33 +1081,25 @@ export function InstallmentSalesList() {
                   <Calendar className="w-6 h-6 text-red-400 mx-auto mb-2" />
                   <div className="text-sm text-slate-400">التاريخ</div>
                   <div className="text-white font-semibold mt-1">
-                    {selectedSale.date_formatee ||
-                      new Date(selectedSale.date_creation).toLocaleDateString(
-                        "ar-DZ",
-                      )}
+                    {selectedSale.date_formatee || new Date(selectedSale.date_creation).toLocaleDateString("ar-DZ")}
                   </div>
                 </div>
                 <div className="bg-slate-700/30 rounded-lg p-4 text-center">
                   <DollarSign className="w-6 h-6 text-red-400 mx-auto mb-2" />
                   <div className="text-sm text-slate-400">المبلغ الإجمالي</div>
-                  <div className="text-xl font-bold text-emerald-400">
-                    {formatMoney(selectedSale.montant_total)} دج
-                  </div>
+                  <div className="text-xl font-bold text-emerald-400">{formatMoney(selectedSale.montant_total)} دج</div>
                 </div>
                 <div className="bg-slate-700/30 rounded-lg p-4 text-center">
                   <CreditCard className="w-6 h-6 text-red-400 mx-auto mb-2" />
                   <div className="text-sm text-slate-400">المبلغ الشهري</div>
-                  <div className="text-lg font-bold text-amber-400">
-                    {formatMoney(selectedSale.montant_mensuel)} دج
-                  </div>
+                  <div className="text-lg font-bold text-amber-400">{formatMoney(selectedSale.montant_mensuel)} دج</div>
                 </div>
               </div>
 
               <div className="bg-slate-700/30 rounded-lg overflow-hidden">
                 <div className="bg-gradient-to-r from-red-600 to-red-700 px-4 py-3">
                   <h3 className="text-white flex items-center gap-2">
-                    <ShoppingCart className="w-4 h-4" />
-                    المنتجات المباعة
+                    <ShoppingCart className="w-4 h-4" /> المنتجات المباعة
                   </h3>
                 </div>
                 <div className="overflow-x-auto">
@@ -1333,47 +1117,22 @@ export function InstallmentSalesList() {
                       </tr>
                     </thead>
                     <tbody>
-                      {selectedSale.lignes_detail &&
-                      selectedSale.lignes_detail.length > 0 ? (
+                      {selectedSale.lignes_detail && selectedSale.lignes_detail.length > 0 ? (
                         selectedSale.lignes_detail.map((ligne, index) => (
-                          <tr
-                            key={ligne.id || index}
-                            className="border-b border-slate-700"
-                          >
-                            <td className="px-4 py-2 text-red-300">
-                              {index + 1}
-                            </td>
-                            <td className="px-4 py-2 text-white">
-                              {ligne.produit_detail?.nom || "غير معروف"}
-                            </td>
-                            <td className="px-4 py-2 text-slate-300 font-mono text-xs">
-                              {ligne.produit_detail?.reference || "-"}
-                            </td>
-                            <td className="px-4 py-2 text-blue-300">
-                              {ligne.quantite}
-                            </td>
-                            <td className="px-4 py-2 text-amber-300">
-                              {formatMoney(ligne.prix_unitaire)} دج
-                            </td>
-                            <td className="px-4 py-2 text-emerald-300 font-medium">
-                              {formatMoney(ligne.sous_total)} دج
-                            </td>
-                            <td className="px-4 py-2 text-purple-300">
-                              {selectedSale.magasin?.nom || "-"}
-                            </td>
-                            <td className="px-4 py-2 text-slate-400 text-xs break-all">
-                              {ligne.codes_barres_utilises || "-"}
-                            </td>
+                          <tr key={ligne.id || index} className="border-b border-slate-700">
+                            <td className="px-4 py-2 text-red-300">{index + 1}</td>
+                            <td className="px-4 py-2 text-white">{ligne.produit_detail?.nom || "غير معروف"}</td>
+                            <td className="px-4 py-2 text-slate-300 font-mono text-xs">{ligne.produit_detail?.reference || "-"}</td>
+                            <td className="px-4 py-2 text-blue-300">{ligne.quantite}</td>
+                            <td className="px-4 py-2 text-amber-300">{formatMoney(ligne.prix_unitaire)} دج</td>
+                            <td className="px-4 py-2 text-emerald-300 font-medium">{formatMoney(ligne.sous_total)} دج</td>
+                            <td className="px-4 py-2 text-purple-300">{selectedSale.magasin?.nom || "-"}</td>
+                            <td className="px-4 py-2 text-slate-400 text-xs break-all">{ligne.codes_barres_utilises || "-"}</td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td
-                            colSpan="8"
-                            className="px-4 py-8 text-center text-slate-400"
-                          >
-                            لا توجد تفاصيل
-                          </td>
+                          <td colSpan="8" className="px-4 py-8 text-center text-slate-400">لا توجد تفاصيل</td>
                         </tr>
                       )}
                     </tbody>
@@ -1383,18 +1142,13 @@ export function InstallmentSalesList() {
             </div>
 
             <div className="border-t border-slate-700 px-6 py-4 flex justify-end">
-              <button
-                onClick={() => setOpenDetailDialog(false)}
-                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition"
-              >
-                إغلاق
-              </button>
+              <button onClick={() => setOpenDetailDialog(false)} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition">إغلاق</button>
             </div>
           </motion.div>
         </div>
       )}
 
-      {/* Print Dialog with CCP Buttons */}
+      {/* Print Dialog */}
       {openPrintDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <motion.div
@@ -1405,57 +1159,25 @@ export function InstallmentSalesList() {
           >
             <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 flex justify-between items-center">
               <h2 className="text-white text-xl font-bold">طباعة المستندات</h2>
-              <button
-                onClick={() => {
-                  setOpenPrintDialog(false);
-                  setPrintSaleDetails(null);
-                }}
-                className="text-white hover:bg-white/20 rounded-lg p-1 transition"
-              >
+              <button onClick={() => { setOpenPrintDialog(false); setPrintSaleDetails(null); }} className="text-white hover:bg-white/20 rounded-lg p-1 transition">
                 <X className="w-6 h-6" />
               </button>
             </div>
             <div className="p-6 space-y-3 max-h-[60vh] overflow-y-auto">
               {loadingPrintDetails ? (
                 <div className="flex justify-center items-center py-8">
-                  <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
                   <span className="mr-2 text-purple-400">جاري تحميل البيانات...</span>
                 </div>
               ) : printSaleDetails ? (
                 <>
-                  <button
-                    onClick={() => {
-                      downloadFile(
-                        `/vente/ventes-facilite/${printSaleDetails.id}/acte/word/`,
-                        `Acte_${printSaleDetails.id}.docx`,
-                      );
-                    }}
-                    className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-3 rounded-lg hover:from-red-600 hover:to-red-700 transition flex items-center justify-center gap-2"
-                  >
+                  <button onClick={() => downloadFile(`/vente/ventes-facilite/${printSaleDetails.id}/acte/word/`, `Acte_${printSaleDetails.id}.docx`)} className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-3 rounded-lg hover:from-red-600 hover:to-red-700 transition flex items-center justify-center gap-2">
                     <FileText className="w-4 h-4" /> عقد البيع بالتقسيط
                   </button>
-
-                  <button
-                    onClick={() => {
-                      downloadFile(
-                        `/vente/ventes-facilite/${printSaleDetails.id}/bon/word/`,
-                        `Bon_${printSaleDetails.id}.docx`,
-                      );
-                    }}
-                    className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white px-4 py-3 rounded-lg hover:from-emerald-600 hover:to-green-700 transition flex items-center justify-center gap-2"
-                  >
+                  <button onClick={() => downloadFile(`/vente/ventes-facilite/${printSaleDetails.id}/bon/word/`, `Bon_${printSaleDetails.id}.docx`)} className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white px-4 py-3 rounded-lg hover:from-emerald-600 hover:to-green-700 transition flex items-center justify-center gap-2">
                     <Printer className="w-4 h-4" /> وصل البيع
                   </button>
-
-                  <button
-                    onClick={() => {
-                      downloadFile(
-                        `/vente/ventes-facilite/${printSaleDetails.id}/depot/word/`,
-                        `Depot_${printSaleDetails.id}.docx`,
-                      );
-                    }}
-                    className="w-full bg-gradient-to-r from-amber-500 to-orange-600 text-white px-4 py-3 rounded-lg hover:from-amber-600 hover:to-orange-700 transition flex items-center justify-center gap-2"
-                  >
+                  <button onClick={() => downloadFile(`/vente/ventes-facilite/${printSaleDetails.id}/depot/word/`, `Depot_${printSaleDetails.id}.docx`)} className="w-full bg-gradient-to-r from-amber-500 to-orange-600 text-white px-4 py-3 rounded-lg hover:from-amber-600 hover:to-orange-700 transition flex items-center justify-center gap-2">
                     <Building2 className="w-4 h-4" /> وصل المخزن
                   </button>
 
@@ -1465,28 +1187,15 @@ export function InstallmentSalesList() {
                         <p className="text-slate-400 text-sm text-center mb-2">وصلات CCP</p>
                       </div>
                       {printSaleDetails.montants_par_mois.map((montant, index) => (
-                        <button
-                          key={index}
-                          onClick={() => {
-                            downloadFile(
-                              `/vente/ventes-facilite/${printSaleDetails.id}/ccp/word/?prelevement=${montant}`,
-                              `CCP_${index + 1}.docx`,
-                            );
-                          }}
-                          className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-3 rounded-lg hover:from-purple-600 hover:to-purple-700 transition flex items-center justify-center gap-2"
-                        >
+                        <button key={index} onClick={() => downloadFile(`/vente/ventes-facilite/${printSaleDetails.id}/ccp/word/?prelevement=${montant}`, `CCP_${index + 1}.docx`)} className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-3 rounded-lg hover:from-purple-600 hover:to-purple-700 transition flex items-center justify-center gap-2">
                           <CreditCard className="w-4 h-4" /> وصل CCP - الشهر {index + 1} ({formatMoney(montant)} دج)
                         </button>
                       ))}
                     </>
                   ) : (
                     <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-3 text-center">
-                      <p className="text-yellow-400 text-sm">
-                        لا توجد مبالغ شهرية متاحة لوصلات CCP
-                      </p>
-                      <p className="text-slate-400 text-xs mt-1">
-                        تأكد من أن عملية البيع تحتوي على مبلغ شهري محدد
-                      </p>
+                      <p className="text-yellow-400 text-sm">لا توجد مبالغ شهرية متاحة لوصلات CCP</p>
+                      <p className="text-slate-400 text-xs mt-1">تأكد من أن عملية البيع تحتوي على مبلغ شهري محدد</p>
                     </div>
                   )}
                 </>
@@ -1496,13 +1205,7 @@ export function InstallmentSalesList() {
                 </div>
               )}
 
-              <button
-                onClick={() => {
-                  setOpenPrintDialog(false);
-                  setPrintSaleDetails(null);
-                }}
-                className="w-full bg-slate-700 text-white px-4 py-3 rounded-lg hover:bg-slate-600 transition"
-              >
+              <button onClick={() => { setOpenPrintDialog(false); setPrintSaleDetails(null); }} className="w-full bg-slate-700 text-white px-4 py-3 rounded-lg hover:bg-slate-600 transition">
                 إغلاق
               </button>
             </div>

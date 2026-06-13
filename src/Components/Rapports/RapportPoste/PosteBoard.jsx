@@ -682,7 +682,7 @@ export default function PosteBoard() {
       {showAllData && (
         <div className="bg-purple-500/20 text-purple-300 px-4 py-2 rounded-lg text-sm flex items-center justify-between">
           <span>📊 عرض جميع البيانات ({expandedRows.length} دفعة)</span>
-          <span className="text-xs">إجمالي المبلغ: {Number(totalAmount).toLocaleString()} دج</span>
+          <span className="text-xs">إجمالي المبلغ: {Number(totalAmount)} دج</span>
         </div>
       )}
 
@@ -737,7 +737,7 @@ export default function PosteBoard() {
                     <td className="px-4 py-3 text-green-300">{index + 1}</td>
                     <td className="px-4 py-3 text-white font-medium">{row.name}</td>
                     <td className="px-4 py-3 text-blue-300 font-mono">{row.account}</td>
-                    <td className="px-4 py-3 text-emerald-400 font-bold">{Number(row.montant).toLocaleString()} دج</td>
+                    <td className="px-4 py-3 text-emerald-400 font-bold">{Number(row.montant)} دج</td>
                     <td className="px-4 py-3 text-slate-300">{row.date_debut}</td>
                     <td className="px-4 py-3 text-slate-300">{row.date_fin}</td>
                   </tr>
@@ -755,7 +755,7 @@ export default function PosteBoard() {
                 عرض {expandedRows.length} دفعة من إجمالي {totalItems} عملية بيع
               </div>
               <div className="text-emerald-400">
-                إجمالي المبلغ: <span className="font-bold text-white">{Number(totalAmount).toLocaleString()} دج</span>
+                إجمالي المبلغ: <span className="font-bold text-white">{Number(totalAmount)} دج</span>
               </div>
             </div>
             
@@ -800,8 +800,8 @@ function StatCard({ icon: Icon, label, value, color, isCurrency }) {
   };
   
   const formattedValue = isCurrency 
-    ? `${Number(value).toLocaleString()} دج`
-    : Number(value).toLocaleString();
+    ? `${Number(value)} دج`
+    : Number(value);
   
   return (
     <div className={`border rounded-lg px-3 py-2 ${colors[color]}`}>

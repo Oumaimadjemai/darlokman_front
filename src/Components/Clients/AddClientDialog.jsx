@@ -12,6 +12,8 @@ import {
   CreditCard,
   FileCheck,
   Edit,
+  Plus,
+  Calendar,
 } from "lucide-react";
 import axios from "../../api/axiosInstance";
 
@@ -45,7 +47,7 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
     date_naissance: null,
     lieu_naissance: "",
     adresse: "",
-    telephone: "",
+    telephones: [""],
     profession: "",
     jour: "",
     revenu: "",
@@ -64,6 +66,38 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
   const [existingFiles, setExistingFiles] = useState([]);
   const [filesToDelete, setFilesToDelete] = useState([]);
 
+  // Fonctions pour gérer les téléphones
+  const addTelephoneField = () => {
+    setUserInfos(prev => ({
+      ...prev,
+      telephones: [...prev.telephones, ""]
+    }));
+  };
+
+  const removeTelephoneField = (index) => {
+    if (userInfos.telephones.length === 1) {
+      setUserInfos(prev => {
+        const newTelephones = [...prev.telephones];
+        newTelephones[index] = "";
+        return { ...prev, telephones: newTelephones };
+      });
+      return;
+    }
+    
+    setUserInfos(prev => ({
+      ...prev,
+      telephones: prev.telephones.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateTelephone = (index, value) => {
+    setUserInfos(prev => {
+      const newTelephones = [...prev.telephones];
+      newTelephones[index] = value;
+      return { ...prev, telephones: newTelephones };
+    });
+  };
+
   // Initialize form with edit data
   useEffect(() => {
     if (clientToEdit) {
@@ -81,7 +115,9 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
         date_naissance: clientToEdit.date_naissance ? new Date(clientToEdit.date_naissance) : null,
         lieu_naissance: clientToEdit.lieu_naissance || "",
         adresse: clientToEdit.adresse || "",
-        telephone: clientToEdit.telephone || "",
+        telephones: clientToEdit.telephones && clientToEdit.telephones.length > 0 
+          ? clientToEdit.telephones 
+          : [""],
         profession: clientToEdit.profession || "",
         jour: clientToEdit.jour || "",
         revenu: clientToEdit.revenu || "",
@@ -96,7 +132,6 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
         note: clientToEdit.note || "",
       });
       
-      // Set existing files
       if (clientToEdit.fichiers) {
         setExistingFiles(clientToEdit.fichiers.map(file => ({
           id: file.id,
@@ -156,7 +191,6 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
       "date_naissance",
       "lieu_naissance",
       "adresse",
-      "telephone",
       "type_piece_identite",
       "numero_piece_identite",
       "date_emission_piece",
@@ -183,8 +217,11 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
 
     setLoading(true);
 
+    const cleanedTelephones = userInfos.telephones.filter(phone => phone && phone.trim() !== "");
+
     const formattedData = {
       ...userInfos,
+      telephones: cleanedTelephones,
       date_naissance: userInfos.date_naissance
         ? format(userInfos.date_naissance, "yyyy-MM-dd")
         : "",
@@ -198,10 +235,16 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
       dette_initiale: userInfos.dette_initiale || "0.00",
     };
 
+    delete formattedData.telephone;
+
     const formData = new FormData();
     Object.entries(formattedData).forEach(([key, value]) => {
       if (value !== null && value !== undefined && value !== "") {
-        formData.append(key, value);
+        if (key === "telephones") {
+          formData.append(key, JSON.stringify(value));
+        } else {
+          formData.append(key, value);
+        }
       }
     });
 
@@ -215,7 +258,6 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
 
     try {
       if (isEditMode && clientToEdit?.id) {
-        // Update existing client
         await axios.patch(`/auth/clients/${clientToEdit.id}/`, formData, {
           headers: {
             "Content-Type": "multipart/form-data",
@@ -224,7 +266,6 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
         });
         toast.success("✅ تم تحديث العميل بنجاح");
       } else {
-        // Create new client
         await axios.post("/auth/clients/", formData, {
           headers: {
             "Content-Type": "multipart/form-data",
@@ -265,7 +306,7 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
       date_naissance: null,
       lieu_naissance: "",
       adresse: "",
-      telephone: "",
+      telephones: [""],
       profession: "",
       jour: "",
       revenu: "",
@@ -368,23 +409,26 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
                   <label className="block text-sm text-slate-400 mb-1">
                     تاريخ إنتهاء الصلاحية
                   </label>
-                  <input
-                    type="date"
-                    value={
-                      userInfos.date_expedition
-                        ? format(userInfos.date_expedition, "yyyy-MM-dd")
-                        : ""
-                    }
-                    onChange={(e) =>
-                      setUserInfos((prev) => ({
-                        ...prev,
-                        date_expedition: e.target.value
-                          ? new Date(e.target.value)
-                          : null,
-                      }))
-                    }
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:border-amber-500 focus:outline-none"
-                  />
+                  <div className="relative">
+                    <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4 pointer-events-none" />
+                    <input
+                      type="date"
+                      value={
+                        userInfos.date_expedition
+                          ? format(userInfos.date_expedition, "yyyy-MM-dd")
+                          : ""
+                      }
+                      onChange={(e) =>
+                        setUserInfos((prev) => ({
+                          ...prev,
+                          date_expedition: e.target.value
+                            ? new Date(e.target.value)
+                            : null,
+                        }))
+                      }
+                      className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 pr-10 text-white focus:border-amber-500 focus:outline-none [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -514,23 +558,26 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
                   <label className="block text-sm text-slate-400 mb-1">
                     تاريخ الإزدياد <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="date"
-                    value={
-                      userInfos.date_naissance
-                        ? format(userInfos.date_naissance, "yyyy-MM-dd")
-                        : ""
-                    }
-                    onChange={(e) =>
-                      setUserInfos((prev) => ({
-                        ...prev,
-                        date_naissance: e.target.value
-                          ? new Date(e.target.value)
-                          : null,
-                      }))
-                    }
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:border-amber-500 focus:outline-none"
-                  />
+                  <div className="relative">
+                    <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4 pointer-events-none" />
+                    <input
+                      type="date"
+                      value={
+                        userInfos.date_naissance
+                          ? format(userInfos.date_naissance, "yyyy-MM-dd")
+                          : ""
+                      }
+                      onChange={(e) =>
+                        setUserInfos((prev) => ({
+                          ...prev,
+                          date_naissance: e.target.value
+                            ? new Date(e.target.value)
+                            : null,
+                        }))
+                      }
+                      className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 pr-10 text-white focus:border-amber-500 focus:outline-none [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">
@@ -567,23 +614,40 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
                 />
               </div>
 
+              {/* SECTION TÉLÉPHONES */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">
+                  أرقام الهاتف
+                </label>
+                {userInfos.telephones.map((phone, index) => (
+                  <div key={index} className="flex gap-2 mb-2">
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => updateTelephone(index, e.target.value)}
+                      placeholder={`رقم الهاتف ${index + 1}`}
+                      className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:border-amber-500 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeTelephoneField(index)}
+                      className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addTelephoneField}
+                  className="mt-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  إضافة رقم هاتف آخر
+                </button>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-slate-400 mb-1">
-                    الهاتف <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    value={userInfos.telephone}
-                    onChange={(e) =>
-                      setUserInfos((prev) => ({
-                        ...prev,
-                        telephone: e.target.value,
-                      }))
-                    }
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:border-amber-500 focus:outline-none"
-                  />
-                </div>
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">
                     المهنة
@@ -600,9 +664,6 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
                     className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:border-amber-500 focus:outline-none"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">
                     الدخل
@@ -619,28 +680,29 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
                     className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:border-amber-500 focus:outline-none"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm text-slate-400 mb-1">
-                    اليوم
-                  </label>
-                  <select
-                    value={userInfos.jour || ""}
-                    onChange={(e) =>
-                      setUserInfos((prev) => ({
-                        ...prev,
-                        jour: e.target.value,
-                      }))
-                    }
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:border-amber-500 focus:outline-none"
-                  >
-                    <option value="">اختر اليوم</option>
-                    {[...Array(30)].map((_, i) => (
-                      <option key={i + 1} value={i + 1}>
-                        {i + 1}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">
+                  اليوم
+                </label>
+                <select
+                  value={userInfos.jour || ""}
+                  onChange={(e) =>
+                    setUserInfos((prev) => ({
+                      ...prev,
+                      jour: e.target.value,
+                    }))
+                  }
+                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:border-amber-500 focus:outline-none"
+                >
+                  <option value="">اختر اليوم</option>
+                  {[...Array(30)].map((_, i) => (
+                    <option key={i + 1} value={i + 1}>
+                      {i + 1}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-3 gap-4">
@@ -683,23 +745,26 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
                   <label className="block text-sm text-slate-400 mb-1">
                     تاريخ الإصدار <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="date"
-                    value={
-                      userInfos.date_emission_piece
-                        ? format(userInfos.date_emission_piece, "yyyy-MM-dd")
-                        : ""
-                    }
-                    onChange={(e) =>
-                      setUserInfos((prev) => ({
-                        ...prev,
-                        date_emission_piece: e.target.value
-                          ? new Date(e.target.value)
-                          : null,
-                      }))
-                    }
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:border-amber-500 focus:outline-none"
-                  />
+                  <div className="relative">
+                    <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4 pointer-events-none" />
+                    <input
+                      type="date"
+                      value={
+                        userInfos.date_emission_piece
+                          ? format(userInfos.date_emission_piece, "yyyy-MM-dd")
+                          : ""
+                      }
+                      onChange={(e) =>
+                        setUserInfos((prev) => ({
+                          ...prev,
+                          date_emission_piece: e.target.value
+                            ? new Date(e.target.value)
+                            : null,
+                        }))
+                      }
+                      className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 pr-10 text-white focus:border-amber-500 focus:outline-none [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -818,7 +883,6 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
           {/* Documents Tab */}
           {activeTab === "documents" && (
             <div>
-              {/* Existing Files */}
               {existingFiles.length > 0 && (
                 <div className="mb-6">
                   <h3 className="text-slate-300 font-semibold mb-3">
@@ -860,7 +924,6 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
                 </div>
               )}
 
-              {/* Drag & Drop Area */}
               <div
                 onClick={handleFileClick}
                 onDrop={handleDrop}
@@ -881,7 +944,6 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
                 />
               </div>
 
-              {/* New Uploaded Files */}
               {uploadedFiles.length > 0 && (
                 <div className="mt-6">
                   <h3 className="text-slate-300 font-semibold mb-3">

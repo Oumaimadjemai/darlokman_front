@@ -372,7 +372,7 @@ useEffect(() => {
       <Box display="flex" alignItems="center" gap={5}>
         <Typography variant="body1">المجموع</Typography>
         <Typography variant="body1" sx={{color:"red"}}>
-          {parseInt(total).toLocaleString("fr-DZ")} دج
+          {parseInt(total)} دج
         </Typography>
       </Box>
 

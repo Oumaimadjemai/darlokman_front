@@ -35,7 +35,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import Grid from "@mui/material/GridLegacy";
-import { Sparkles, MessageCircle, X, Package, AlertCircle, CheckCircle, TrendingUp, Store, Eye, EyeOff, Shield } from 'lucide-react';
+import { Sparkles, MessageCircle, X, Package, AlertCircle, CheckCircle, TrendingUp, Store, Eye, EyeOff, Shield, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from "../../api/axiosInstance";
 import ChatComponent from "../Chat/ChatComponent";
@@ -45,9 +45,11 @@ const COLORS = ["#4F46E5", "#3B82F6", "#93C5FD", "#F59E0B", "#10B981", "#EF4444"
 
 export function Dashboard() {
   const [users, setUsers] = useState([]);
+  const [availableYears, setAvailableYears] = useState([]);
   const [filters, setFilters] = useState({
     users: "",
     periode: "this_month",
+    year: new Date().getFullYear().toString(),
   });
   const [chatOpen, setChatOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -139,6 +141,16 @@ export function Dashboard() {
     } else {
       return num.toString();
     }
+  };
+
+  // Generate available years (from 2020 to current year + 1)
+  const generateAvailableYears = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let year = 2020; year <= currentYear + 1; year++) {
+      years.push(year.toString());
+    }
+    return years;
   };
 
   // Fetch all magasins to create a mapping
@@ -245,6 +257,11 @@ export function Dashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  // Initialize available years
+  useEffect(() => {
+    setAvailableYears(generateAvailableYears());
+  }, []);
+
   // Fetch magasins on mount
   useEffect(() => {
     fetchMagasins();
@@ -268,12 +285,17 @@ export function Dashboard() {
     setFilters((prev) => ({ ...prev, periode: event.target.value || "this_month" }));
   };
 
+  const handleYearChange = (event) => {
+    setFilters((prev) => ({ ...prev, year: event.target.value || new Date().getFullYear().toString() }));
+  };
+
   const fetchDashboardData = (filters) => {
     setLoading(true);
     
     const params = new URLSearchParams();
     if (filters.users) params.append('user', filters.users);
     if (filters.periode) params.append('periode', filters.periode);
+    if (filters.year) params.append('year', filters.year);
     
     axios
       .get(`/stats/dashboard/?${params.toString()}`, {
@@ -295,6 +317,7 @@ export function Dashboard() {
         setProductFamilies(data.product_families);
         
         setLoading(false);
+        console.log("Dashboard data loaded", data);
       })
       .catch((err) => {
         console.error("Failed to fetch dashboard data", err);
@@ -403,7 +426,29 @@ export function Dashboard() {
               </IconButton>
             </motion.div>
 
-            {/* Filters */}
+            {/* Year Filter - NEW */}
+            <FormControl size="small" sx={{ minWidth: 120, backgroundColor: 'rgba(15, 23, 42, 0.7)', borderRadius: 2 }}>
+              <Select 
+                value={filters.year || new Date().getFullYear().toString()} 
+                onChange={handleYearChange}
+                displayEmpty
+                sx={{ 
+                  color: 'white', 
+                  height: '40px',
+                  '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(245, 158, 11, 0.3)' },
+                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(245, 158, 11, 0.5)' },
+                }}
+                startAdornment={<Calendar className="w-4 h-4 text-amber-400 ml-2" />}
+              >
+                {availableYears.map((year) => (
+                  <MenuItem key={year} value={year}>
+                    {year}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* User Filter */}
             <FormControl size="small" sx={{ minWidth: 180, backgroundColor: 'rgba(15, 23, 42, 0.7)', borderRadius: 2 }}>
               <Select 
                 value={filters.users || ""} 
@@ -425,6 +470,7 @@ export function Dashboard() {
               </Select>
             </FormControl>
             
+            {/* Period Filter */}
             <FormControl size="small" sx={{ minWidth: 150, backgroundColor: 'rgba(15, 23, 42, 0.7)', borderRadius: 2 }}>
               <Select 
                 value={filters.periode || "this_month"} 
@@ -668,7 +714,12 @@ export function Dashboard() {
                   className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm border border-amber-500/20 rounded-xl p-4"
                   style={{ height: '340px' }}
                 >
-                  <h3 className="text-amber-400 text-lg mb-2">المبيعات والفائدة بالتقسيط</h3>
+                  <h3 className="text-amber-400 text-lg mb-2">
+                    المبيعات والفائدة بالتقسيط
+                    {filters.year && (
+                      <span className="text-sm text-slate-400 mr-2">({filters.year})</span>
+                    )}
+                  </h3>
                   {!isAdmin && !showSensitiveData ? (
                     <div className="flex flex-col items-center justify-center h-64">
                       <Shield className="w-12 h-12 text-amber-400 mx-auto mb-3" />
@@ -718,7 +769,12 @@ export function Dashboard() {
                   className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm border border-amber-500/20 rounded-xl p-4"
                   style={{ height: '340px' }}
                 >
-                  <h3 className="text-amber-400 text-lg mb-2 text-right">إجمالي الأرباح الشهرية بالتقسيط</h3>
+                  <h3 className="text-amber-400 text-lg mb-2 text-right">
+                    إجمالي الأرباح الشهرية بالتقسيط
+                    {filters.year && (
+                      <span className="text-sm text-slate-400 mr-2">({filters.year})</span>
+                    )}
+                  </h3>
                   {!isAdmin && !showSensitiveData ? (
                     <div className="flex flex-col items-center justify-center h-64">
                       <Shield className="w-12 h-12 text-amber-400 mx-auto mb-3" />

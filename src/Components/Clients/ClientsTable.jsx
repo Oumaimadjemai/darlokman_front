@@ -7,6 +7,7 @@ import {
   Lock,
   Filter,
   X,
+  FileCheck,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -45,6 +46,7 @@ export function ClientsTable() {
   const [filters, setFilters] = useState({
     status: "",
     blocked: "",
+    recuperer_fichiers: "", // NEW: Add filter for recuperer_fichiers
   });
 
   const headers = {
@@ -74,6 +76,7 @@ export function ClientsTable() {
       if (searchTerm) params.append("search", searchTerm);
       if (filters.status) params.append("statut", filters.status);
       if (filters.blocked !== "") params.append("bloque", filters.blocked);
+      if (filters.recuperer_fichiers !== "") params.append("recuperer_fichiers", filters.recuperer_fichiers);
 
       if (params.toString()) url += `?${params.toString()}`;
 
@@ -141,7 +144,7 @@ export function ClientsTable() {
   };
 
   const clearFilters = () => {
-    setFilters({ status: "", blocked: "" });
+    setFilters({ status: "", blocked: "", recuperer_fichiers: "" });
     setSearchTerm("");
   };
 
@@ -164,6 +167,13 @@ export function ClientsTable() {
     { value: "", label: "الكل" },
     { value: "true", label: "محظور" },
     { value: "false", label: "نشط" },
+  ];
+
+  // NEW: Options for recuperer_fichiers filter
+  const recupererFichiersOptions = [
+    { value: "", label: "الكل" },
+    { value: "true", label: "مسترد الملفات" },
+    { value: "false", label: "لم يسترد الملفات" },
   ];
 
   return (
@@ -229,7 +239,7 @@ export function ClientsTable() {
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-              showFilters || filters.status || filters.blocked
+              showFilters || filters.status || filters.blocked || filters.recuperer_fichiers
                 ? 'bg-amber-500 text-white'
                 : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
             }`}
@@ -247,7 +257,7 @@ export function ClientsTable() {
             exit={{ opacity: 0, height: 0 }}
             className="bg-slate-800/50 rounded-lg p-4 border border-amber-500/30"
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm text-slate-400 mb-1">التصنيف</label>
                 <select
@@ -274,8 +284,27 @@ export function ClientsTable() {
                   ))}
                 </select>
               </div>
+              {/* NEW: Recuperer fichiers filter */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">
+                  <span className="flex items-center gap-1">
+                    <FileCheck className="w-4 h-4 text-green-400" />
+                    استرجاع الملفات
+                  </span>
+                </label>
+                <select
+                  name="recuperer_fichiers"
+                  value={filters.recuperer_fichiers}
+                  onChange={handleFilterChange}
+                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
+                >
+                  {recupererFichiersOptions.map(option => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-            {(filters.status || filters.blocked) && (
+            {(filters.status || filters.blocked || filters.recuperer_fichiers) && (
               <div className="flex justify-end mt-4">
                 <button
                   onClick={clearFilters}
@@ -316,7 +345,7 @@ export function ClientsTable() {
                 <tbody>
                   {rows.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
+                      <td colSpan={10} className="px-4 py-8 text-center text-slate-400">
                         لا توجد بيانات
                       </td>
                     </tr>
@@ -344,7 +373,7 @@ export function ClientsTable() {
                           <td className="px-4 py-3 text-white">{client.nom_famille_ar || client.nom_famille_fr || "--"}</td>
                           <td className="px-4 py-3 text-slate-300">{client.adresse || "--"}</td>
                           
-                          {/* ✅ FIXED: Using telephones array instead of telephone */}
+                          {/* Telephones array */}
                           <td className="px-4 py-3">
                             {client.telephones && client.telephones.length > 0 ? (
                               <div className="space-y-1">
@@ -377,6 +406,7 @@ export function ClientsTable() {
                               </span>
                             )}
                           </td>
+                          
                           <td className="px-4 py-3">
                             <div className="flex gap-2">
                               <button

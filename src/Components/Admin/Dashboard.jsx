@@ -35,7 +35,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import Grid from "@mui/material/GridLegacy";
-import { Sparkles, MessageCircle, X, Package, AlertCircle, CheckCircle, TrendingUp, Store, Eye, EyeOff, Shield, Calendar } from 'lucide-react';
+import { Sparkles, MessageCircle, X, Package, AlertCircle, CheckCircle, TrendingUp, Store, Eye, EyeOff, Shield, Calendar, UserPlus, UserIcon, DollarSign, CreditCard, PackageIcon, TrendingDown, DollarSignIcon, BarChartIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from "../../api/axiosInstance";
 import ChatComponent from "../Chat/ChatComponent";
@@ -61,6 +61,7 @@ export function Dashboard() {
 
   // Dashboard data states
   const [totalClients, setTotalClients] = useState(0);
+  const [newClients, setNewClients] = useState(0);
   const [totalFacilite, setTotalFacilite] = useState(0);
   const [totalCash, setTotalCash] = useState(0);
   const [totalMontantFacilite, setTotalMontantFacilite] = useState(0);
@@ -282,11 +283,17 @@ export function Dashboard() {
   };
 
   const handlePeriodeChange = (event) => {
-    setFilters((prev) => ({ ...prev, periode: event.target.value || "this_month" }));
+    const newPeriode = event.target.value || "this_month";
+    // When period changes, keep the current year
+    setFilters((prev) => ({ 
+      ...prev, 
+      periode: newPeriode
+    }));
   };
 
   const handleYearChange = (event) => {
-    setFilters((prev) => ({ ...prev, year: event.target.value || new Date().getFullYear().toString() }));
+    const newYear = event.target.value || new Date().getFullYear().toString();
+    setFilters((prev) => ({ ...prev, year: newYear }));
   };
 
   const fetchDashboardData = (filters) => {
@@ -295,16 +302,32 @@ export function Dashboard() {
     const params = new URLSearchParams();
     if (filters.users) params.append('user', filters.users);
     if (filters.periode) params.append('periode', filters.periode);
+    // UNCOMMENTED: Always send year parameter
     if (filters.year) params.append('year', filters.year);
+    
+    console.log("Fetching dashboard with params:", params.toString());
+    console.log("Period:", filters.periode);
+    console.log("Year:", filters.year);
     
     axios
       .get(`/stats/dashboard/?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` }
+        headers: { 
+          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
       })
       .then((res) => {
         const data = res.data;
         
+        console.log("Full API Response:", data);
+        console.log("Total Clients:", data.total_clients);
+        console.log("New Clients:", data.new_clients);
+        console.log("Selected Year:", data.selected_year);
+        console.log("Date Range:", data.date_range);
+        
         setTotalClients(data.total_clients);
+        setNewClients(data.new_clients || 0);
         setTotalFacilite(data.total_facilite_sales);
         setTotalMontantFacilite(data.total_facilite_amount);
         setTotalCash(data.total_cash_sales);
@@ -317,7 +340,6 @@ export function Dashboard() {
         setProductFamilies(data.product_families);
         
         setLoading(false);
-        console.log("Dashboard data loaded", data);
       })
       .catch((err) => {
         console.error("Failed to fetch dashboard data", err);
@@ -331,15 +353,88 @@ export function Dashboard() {
     return magasinsMap[magasinId] || `مخزن ${magasinId}`;
   };
 
+  // Get period label for new clients card
+  const getPeriodLabel = () => {
+    const periodMap = {
+      'today': 'اليوم',
+      'yesterday': 'أمس',
+      'this_week': 'هذا الأسبوع',
+      'this_month': 'هذا الشهر',
+      'last_month': 'الشهر الماضي',
+      'this_year': 'هذه السنة'
+    };
+    return periodMap[filters.periode] || filters.periode;
+  };
+
+  // Get full period description with year
+  const getPeriodDescription = () => {
+    const periodLabel = getPeriodLabel();
+    if (filters.year) {
+      return `خلال ${periodLabel} ${filters.year}`;
+    }
+    return `خلال ${periodLabel}`;
+  };
+
   // Cards configuration with visibility based on role
   const cards = [
-    { title: "الزبائن", value: formatNumber(totalClients), icon: "👥", color: "from-amber-500 to-yellow-600", sensitive: false },
-    { title: "البيع بالتقسيط", value: formatNumber(totalFacilite), icon: "📊", color: "from-red-500 to-red-600", sensitive: false },
-    { title: "قيمة التقسيط", value: formatMoney(totalMontantFacilite), icon: "💰", color: "from-rose-500 to-red-600", sensitive: true },
-    { title: "البيع نقدا", value: formatNumber(totalCash), icon: "💵", color: "from-indigo-500 to-indigo-600", sensitive: false },
-    { title: "قيمة النقد", value: formatMoney(totalMontantCash), icon: "💳", color: "from-indigo-500 to-indigo-600", sensitive: true },
-    { title: "قيمة السلع", value: formatMoney(valeurProduit), icon: "📦", color: "from-green-500 to-green-600", sensitive: true },
-    { title: "المصاريف", value: formatMoney(totalMontantDepense), icon: "📉", color: "from-orange-500 to-orange-600", sensitive: true },
+    { 
+      title: "الزبائن", 
+      value: formatNumber(totalClients), 
+      icon: <UserIcon className="w-5 h-5" />, 
+      color: "from-amber-500 to-yellow-600", 
+      sensitive: false,
+      subtitle: "إجمالي الزبائن"
+    },
+    { 
+      title: `زبائن جدد (${getPeriodLabel()})`, 
+      value: formatNumber(newClients), 
+      icon: <UserPlus className="w-5 h-5" />, 
+      color: "from-emerald-500 to-green-600", 
+      sensitive: false,
+      subtitle: getPeriodDescription()
+    },
+    { 
+      title: "البيع بالتقسيط", 
+      value: formatNumber(totalFacilite), 
+      icon: <BarChartIcon className="w-5 h-5" />, 
+      color: "from-red-500 to-red-600", 
+      sensitive: false 
+    },
+    { 
+      title: "قيمة التقسيط", 
+      value: formatMoney(totalMontantFacilite), 
+      icon: <DollarSignIcon className="w-5 h-5" />, 
+      color: "from-rose-500 to-red-600", 
+      sensitive: true 
+    },
+    { 
+      title: "البيع نقدا", 
+      value: formatNumber(totalCash), 
+      icon: <DollarSign className="w-5 h-5" />, 
+      color: "from-indigo-500 to-indigo-600", 
+      sensitive: false 
+    },
+    { 
+      title: "قيمة النقد", 
+      value: formatMoney(totalMontantCash), 
+      icon: <CreditCard className="w-5 h-5" />, 
+      color: "from-indigo-500 to-indigo-600", 
+      sensitive: true 
+    },
+    { 
+      title: "قيمة السلع", 
+      value: formatMoney(valeurProduit), 
+      icon: <PackageIcon className="w-5 h-5" />, 
+      color: "from-green-500 to-green-600", 
+      sensitive: true 
+    },
+    { 
+      title: "المصاريف", 
+      value: formatMoney(totalMontantDepense), 
+      icon: <TrendingDown className="w-5 h-5" />, 
+      color: "from-orange-500 to-orange-600", 
+      sensitive: true 
+    },
   ];
 
   return (
@@ -426,7 +521,7 @@ export function Dashboard() {
               </IconButton>
             </motion.div>
 
-            {/* Year Filter - NEW */}
+            {/* Year Filter - Always visible and enabled */}
             <FormControl size="small" sx={{ minWidth: 120, backgroundColor: 'rgba(15, 23, 42, 0.7)', borderRadius: 2 }}>
               <Select 
                 value={filters.year || new Date().getFullYear().toString()} 
@@ -493,8 +588,8 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Cards Row - Hide sensitive data for non-admin unless toggled */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+        {/* Cards Row */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-4">
           {cards.map((card, index) => (
             <motion.div
               key={index}
@@ -511,6 +606,11 @@ export function Dashboard() {
               <div className="text-xl font-bold text-white truncate">
                 {card.sensitive && !isAdmin && !showSensitiveData ? '••••••' : card.value}
               </div>
+              {card.subtitle && (
+                <div className="text-[10px] text-white/60 mt-0.5 truncate">
+                  {card.subtitle}
+                </div>
+              )}
               {card.sensitive && !isAdmin && !showSensitiveData && (
                 <div className="text-xs text-white/50 mt-1">متاح للمدير فقط</div>
               )}
@@ -518,7 +618,7 @@ export function Dashboard() {
           ))}
         </div>
 
-        {/* Inventory Stats Cards - Always visible */}
+        {/* Inventory Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm border border-purple-500/20 rounded-xl p-4">
             <div className="flex items-center gap-2">
@@ -552,7 +652,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Main Content Grid - Hide sensitive charts for non-admin without permission */}
+        {/* Main Content Grid */}
         <Grid container spacing={3}>
           {/* Left Column - Percentage and Pie Chart */}
           <Grid item xs={6}>
@@ -851,7 +951,7 @@ export function Dashboard() {
           </Grid>
         </Grid>
 
-        {/* Inventory Table Section - Always visible */}
+        {/* Inventory Table Section */}
         <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm border border-purple-500/20 rounded-xl overflow-hidden shadow-lg">
           <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-4 py-3 flex justify-between items-center">
             <div className="flex items-center gap-2">

@@ -17,6 +17,8 @@ import {
   Building2,
   RefreshCw,
   BarChart3,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -54,6 +56,8 @@ export function InstallmentSalesList() {
     previous: null,
     currentPage: 1,
     totalPages: 1,
+    pageSize: 20,
+    totalItems: 0,
   });
   const [printSaleDetails, setPrintSaleDetails] = useState(null);
   const [loadingPrintDetails, setLoadingPrintDetails] = useState(false);
@@ -363,7 +367,7 @@ export function InstallmentSalesList() {
   };
 
   // ============================================================
-  // FETCH SALES — selectedUserId read directly from closure
+  // FETCH SALES
   // ============================================================
   const fetchSales = useCallback(
     async (page = 1, forceRefresh = false) => {
@@ -387,7 +391,7 @@ export function InstallmentSalesList() {
       setLoading(true);
       setError(null);
 
-      const params = { page, page_size: 50 };
+      const params = { page, page_size: 20 };
 
       // User filter
       if (role === "admin") {
@@ -399,12 +403,11 @@ export function InstallmentSalesList() {
         if (userId) params.users = userId;
       }
 
-      // Magasin filter (admin only via dropdown)
+      // Magasin filter
       if (role === "admin" && selectedMagasinId) {
         params.magasin = selectedMagasinId;
       }
 
-      // Non-admin accessible magasins
       if (role !== "admin" && userAccessibleMagasins.length > 0) {
         if (userAccessibleMagasins.length === 1) {
           params.magasin = userAccessibleMagasins[0];
@@ -461,12 +464,17 @@ export function InstallmentSalesList() {
           total_montant_restant: totalMontantRestant,
         });
 
-        const totalPages = Math.ceil((responseData.count || totalVentes) / 50);
+        const pageSize = 20;
+        const totalItems = responseData.count || totalVentes || 0;
+        const totalPages = Math.ceil(totalItems / pageSize);
+
         setPagination({
           next: responseData.next,
           previous: responseData.previous,
           currentPage: page,
           totalPages: totalPages > 0 ? totalPages : 1,
+          pageSize: pageSize,
+          totalItems: totalItems,
         });
       } catch (err) {
         if (err.name === "CanceledError" || err.code === "ERR_CANCELED") return;
@@ -514,7 +522,7 @@ export function InstallmentSalesList() {
     init();
   }, [fetchCurrentUserId, fetchUserAccessibleMagasins, role]);
 
-  // ── Dedicated effect for selectedUserId changes ──────────────
+  // Dedicated effect for selectedUserId changes
   useEffect(() => {
     if (!isInitialized) return;
     if (role !== "admin" && !currentUserId) return;
@@ -523,7 +531,7 @@ export function InstallmentSalesList() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedUserId]);
 
-  // ── Dedicated effect for selectedMagasinId changes ───────────
+  // Dedicated effect for selectedMagasinId changes
   useEffect(() => {
     if (!isInitialized) return;
     fetchSales(1);
@@ -531,7 +539,7 @@ export function InstallmentSalesList() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMagasinId]);
 
-  // ── Search debounce (NO selectedUserId / selectedMagasinId) ──
+  // Search debounce
   useEffect(() => {
     if (!isInitialized) return;
     if (role !== "admin" && !currentUserId) return;
@@ -546,7 +554,7 @@ export function InstallmentSalesList() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, isInitialized, currentUserId, role]);
 
-  // ── Filter debounce (NO selectedUserId / selectedMagasinId) ──
+  // Filter debounce
   useEffect(() => {
     if (!isInitialized) return;
     if (role !== "admin" && !currentUserId) return;
@@ -568,19 +576,16 @@ export function InstallmentSalesList() {
     setFilters((prev) => ({ ...prev, [name]: value }));
   };
 
-  // FIX: only set state — dedicated useEffect triggers the fetch
   const handleUserFilterChange = (e) => {
     const userId = e.target.value;
     setSelectedUserId(userId === "" ? null : parseInt(userId));
   };
 
-  // FIX: only set state — dedicated useEffect triggers the fetch
   const handleMagasinFilterChange = (e) => {
     const magasinId = e.target.value;
     setSelectedMagasinId(magasinId === "" ? null : parseInt(magasinId));
   };
 
-  // FIX: no direct fetchSales call — state resets trigger their effects
   const clearFilters = () => {
     setFilters({ periode: "", date_from: null, date_to: null });
     setSelectedUserId(null);
@@ -668,6 +673,16 @@ export function InstallmentSalesList() {
     if (num === undefined || num === null) return "0";
     return Number(num);
   };
+
+  // Calculate the range of items being displayed
+  const getDisplayRange = () => {
+    const pageSize = pagination.pageSize || 20;
+    const start = ((pagination.currentPage - 1) * pageSize) + 1;
+    const end = Math.min(pagination.currentPage * pageSize, pagination.totalItems);
+    return { start, end };
+  };
+
+  const range = getDisplayRange();
 
   // ── Render ────────────────────────────────────────────────────
   return (
@@ -800,7 +815,6 @@ export function InstallmentSalesList() {
 
       {/* Search and Filters */}
       <div className="flex gap-2 flex-wrap">
-        {/* Search */}
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4" />
           <input
@@ -812,7 +826,6 @@ export function InstallmentSalesList() {
           />
         </div>
 
-        {/* User Filter — admin only */}
         {role === "admin" && (
           <div className="relative min-w-[180px]">
             <User className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4 z-10" />
@@ -829,7 +842,6 @@ export function InstallmentSalesList() {
           </div>
         )}
 
-        {/* Magasin Filter — admin only */}
         {role === "admin" && (
           <div className="relative min-w-[180px]">
             <Building2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4 z-10" />
@@ -846,7 +858,6 @@ export function InstallmentSalesList() {
           </div>
         )}
 
-        {/* Date from */}
         <div className="relative">
           <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4 z-10" />
           <input
@@ -857,7 +868,6 @@ export function InstallmentSalesList() {
           />
         </div>
 
-        {/* Date to */}
         <div className="relative">
           <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4 z-10" />
           <input
@@ -868,7 +878,6 @@ export function InstallmentSalesList() {
           />
         </div>
 
-        {/* Filter toggle */}
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -1025,22 +1034,57 @@ export function InstallmentSalesList() {
           </div>
         )}
 
-        {/* Footer + Pagination */}
+        {/* Footer + Pagination - FIXED */}
         {sales.length > 0 && !loading && (
           <div className="bg-gradient-to-r from-slate-800 to-slate-900 px-4 py-3 border-t border-slate-700">
             <div className="flex justify-between items-center text-sm flex-wrap gap-2">
-              <div className="text-slate-400">عرض {sales.length} من {totaux.total_ventes} عملية بيع</div>
+              <div className="text-slate-400">
+               
+              </div>
               <div className="flex gap-4 flex-wrap">
                 <div className="text-emerald-400">الإجمالي: <span className="font-bold">{formatMoney(totaux.total_montant_total)} دج</span></div>
                 <div className="text-amber-400">المدفوع: <span className="font-bold">{formatMoney(totaux.total_montant_verse)} دج</span></div>
                 <div className="text-red-400">المتبقي: <span className="font-bold">{formatMoney(totaux.total_montant_restant)} دج</span></div>
               </div>
             </div>
+            
             {pagination.totalPages > 1 && (
-              <div className="flex justify-center gap-2 mt-3">
-                <button onClick={() => handlePageChange(pagination.currentPage - 1)} disabled={pagination.currentPage === 1} className="px-3 py-1 bg-slate-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600 transition">السابق</button>
-                <span className="px-3 py-1 bg-red-500/20 rounded-lg">صفحة {pagination.currentPage} من {pagination.totalPages}</span>
-                <button onClick={() => handlePageChange(pagination.currentPage + 1)} disabled={pagination.currentPage === pagination.totalPages} className="px-3 py-1 bg-slate-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600 transition">التالي</button>
+              <div className="flex justify-center items-center gap-2 mt-3">
+                <button 
+                  onClick={() => handlePageChange(1)} 
+                  disabled={pagination.currentPage === 1} 
+                  className="px-3 py-1 bg-slate-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600 transition text-sm"
+                >
+                  الأولى
+                </button>
+                <button 
+                  onClick={() => handlePageChange(pagination.currentPage - 1)} 
+                  disabled={pagination.currentPage === 1} 
+                  className="px-3 py-1 bg-slate-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600 transition flex items-center gap-1"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                  السابق
+                </button>
+                
+                <span className="px-4 py-1 bg-red-500/20 text-white rounded-lg text-sm font-medium">
+                  صفحة {pagination.currentPage} من {pagination.totalPages}
+                </span>
+                
+                <button 
+                  onClick={() => handlePageChange(pagination.currentPage + 1)} 
+                  disabled={pagination.currentPage === pagination.totalPages} 
+                  className="px-3 py-1 bg-slate-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600 transition flex items-center gap-1"
+                >
+                  التالي
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button 
+                  onClick={() => handlePageChange(pagination.totalPages)} 
+                  disabled={pagination.currentPage === pagination.totalPages} 
+                  className="px-3 py-1 bg-slate-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600 transition text-sm"
+                >
+                  الأخيرة
+                </button>
               </div>
             )}
           </div>

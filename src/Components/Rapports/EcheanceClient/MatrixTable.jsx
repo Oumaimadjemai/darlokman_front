@@ -66,11 +66,12 @@ export default function MatrixTable() {
       
       if (yearFilter) params.append('year', yearFilter);
       if (statusFilter !== 'all') params.append('status', statusFilter);
-      if (searchQuery) params.append('search', searchQuery);
       
       const fullUrl = params.toString() 
         ? `${apiUrl}?${params.toString()}` 
         : apiUrl;
+      
+      console.log("📦 Fetching:", fullUrl);
       
       const res = await axios.get(fullUrl);
       
@@ -118,6 +119,7 @@ export default function MatrixTable() {
       const groupedByClient = {};
       
       payments.forEach(payment => {
+        // Use a unique key that includes all client info
         const clientKey = `${payment.name}|${payment.account}`;
         
         if (!groupedByClient[clientKey]) {
@@ -129,7 +131,11 @@ export default function MatrixTable() {
             months: Array(12).fill(null),
             monthsStatus: Array(12).fill(null),
             monthsYear: Array(12).fill(null),
-            monthsAmount: Array(12).fill(0)
+            monthsAmount: Array(12).fill(0),
+            // Store all name variations for search
+            searchName: payment.name,
+            searchNameAr: payment.name_ar || payment.name,
+            searchNameFr: payment.name_fr || payment.name,
           };
         }
         
@@ -160,10 +166,17 @@ export default function MatrixTable() {
         values: client.monthsAmount,
         mois_status: client.monthsStatus,
         mois_years: client.monthsYear,
-        payments: client.payments
+        payments: client.payments,
+        searchName: client.searchName,
+        searchNameAr: client.searchNameAr,
+        searchNameFr: client.searchNameFr,
       }));
       
       setRows(processedRows);
+      
+      // Apply search filter on the frontend
+      applySearchFilter(processedRows, searchQuery);
+      
       console.log(`Processed ${processedRows.length} clients`);
       
     } catch (err) {
@@ -174,21 +187,63 @@ export default function MatrixTable() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [yearFilter, statusFilter, searchQuery, itemsPerPage]);
+  }, [yearFilter, statusFilter, itemsPerPage]);
+
+  // Apply search filter on the frontend - searches by name (AR/FR)
+  const applySearchFilter = useCallback((data, query) => {
+    if (!query || query.trim() === "") {
+      setFilteredRows(data);
+      return;
+    }
+    
+    const searchLower = query.toLowerCase().trim();
+    const searchNormalized = searchLower
+      .replace(/[أإآ]/g, 'ا')
+      .replace(/[ة]/g, 'ه')
+      .replace(/[ئ]/g, 'ي')
+      .replace(/[ؤ]/g, 'و');
+    
+    const filtered = data.filter(row => {
+      // Search in Arabic name
+      const nameAr = (row.searchNameAr || row.name || '').toLowerCase();
+      const nameArNormalized = nameAr
+        .replace(/[أإآ]/g, 'ا')
+        .replace(/[ة]/g, 'ه')
+        .replace(/[ئ]/g, 'ي')
+        .replace(/[ؤ]/g, 'و');
+      
+      // Search in French name
+      const nameFr = (row.searchNameFr || row.name || '').toLowerCase();
+      
+      // Check if the search query matches any of the fields
+      const matchesNameAr = nameAr.includes(searchLower) || nameArNormalized.includes(searchNormalized);
+      const matchesNameFr = nameFr.includes(searchLower);
+      const matchesName = (row.name || '').toLowerCase().includes(searchLower);
+      
+      return matchesNameAr || matchesNameFr || matchesName;
+    });
+    
+    setFilteredRows(filtered);
+  }, []);
+
+  // Re-filter when search query changes
+  useEffect(() => {
+    applySearchFilter(rows, searchQuery);
+  }, [searchQuery, rows, applySearchFilter]);
 
   // Initial fetch
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Re-fetch when filters change
+  // Re-fetch when filters change (except search)
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchData();
     }, 500);
     
     return () => clearTimeout(timer);
-  }, [yearFilter, statusFilter, searchQuery]);
+  }, [yearFilter, statusFilter]);
 
   const getStatusStyle = (status) => {
     switch (status) {
@@ -245,6 +300,12 @@ export default function MatrixTable() {
       if (updatedRows[rowIndex]) {
         updatedRows[rowIndex].mois_status[col] = selectedStatus;
         setRows(updatedRows);
+        // Update filtered rows too
+        const updatedFilteredRows = [...filteredRows];
+        if (updatedFilteredRows[rowIndex]) {
+          updatedFilteredRows[rowIndex].mois_status[col] = selectedStatus;
+          setFilteredRows(updatedFilteredRows);
+        }
       }
       
       // Call API to update payment status
@@ -276,7 +337,13 @@ export default function MatrixTable() {
     unpaid: { count: 0, label: "غير مدفوع", icon: XCircle, color: "red" },
   };
 
-  rows.forEach((row) => {
+  // Use filteredRows for display and calculations
+  const displayRows = filteredRows.length > 0 ? filteredRows : rows;
+
+  // Reset counts before calculating
+  Object.keys(statusTotals).forEach(key => statusTotals[key].count = 0);
+
+  displayRows.forEach((row) => {
     row.mois_status.forEach((status, i) => {
       if (status && row.mois_years[i] === yearFilter && statusTotals[status]) {
         statusTotals[status].count++;
@@ -284,7 +351,7 @@ export default function MatrixTable() {
     });
   });
 
-  const totalUnpaid = rows.reduce((sum, row) => {
+  const totalUnpaid = displayRows.reduce((sum, row) => {
     return sum + row.mois_status.filter((s, i) => 
       s === "unpaid" && row.mois_years[i] === yearFilter
     ).length;
@@ -316,6 +383,29 @@ export default function MatrixTable() {
     }
   };
 
+  // Clear all filters
+  const clearFilters = () => {
+    setSearchQuery("");
+    setStatusFilter("all");
+    setYearFilter(currentYear);
+    setShowFilters(false);
+  };
+
+  // Highlight matching text in search results
+  const highlightText = (text, query) => {
+    if (!query || !text) return text;
+    const lowerText = text.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+    if (!lowerText.includes(lowerQuery)) return text;
+    
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return parts.map((part, i) => 
+      part.toLowerCase() === lowerQuery ? 
+        <span key={i} className="bg-amber-500/30 text-amber-300 px-0.5 rounded">{part}</span> : 
+        part
+    );
+  };
+
   return (
     <div className="space-y-4">
       {/* Header with Stats */}
@@ -325,7 +415,7 @@ export default function MatrixTable() {
             <div className="flex items-center gap-2">
               <User className="w-4 h-4 text-blue-400" />
               <div className="text-xs text-blue-300">العملاء:</div>
-              <div className="text-lg text-white">{rows.length}</div>
+              <div className="text-lg text-white">{displayRows.length}</div>
             </div>
           </div>
           <div className="bg-gradient-to-r from-red-500/20 to-rose-600/20 border border-red-500/30 rounded-lg px-4 py-2">
@@ -381,7 +471,7 @@ export default function MatrixTable() {
         <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4" />
         <input
           type="text"
-          placeholder="البحث عن عميل..."
+          placeholder="البحث عن عميل (الاسم بالعربية أو الفرنسية)..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full bg-slate-700/50 text-white border border-amber-500/30 rounded-lg px-10 py-2 text-sm outline-none focus:border-amber-500 placeholder-slate-400"
@@ -393,6 +483,11 @@ export default function MatrixTable() {
           >
             <X className="w-4 h-4" />
           </button>
+        )}
+        {searchQuery && (
+          <div className="absolute left-16 top-1/2 transform -translate-y-1/2 text-xs text-amber-400">
+            {filteredRows.length} نتيجة
+          </div>
         )}
       </div>
 
@@ -437,11 +532,7 @@ export default function MatrixTable() {
             {(searchQuery || statusFilter !== "all" || yearFilter !== currentYear) && (
               <div className="flex justify-end mt-4">
                 <button
-                  onClick={() => {
-                    setSearchQuery("");
-                    setStatusFilter("all");
-                    setYearFilter(currentYear);
-                  }}
+                  onClick={clearFilters}
                   className="flex items-center gap-2 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition"
                 >
                   <X className="w-4 h-4" />
@@ -476,9 +567,9 @@ export default function MatrixTable() {
       )}
 
       {/* Matrix Table */}
-      {!loading && !error && rows.length > 0 && (
+      {!loading && !error && displayRows.length > 0 && (
         <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm border border-blue-500/20 rounded-xl overflow-hidden shadow-lg">
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3">
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 flex justify-between items-center">
             <h2 className="text-white text-lg flex items-center gap-2">
               <CreditCard className="w-5 h-5" />
               مصفوفة المدفوعات - السنة {yearFilter}
@@ -488,14 +579,19 @@ export default function MatrixTable() {
                 </span>
               )}
             </h2>
+            {searchQuery && (
+              <span className="text-sm text-white/80 bg-white/20 px-3 py-1 rounded-full">
+                نتائج البحث: {displayRows.length}
+              </span>
+            )}
           </div>
 
           <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-                  <th className="px-4 py-3 text-right min-w-[180px] sticky left-0 bg-blue-600 z-20">الاسم و اللقب</th>
-                  <th className="px-4 py-3 text-right min-w-[120px] sticky left-[180px] bg-blue-600 z-20">رقم الحساب</th>
+                  <th className="px-4 py-3 text-right min-w-[200px] sticky left-0 bg-blue-600 z-20">الاسم و اللقب</th>
+                  <th className="px-4 py-3 text-right min-w-[140px] sticky left-[200px] bg-blue-600 z-20">رقم الحساب</th>
                   {months.map((month, idx) => (
                     <th key={month} className="px-3 py-3 text-center min-w-[85px]">
                       {month}
@@ -505,12 +601,19 @@ export default function MatrixTable() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row, rowIndex) => {
+                {displayRows.map((row, rowIndex) => {
                   const unpaidThisYear = row.mois_status.filter(
                     (s, i) =>
                       s === "unpaid" &&
                       row.mois_years[i] === yearFilter
                   ).length;
+
+                  // Check if this row matches the search
+                  const matchesSearch = !searchQuery || 
+                    (row.searchNameAr || row.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    (row.searchNameFr || row.name || '').toLowerCase().includes(searchQuery.toLowerCase());
+
+                  if (!matchesSearch) return null;
 
                   return (
                     <motion.tr
@@ -520,13 +623,13 @@ export default function MatrixTable() {
                       transition={{ delay: rowIndex * 0.02 }}
                       className={`border-b border-slate-700/50 transition-all hover:bg-blue-500/10 ${
                         rowIndex % 2 === 0 ? 'bg-slate-800/30' : 'bg-slate-900/30'
-                      }`}
+                      } ${searchQuery && matchesSearch ? 'bg-amber-500/5' : ''}`}
                     >
                       <td className="px-4 py-3 text-white font-medium sticky left-0 bg-inherit z-10">
-                        {row.name}
-                       </td>
-                      <td className="px-4 py-3 text-blue-300 font-mono sticky left-[180px] bg-inherit z-10">
-                        {row.account}
+                        {searchQuery ? highlightText(row.name, searchQuery) : row.name}
+                      </td>
+                      <td className="px-4 py-3 text-blue-300 font-mono sticky left-[200px] bg-inherit z-10">
+                        {searchQuery ? highlightText(row.account, searchQuery) : row.account}
                       </td>
 
                       {months.map((_, colIndex) => {
@@ -572,7 +675,12 @@ export default function MatrixTable() {
             <div className="bg-gradient-to-r from-slate-800 to-slate-900 px-4 py-3 border-t border-slate-700">
               <div className="flex justify-between items-center text-sm flex-wrap gap-2">
                 <div className="text-slate-400">
-                  عرض {rows.length} من {totalItems} عملية بيع
+                  عرض {displayRows.length} من {totalItems} عملية بيع
+                  {searchQuery && displayRows.length !== rows.length && (
+                    <span className="text-amber-400 mr-2">
+                      (تمت فلترة {rows.length - displayRows.length} نتيجة)
+                    </span>
+                  )}
                 </div>
                 <div className="flex gap-6">
                   <div className="text-emerald-400">
@@ -617,11 +725,27 @@ export default function MatrixTable() {
       )}
 
       {/* No Data State */}
-      {!loading && !error && rows.length === 0 && (
+      {!loading && !error && displayRows.length === 0 && (
         <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm border border-blue-500/20 rounded-xl p-12 text-center">
           <CreditCard className="w-16 h-16 mx-auto mb-4 text-slate-500" />
-          <h3 className="text-xl text-white mb-2">لا توجد مبيعات بالتقسيط</h3>
-          <p className="text-slate-400">لم يتم العثور على أي عمليات بيع بالتقسيط</p>
+          <h3 className="text-xl text-white mb-2">
+            {searchQuery ? "لا توجد نتائج مطابقة للبحث" : "لا توجد مبيعات بالتقسيط"}
+          </h3>
+          <p className="text-slate-400">
+            {searchQuery ? (
+              <>لم يتم العثور على عميل يحمل <span className="text-amber-400">"{searchQuery}"</span></>
+            ) : (
+              "لم يتم العثور على أي عمليات بيع بالتقسيط"
+            )}
+          </p>
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="mt-4 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition"
+            >
+              مسح البحث
+            </button>
+          )}
         </div>
       )}
 

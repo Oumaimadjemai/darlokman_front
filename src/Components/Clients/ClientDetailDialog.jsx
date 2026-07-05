@@ -18,6 +18,12 @@ import {
   Edit,
   Save,
   AlertCircle,
+  TrendingUp,
+  TrendingDown,
+  Calendar,
+  CheckCircle,
+  XCircle,
+  Clock,
 } from "lucide-react";
 import axios from "../../api/axiosInstance";
 import dayjs from "dayjs";
@@ -34,7 +40,9 @@ const statusColors = {
   banque_bloquee: { bg: "bg-gray-500/20", text: "text-gray-400", label: "مغلق من البنك" },
 };
 
+// ============================================================
 // Client Files View Component
+// ============================================================
 const ClientFilesView = ({ files, onDeleteFile }) => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(null);
@@ -88,7 +96,6 @@ const ClientFilesView = ({ files, onDeleteFile }) => {
 
   return (
     <div className="space-y-6">
-      {/* Other Files Section */}
       {otherFiles.length > 0 && (
         <div>
           <h3 className="text-slate-300 font-semibold mb-3">📄 الملفات الأخرى</h3>
@@ -122,7 +129,6 @@ const ClientFilesView = ({ files, onDeleteFile }) => {
         </div>
       )}
 
-      {/* Images Gallery */}
       {imageFiles.length > 0 && (
         <div>
           <h3 className="text-slate-300 font-semibold mb-3">🖼️ الصور</h3>
@@ -205,7 +211,9 @@ const ClientFilesView = ({ files, onDeleteFile }) => {
   );
 };
 
+// ============================================================
 // Vente Detail Facilite Component
+// ============================================================
 const VenteDetailFacilite = ({ clientId }) => {
   const [ventes, setVentes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -354,7 +362,6 @@ const VenteDetailFacilite = ({ clientId }) => {
             </table>
           </div>
           
-          {/* Payment summary */}
           <div className="p-4 bg-slate-800/50 flex justify-between items-center">
             <div className="text-sm">
               <span className="text-slate-400">المبلغ المدفوع:</span>{" "}
@@ -371,7 +378,9 @@ const VenteDetailFacilite = ({ clientId }) => {
   );
 };
 
+// ============================================================
 // Vente Detail Cash Component
+// ============================================================
 const VenteDetailCash = ({ clientId }) => {
   const [ventes, setVentes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -520,14 +529,25 @@ const VenteDetailCash = ({ clientId }) => {
 const calculateDateFin = (dateDebut, nombreMois) => {
   const months = Number(nombreMois) || 0;
   if (!dateDebut || months <= 0) return null;
-
   return dayjs(dateDebut).add(months, "month").subtract(1, "month").format("YYYY-MM-DD");
 };
 
-// Client Paiement Info Component - Only main info, progress bar, and summary
+// ============================================================
+// Client Paiement Info Component
+// ============================================================
 const ClientPaiementInfo = ({ clientId }) => {
   const [ventes, setVentes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [overallStats, setOverallStats] = useState({
+    total_ventes: 0,
+    total_amount: 0,
+    total_paid: 0,
+    total_restant: 0,
+    paid_months: 0,
+    pending_months: 0,
+    unpaid_months: 0,
+    progress_percentage: 0
+  });
 
   useEffect(() => {
     if (!clientId) return;
@@ -535,83 +555,163 @@ const ClientPaiementInfo = ({ clientId }) => {
     const fetchPaiements = async () => {
       setLoading(true);
       try {
-        // 1️⃣ First, fetch all sales for the client
-        const res = await axios.get(`/vente/ventes-facilite/?client=${clientId}`);
+        const res = await axios.get(`/vente/dashboard-paiements/?client=${clientId}`);
         
-        let ventesData = [];
+        console.log("Dashboard Paiements Response:", res.data);
+        
+        let results = [];
+        let stats = {
+          total_ventes: 0,
+          total_amount: 0,
+          total_paid: 0,
+          total_restant: 0,
+          paid_months: 0,
+          pending_months: 0,
+          unpaid_months: 0,
+          progress_percentage: 0
+        };
+        
         if (res.data && res.data.results) {
-          if (res.data.results.ventes && Array.isArray(res.data.results.ventes)) {
-            ventesData = res.data.results.ventes;
-          } else if (Array.isArray(res.data.results)) {
-            ventesData = res.data.results;
-          }
-        } else if (res.data.ventes && Array.isArray(res.data.ventes)) {
-          ventesData = res.data.ventes;
+          results = res.data.results;
+          stats = res.data.stats || stats;
+        } else if (Array.isArray(res.data)) {
+          results = res.data;
         }
         
-        if (ventesData.length === 0) {
+        if (results.length === 0) {
           setVentes([]);
+          setOverallStats(stats);
           setLoading(false);
           return;
         }
         
-        // 2️⃣ For each sale, fetch payment details
-        const ventesWithPaiements = await Promise.all(
-          ventesData.map(async (vente) => {
+        // Group by vente_id
+        const groupedByVente = {};
+        results.forEach(item => {
+          const key = item.vente_id;
+          if (!groupedByVente[key]) {
+            groupedByVente[key] = {
+              vente_id: key,
+              client_name: item.name,
+              client_ccp: item.ccp,
+              month_payments: [],
+              total_paid: 0,
+              total_restant: 0,
+              paid_months: 0,
+              pending_months: 0,
+              unpaid_months: 0,
+              montant_total: 0,
+              montant_mensuel: 0,
+              nombre_mois: 0,
+              solde_regle: false,
+              date_debut: null,
+              date_fin: null
+            };
+          }
+          
+          const amount = item.amount || 0;
+          const status = item.status || 'pending';
+          
+          groupedByVente[key].month_payments.push({
+            month_index: item.month_index,
+            year: item.year,
+            amount: amount,
+            status: status,
+            paiement_id: item.paiement_id,
+            date: item.date
+          });
+          
+          if (item.date && !groupedByVente[key].date_debut) {
+            groupedByVente[key].date_debut = item.date;
+          }
+        });
+        
+        // For each vente, fetch additional details
+        const ventesArray = await Promise.all(
+          Object.values(groupedByVente).map(async (group) => {
             try {
-              const paiementRes = await axios.get(`/vente/vente/payer/${vente.id}/`);
+              const venteRes = await axios.get(`/vente/ventes-facilite/${group.vente_id}/`);
+              const venteData = venteRes.data;
               
-              let paiementData = [];
-              if (paiementRes.data) {
-                if (Array.isArray(paiementRes.data)) {
-                  paiementData = paiementRes.data;
-                } else if (paiementRes.data.results && Array.isArray(paiementRes.data.results)) {
-                  paiementData = paiementRes.data.results;
-                } else {
-                  paiementData = [paiementRes.data];
+              let totalPaid = 0;
+              let totalRestant = 0;
+              let paidMonths = 0;
+              let pendingMonths = 0;
+              let unpaidMonths = 0;
+              
+              group.month_payments.forEach(p => {
+                if (p.status === 'paid') {
+                  totalPaid += p.amount;
+                  paidMonths++;
+                } else if (p.status === 'pending') {
+                  totalRestant += p.amount;
+                  pendingMonths++;
+                } else if (p.status === 'unpaid') {
+                  totalRestant += p.amount;
+                  unpaidMonths++;
                 }
-              }
-              
-              const paymentInfo = paiementData[0] || {};
-              const dateDebut = paymentInfo.date_debut || vente.date_debut;
-              const nombreMois = paymentInfo.nombre_mois || vente.nombre_mois || 0;
+              });
               
               return {
-                vente_id: vente.id,
-                date_debut: dateDebut,
-                date_fin: calculateDateFin(dateDebut, nombreMois),
-                montant_total: (paymentInfo.reste_vente || 0) + (paymentInfo.total_verse_effectif || 0),
-                montant_mensuel: paymentInfo.montant_mensuel || vente.montant_mensuel || 0,
-                nombre_mois: nombreMois,
-                total_verse_effectif: paymentInfo.total_verse_effectif || 0,
-                reste_vente: paymentInfo.reste_vente || 0,
-                solde_regle: paymentInfo.solde_regle || false
+                ...group,
+                montant_total: parseFloat(venteData.montant_total) || 0,
+                montant_mensuel: parseFloat(venteData.montant_mensuel) || 0,
+                nombre_mois: parseInt(venteData.nombre_mois) || 0,
+                date_debut: venteData.date_debut || group.date_debut,
+                date_fin: venteData.date_fin || null,
+                solde_regle: venteData.solde_regle || false,
+                total_paid: totalPaid,
+                total_restant: totalRestant,
+                paid_months: paidMonths,
+                pending_months: pendingMonths,
+                unpaid_months: unpaidMonths
               };
             } catch (err) {
-              console.error(`Error fetching paiements for vente ${vente.id}:`, err);
+              console.error(`Error fetching vente ${group.vente_id}:`, err);
+              let totalPaid = 0;
+              let totalRestant = 0;
+              let paidMonths = 0;
+              let pendingMonths = 0;
+              let unpaidMonths = 0;
+              
+              group.month_payments.forEach(p => {
+                if (p.status === 'paid') {
+                  totalPaid += p.amount;
+                  paidMonths++;
+                } else if (p.status === 'pending') {
+                  totalRestant += p.amount;
+                  pendingMonths++;
+                } else if (p.status === 'unpaid') {
+                  totalRestant += p.amount;
+                  unpaidMonths++;
+                }
+              });
+              
               return {
-                vente_id: vente.id,
-                date_debut: vente.date_debut,
-                date_fin: calculateDateFin(vente.date_debut, vente.nombre_mois),
-                montant_total: parseFloat(vente.montant_total) || 0,
-                montant_mensuel: parseFloat(vente.montant_mensuel) || 0,
-                nombre_mois: vente.nombre_mois || 0,
-                total_verse_effectif: parseFloat(vente.montant_verse) || 0,
-                reste_vente: parseFloat(vente.montant_restant) || 0,
-                solde_regle: false
+                ...group,
+                montant_total: totalPaid + totalRestant,
+                montant_mensuel: group.month_payments.length > 0 ? group.month_payments[0].amount : 0,
+                nombre_mois: group.month_payments.length,
+                solde_regle: totalRestant <= 0,
+                total_paid: totalPaid,
+                total_restant: totalRestant,
+                paid_months: paidMonths,
+                pending_months: pendingMonths,
+                unpaid_months: unpaidMonths
               };
             }
           })
         );
         
-        // Sort by start date (newest first)
-        const sortedVentes = ventesWithPaiements.sort((a, b) => {
+        const sortedVentes = ventesArray.sort((a, b) => {
           const dateA = a.date_debut ? new Date(a.date_debut) : 0;
           const dateB = b.date_debut ? new Date(b.date_debut) : 0;
           return dateB - dateA;
         });
         
         setVentes(sortedVentes);
+        setOverallStats(stats);
+        
       } catch (error) {
         console.error("Error fetching client payment info:", error);
         toast.error("فشل تحميل معلومات الدفع");
@@ -625,7 +725,7 @@ const ClientPaiementInfo = ({ clientId }) => {
 
   const formatNumber = (num) => {
     if (num === undefined || num === null) return "0";
-    return Number(num);
+    return Number(num).toFixed(0);
   };
 
   if (loading) {
@@ -649,114 +749,490 @@ const ClientPaiementInfo = ({ clientId }) => {
 
   return (
     <div className="space-y-6">
-      {ventes.map((vente) => (
-        <div key={vente.vente_id} className="bg-slate-700/30 rounded-lg overflow-hidden">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-amber-500/20 to-yellow-600/20 p-4">
-            <div className="flex justify-between items-center flex-wrap gap-2">
-              <div>
-                <div className="text-sm text-slate-400">
-                  <span className="text-amber-400">البيع رقم:</span> #{vente.vente_id}
-                </div>
-                <div className="text-sm text-slate-400">
-                  <span className="text-amber-400">الفترة:</span>{" "}
-                  {vente.date_debut ? dayjs(vente.date_debut).format("DD/MM/YYYY") : "--"} 
-                  {vente.date_fin ? ` - ${dayjs(vente.date_fin).format("DD/MM/YYYY")}` : ""}
-                </div>
-                <div className="text-sm text-slate-400">
-                  <span className="text-amber-400">تاريخ النهاية:</span>{" "}
-                  {vente.date_fin ? dayjs(vente.date_fin).format("DD/MM/YYYY") : "--"}
-                </div>
-                {vente.nombre_mois > 0 && (
+      {/* Overall Stats Summary */}
+      <div className="bg-gradient-to-r from-amber-500/10 to-yellow-600/10 border border-amber-500/30 rounded-lg p-4">
+        <h3 className="text-amber-400 font-semibold mb-3">📊 ملخص عام</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="text-center">
+            <div className="text-sm text-slate-400">عدد المشتريات</div>
+            <div className="text-xl font-bold text-white">
+              {overallStats.total_ventes || ventes.length}
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-sm text-slate-400">إجمالي المشتريات</div>
+            <div className="text-xl font-bold text-white">
+              {formatNumber(overallStats.total_amount || ventes.reduce((sum, v) => sum + v.montant_total, 0))} د.ج
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-sm text-slate-400">إجمالي المدفوع</div>
+            <div className="text-xl font-bold text-green-400">
+              {formatNumber(overallStats.total_paid || ventes.reduce((sum, v) => sum + v.total_paid, 0))} د.ج
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-sm text-slate-400">إجمالي المتبقي</div>
+            <div className="text-xl font-bold text-red-400">
+              {formatNumber(overallStats.total_restant || ventes.reduce((sum, v) => sum + v.total_restant, 0))} د.ج
+            </div>
+          </div>
+        </div>
+        
+        {overallStats.total_amount > 0 && (
+          <div className="mt-3">
+            <div className="flex justify-between text-sm text-slate-400 mb-1">
+              <span>نسبة الإنجاز الكلية</span>
+              <span className="text-amber-400">{overallStats.progress_percentage || 
+                Math.round((ventes.reduce((sum, v) => sum + v.total_paid, 0) / ventes.reduce((sum, v) => sum + v.montant_total, 0)) * 100)}%
+              </span>
+            </div>
+            <div className="w-full bg-slate-700 rounded-full h-2.5">
+              <div 
+                className="bg-gradient-to-r from-amber-500 to-yellow-500 h-2.5 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(overallStats.progress_percentage || 
+                  Math.round((ventes.reduce((sum, v) => sum + v.total_paid, 0) / ventes.reduce((sum, v) => sum + v.montant_total, 0)) * 100), 100)}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-slate-500 mt-1">
+              <span>0%</span>
+              <span>{ventes.reduce((sum, v) => sum + v.paid_months, 0)} / {ventes.reduce((sum, v) => sum + v.nombre_mois, 0)} شهر</span>
+              <span>100%</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Individual Ventes */}
+      {ventes.map((vente) => {
+        const progressPercent = vente.montant_total > 0 
+          ? (vente.total_paid / vente.montant_total) * 100 
+          : 0;
+        const isComplete = vente.solde_regle || progressPercent >= 100;
+        const totalMonths = vente.paid_months + vente.pending_months + vente.unpaid_months;
+        
+        return (
+          <div key={vente.vente_id} className="bg-slate-700/30 rounded-lg overflow-hidden">
+            <div className="bg-gradient-to-r from-amber-500/20 to-yellow-600/20 p-4">
+              <div className="flex justify-between items-center flex-wrap gap-2">
+                <div>
                   <div className="text-sm text-slate-400">
-                    <span className="text-amber-400">عدد الأشهر:</span> {vente.nombre_mois} شهر
+                    <span className="text-amber-400">البيع رقم:</span> #{vente.vente_id}
                   </div>
-                )}
-              </div>
-              <div className="text-center">
-                <div className="text-sm text-slate-400">الدفعة الشهرية</div>
-                <div className="text-lg font-bold text-amber-400">
-                  {formatNumber(vente.montant_mensuel)} د.ج
+                  <div className="text-sm text-slate-400">
+                    <span className="text-amber-400">العميل:</span> {vente.client_name}
+                  </div>
+                  <div className="text-sm text-slate-400">
+                    <span className="text-amber-400">CCP:</span> {vente.client_ccp || "--"}
+                  </div>
+                  <div className="text-sm text-slate-400">
+                    <span className="text-amber-400">الفترة:</span>{" "}
+                    {vente.date_debut ? dayjs(vente.date_debut).format("DD/MM/YYYY") : "--"} 
+                    {vente.date_fin ? ` - ${dayjs(vente.date_fin).format("DD/MM/YYYY")}` : ""}
+                  </div>
+                  {vente.nombre_mois > 0 && (
+                    <div className="text-sm text-slate-400">
+                      <span className="text-amber-400">عدد الأشهر:</span> {vente.nombre_mois} شهر
+                    </div>
+                  )}
+                  <div className="flex gap-3 mt-1 flex-wrap">
+                    <span className="text-xs text-emerald-400">
+                      ✓ مدفوع: {vente.paid_months}
+                    </span>
+                    <span className="text-xs text-amber-400">
+                      ⏳ معلق: {vente.pending_months}
+                    </span>
+                    <span className="text-xs text-red-400">
+                      ✗ غير مدفوع: {vente.unpaid_months}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div className="text-center">
-                <div className="text-sm text-slate-400">المبلغ الإجمالي</div>
-                <div className="text-lg font-bold text-white">
-                  {formatNumber(vente.montant_total)} د.ج
+                <div className="text-center">
+                  <div className="text-sm text-slate-400">الدفعة الشهرية</div>
+                  <div className="text-lg font-bold text-amber-400">
+                    {formatNumber(vente.montant_mensuel)} د.ج
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-slate-400">المبلغ الإجمالي</div>
+                  <div className="text-lg font-bold text-white">
+                    {formatNumber(vente.montant_total)} د.ج
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Payment Summary & Progress Bar */}
-          <div className="p-4">
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="text-center">
-                <div className="text-sm text-slate-400">المجموع المدفوع</div>
-                <div className="text-lg font-bold text-green-400">
-                  {formatNumber(vente.total_verse_effectif)} د.ج
+            <div className="p-4">
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="text-center">
+                  <div className="text-sm text-slate-400">المجموع المدفوع</div>
+                  <div className="text-lg font-bold text-green-400">
+                    {formatNumber(vente.total_paid)} د.ج
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-slate-400">المبلغ المتبقي</div>
+                  <div className="text-lg font-bold text-red-400">
+                    {formatNumber(vente.total_restant)} د.ج
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-slate-400">نسبة الإنجاز</div>
+                  <div className="text-lg font-bold text-amber-400">
+                    {Math.round(progressPercent)}%
+                  </div>
                 </div>
               </div>
-              <div className="text-center">
-                <div className="text-sm text-slate-400">المبلغ المتبقي</div>
-                <div className="text-lg font-bold text-red-400">
-                  {formatNumber(vente.reste_vente)} د.ج
+              
+              {vente.montant_total > 0 && (
+                <div>
+                  <div className="w-full bg-slate-700 rounded-full h-2.5">
+                    <div 
+                      className={`h-2.5 rounded-full transition-all duration-500 ${
+                        isComplete 
+                          ? 'bg-gradient-to-r from-emerald-500 to-green-500' 
+                          : 'bg-gradient-to-r from-amber-500 to-yellow-500'
+                      }`}
+                      style={{ width: `${Math.min(progressPercent, 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-slate-400 mt-1">
+                    <span>0%</span>
+                    <span>
+                      {vente.paid_months} / {totalMonths || vente.nombre_mois} شهر مدفوع
+                    </span>
+                    <span>100%</span>
+                  </div>
                 </div>
-              </div>
-            </div>
-            
-            {/* Progress Bar */}
-            {vente.montant_total > 0 && (
-              <div>
-                <div className="w-full bg-slate-700 rounded-full h-2">
-                  <div 
-                    className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${(vente.total_verse_effectif / vente.montant_total) * 100}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-slate-400 mt-1">
-                  <span>0%</span>
-                  <span>{Math.round((vente.total_verse_effectif / vente.montant_total) * 100)}%</span>
-                  <span>100%</span>
-                </div>
-              </div>
-            )}
+              )}
 
-            {/* Badge for fully paid */}
-            {vente.solde_regle && (
-              <div className="mt-4 bg-green-500/20 text-green-400 text-center py-2 rounded-lg text-sm">
-                ✓ تم تسديد كامل المبلغ
-              </div>
-            )}
-          </div>
-        </div>
-      ))}
-      
-      {/* Overall Summary */}
-      {ventes.length > 1 && (
-        <div className="bg-gradient-to-r from-amber-500/10 to-yellow-600/10 border border-amber-500/30 rounded-lg p-4">
-          <h3 className="text-amber-400 font-semibold mb-3">ملخص عام</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center">
-              <div className="text-sm text-slate-400">إجمالي المشتريات</div>
-              <div className="text-xl font-bold text-white">
-                {formatNumber(ventes.reduce((sum, v) => sum + v.montant_total, 0))} د.ج
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-sm text-slate-400">إجمالي المدفوع</div>
-              <div className="text-xl font-bold text-green-400">
-                {formatNumber(ventes.reduce((sum, v) => sum + v.total_verse_effectif, 0))} د.ج
-              </div>
+              {isComplete && (
+                <div className="mt-4 bg-green-500/20 text-green-400 text-center py-2 rounded-lg text-sm font-medium">
+                  ✓ ✅ تم تسديد كامل المبلغ
+                </div>
+              )}
+              
+              {!isComplete && vente.total_restant > 0 && (
+                <div className="mt-4 bg-amber-500/10 text-amber-400 text-center py-2 rounded-lg text-sm border border-amber-500/20">
+                  ⚠️ متبقي {formatNumber(vente.total_restant)} د.ج غير مدفوعة
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        );
+      })}
     </div>
   );
 };
 
+// ============================================================
+// Client Info Tab Component with Payment Summary
+// ============================================================
+const ClientInfoTab = ({ client, onUpdate }) => {
+  const [loading, setLoading] = useState(false);
+  const [paymentStats, setPaymentStats] = useState({
+    total_ventes: 0,
+    total_amount: 0,
+    total_paid: 0,
+    total_restant: 0,
+    paid_months: 0,
+    pending_months: 0,
+    unpaid_months: 0,
+    progress_percentage: 0,
+    ventes: []
+  });
+
+  const fetchPaymentStats = async () => {
+    if (!client?.id) return;
+    setLoading(true);
+    try {
+      const res = await axios.get(`/vente/dashboard-paiements/?client=${client.id}`);
+      
+      let stats = {
+        total_ventes: 0,
+        total_amount: 0,
+        total_paid: 0,
+        total_restant: 0,
+        paid_months: 0,
+        pending_months: 0,
+        unpaid_months: 0,
+        progress_percentage: 0,
+        ventes: []
+      };
+      
+      if (res.data && res.data.stats) {
+        stats = {
+          ...res.data.stats,
+          ventes: res.data.results || []
+        };
+      }
+      
+      setPaymentStats(stats);
+    } catch (error) {
+      console.error("Error fetching payment stats:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (client?.id) {
+      fetchPaymentStats();
+    }
+  }, [client?.id]);
+
+  const formatNumber = (num) => {
+    if (num === undefined || num === null) return "0";
+    return Number(num).toFixed(0);
+  };
+
+  const getStatusColor = (statusValue) => {
+    const status = statusColors[statusValue] || statusColors.non_classifie;
+    return `${status.bg} ${status.text}`;
+  };
+
+  const getStatusLabel = (statusValue) => {
+    return statusColors[statusValue]?.label || statusColors.non_classifie.label;
+  };
+
+  const formatTelephones = (telephones) => {
+    if (!Array.isArray(telephones)) return "--";
+    const validTelephones = telephones.filter((phone) => phone && phone.trim() !== "");
+    return validTelephones.length > 0 ? validTelephones.join(" / ") : "--";
+  };
+
+  return (
+    <div className="grid grid-cols-2 gap-6">
+      {/* Left Column - Personal Info */}
+      <div className="space-y-4">
+        <div className="bg-slate-700/30 rounded-lg p-4">
+          <h3 className="text-amber-400 font-semibold mb-4">المعلومات الشخصية</h3>
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-slate-400">الاسم الكامل:</span>
+              <span className="text-white">
+                {`${client.prenom_ar || ""} ${client.nom_famille_ar || ""} / ${client.prenom_fr || ""} ${client.nom_famille_fr || ""}`}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">رقم الحساب:</span>
+              <span className="text-white">{`${client.ccp || ""} - مفتاح ${client.cle || ""}`}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">الدخل:</span>
+              <span className="text-white">{client.revenu ? `${formatNumber(client.revenu)} د.ج` : "--"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">العنوان:</span>
+              <span className="text-white">{client.adresse || "--"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">الهاتف:</span>
+              <span className="text-white">{formatTelephones(client.telephones)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">رقم الزبون:</span>
+              <span className="text-white">{client.id}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">المهنة:</span>
+              <span className="text-white">{client.profession || "--"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">تاريخ الدخل:</span>
+              <span className="text-white">{client.jour ? `${client.jour} من كل شهر` : "--"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">التصنيف:</span>
+              <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(client.statut || "non_classifie")}`}>
+                {getStatusLabel(client.statut || "non_classifie")}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Actions Card */}
+        <div className="bg-slate-700/30 rounded-lg p-4">
+          <div className="flex justify-between items-center mb-4">
+            <span className="text-slate-400">حظر الزبون</span>
+            <button
+              onClick={() => onUpdate('bloque', !client.bloque)}
+              className={`px-3 py-1 rounded-lg transition ${
+                client.bloque 
+                  ? "bg-red-500/20 text-red-400" 
+                  : "bg-green-500/20 text-green-400"
+              }`}
+            >
+              {client.bloque ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+            </button>
+          </div>
+
+          <div className="mb-4">
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-slate-400 text-sm">استرجاع الملفات</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="recupererFichiers"
+                  checked={client.recuperer_fichiers || false}
+                  onChange={(e) => onUpdate('recuperer_fichiers', e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-500 bg-slate-700 text-amber-500 focus:ring-amber-500 focus:ring-offset-0"
+                />
+                <label htmlFor="recupererFichiers" className="text-slate-300 text-sm cursor-pointer">
+                  {client.recuperer_fichiers ? "نعم" : "لا"}
+                </label>
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              تفعيل هذا الخيار لاسترجاع ملفات العميل
+            </p>
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-slate-400 text-sm mb-2">تصنيف الزبون</label>
+            <select
+              value={client.statut || "non_classifie"}
+              onChange={(e) => onUpdate('statut', e.target.value)}
+              className="w-full bg-slate-600 border border-slate-500 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
+            >
+              {Object.entries(statusColors).map(([key, value]) => (
+                <option key={key} value={key}>
+                  {value.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            onClick={() => onUpdate('save')}
+            className="w-full bg-gradient-to-r from-amber-500 to-yellow-600 text-white rounded-lg px-4 py-2 hover:from-amber-600 hover:to-yellow-700 transition"
+          >
+            تحديث الحالة
+          </button>
+        </div>
+      </div>
+
+      {/* Right Column - Stats & Payment Summary */}
+      <div className="space-y-4">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 gap-3">
+          <div className="bg-gradient-to-r from-red-500/20 to-rose-600/20 border border-red-500/30 rounded-lg p-4 text-center">
+            <div className="text-red-300 text-sm">الدين الحالي</div>
+            <div className="text-red-400 text-2xl font-bold">
+              {formatNumber(paymentStats.total_restant || 0)} د.ج
+            </div>
+          </div>
+          <div className="bg-gradient-to-r from-emerald-500/20 to-green-600/20 border border-emerald-500/30 rounded-lg p-4 text-center">
+            <div className="text-emerald-300 text-sm">المدفوعات</div>
+            <div className="text-emerald-400 text-2xl font-bold">
+              {formatNumber(paymentStats.total_paid || 0)} د.ج
+            </div>
+          </div>
+          <div className="bg-gradient-to-r from-blue-500/20 to-cyan-600/20 border border-blue-500/30 rounded-lg p-4 text-center">
+            <div className="text-blue-300 text-sm">المشتريات</div>
+            <div className="text-blue-400 text-2xl font-bold">
+              {formatNumber(paymentStats.total_amount || 0)} د.ج
+            </div>
+          </div>
+        </div>
+
+        {/* Payment Progress */}
+        {paymentStats.total_amount > 0 && (
+          <div className="bg-slate-700/30 rounded-lg p-4">
+            <h4 className="text-slate-300 text-sm mb-3">نسبة الإنجاز</h4>
+            <div className="flex justify-between text-xs text-slate-400 mb-1">
+              <span>0%</span>
+              <span className="text-amber-400">{paymentStats.progress_percentage || 
+                Math.round((paymentStats.total_paid / paymentStats.total_amount) * 100)}%
+              </span>
+              <span>100%</span>
+            </div>
+            <div className="w-full bg-slate-700 rounded-full h-2.5">
+              <div 
+                className="bg-gradient-to-r from-amber-500 to-yellow-500 h-2.5 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(paymentStats.progress_percentage || 
+                  Math.round((paymentStats.total_paid / paymentStats.total_amount) * 100), 100)}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-slate-500 mt-1">
+              <span>0%</span>
+              <span>{paymentStats.paid_months || 0} / {(paymentStats.paid_months || 0) + (paymentStats.pending_months || 0) + (paymentStats.unpaid_months || 0)} شهر</span>
+              <span>100%</span>
+            </div>
+          </div>
+        )}
+
+        {/* Month Status Summary */}
+        {(paymentStats.paid_months > 0 || paymentStats.pending_months > 0 || paymentStats.unpaid_months > 0) && (
+          <div className="bg-slate-700/30 rounded-lg p-4">
+            <h4 className="text-slate-300 text-sm mb-3">حالة الأشهر</h4>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="text-center bg-emerald-500/10 rounded-lg p-2">
+                <div className="text-emerald-400 text-lg font-bold">{paymentStats.paid_months || 0}</div>
+                <div className="text-emerald-300 text-xs">مدفوع</div>
+              </div>
+              <div className="text-center bg-amber-500/10 rounded-lg p-2">
+                <div className="text-amber-400 text-lg font-bold">{paymentStats.pending_months || 0}</div>
+                <div className="text-amber-300 text-xs">معلق</div>
+              </div>
+              <div className="text-center bg-red-500/10 rounded-lg p-2">
+                <div className="text-red-400 text-lg font-bold">{paymentStats.unpaid_months || 0}</div>
+                <div className="text-red-300 text-xs">غير مدفوع</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Notes */}
+        <div className="bg-slate-700/30 rounded-lg p-4">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-slate-400">ملاحظات</span>
+            {!client.isEditingNote && (
+              <button
+                onClick={() => onUpdate('editNote', true)}
+                className="p-1 hover:bg-slate-600 rounded-lg transition"
+              >
+                <Edit className="w-4 h-4 text-amber-400" />
+              </button>
+            )}
+          </div>
+          {client.isEditingNote ? (
+            <div className="space-y-2">
+              <textarea
+                value={client.note || ""}
+                onChange={(e) => onUpdate('note', e.target.value)}
+                rows={3}
+                className="w-full bg-slate-600 border border-slate-500 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
+                placeholder="أضف ملاحظة..."
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onUpdate('saveNote')}
+                  className="flex-1 bg-green-500 text-white rounded-lg px-3 py-1 hover:bg-green-600 transition"
+                >
+                  <Save className="w-4 h-4 inline ml-1" />
+                  حفظ
+                </button>
+                <button
+                  onClick={() => onUpdate('editNote', false)}
+                  className="flex-1 bg-slate-600 text-white rounded-lg px-3 py-1 hover:bg-slate-500 transition"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-slate-300">{client.note || "لا توجد ملاحظات"}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
 // Main Component
+// ============================================================
 export default function ClientDetailDialog({ open, onClose, client }) {
   const [activeTab, setActiveTab] = useState(0);
   const [bloque, setBloque] = useState(false);
@@ -795,58 +1271,29 @@ export default function ClientDetailDialog({ open, onClose, client }) {
     
     setLoadingDetails(true);
     try {
-      // Fetch client basic info
       const response = await axios.get(`/auth/clients/${client.id}/`);
       
-      // Fetch client's vente facilite data to get debt info
-      const venteResponse = await axios.get(`/vente/ventes-facilite/?client=${client.id}`);
-      console.log("Vente Facilite Response:", venteResponse.data);
+      // Fetch payment stats from dashboard-paiements
+      const paymentRes = await axios.get(`/vente/dashboard-paiements/?client=${client.id}`);
       
-      let ventesData = [];
-      if (venteResponse.data && venteResponse.data.results) {
-        if (venteResponse.data.results.ventes && Array.isArray(venteResponse.data.results.ventes)) {
-          ventesData = venteResponse.data.results.ventes;
-        } else if (Array.isArray(venteResponse.data.results)) {
-          ventesData = venteResponse.data.results;
-        }
-      } else if (venteResponse.data.ventes && Array.isArray(venteResponse.data.ventes)) {
-        ventesData = venteResponse.data.ventes;
-      }
+      let stats = {
+        total_ventes: 0,
+        total_amount: 0,
+        total_paid: 0,
+        total_restant: 0,
+        paid_months: 0,
+        pending_months: 0,
+        unpaid_months: 0,
+        progress_percentage: 0
+      };
       
-      // Calculate totals from ventes
-      const totalMontantTotal = ventesData.reduce((sum, v) => sum + (parseFloat(v.montant_total) || 0), 0);
-      const totalMontantVerse = ventesData.reduce((sum, v) => sum + (parseFloat(v.montant_verse) || 0), 0);
-      const totalMontantRestant = ventesData.reduce((sum, v) => sum + (parseFloat(v.montant_restant) || 0), 0);
-      
-      // Also fetch payment details to get total_verse_effectif if needed
-      let totalVerseEffectif = 0;
-      for (const vente of ventesData) {
-        try {
-          const paiementRes = await axios.get(`/vente/vente/payer/${vente.id}/`);
-          let paiementData = [];
-          if (paiementRes.data) {
-            if (Array.isArray(paiementRes.data)) {
-              paiementData = paiementRes.data;
-            } else if (paiementRes.data.results && Array.isArray(paiementRes.data.results)) {
-              paiementData = paiementRes.data.results;
-            } else {
-              paiementData = [paiementRes.data];
-            }
-          }
-          const paymentInfo = paiementData[0] || {};
-          totalVerseEffectif += parseFloat(paymentInfo.total_verse_effectif) || 0;
-        } catch (err) {
-          console.error(`Error fetching payment info for vente ${vente.id}:`, err);
-          // Fall back to montant_verse if payment endpoint fails
-          totalVerseEffectif += parseFloat(vente.montant_verse) || 0;
-        }
+      if (paymentRes.data && paymentRes.data.stats) {
+        stats = paymentRes.data.stats;
       }
       
       setClientDetails({
         ...response.data,
-        dette_totale_client: totalMontantTotal,
-        montant_paye_effectif: totalVerseEffectif, // Use the calculated value
-        dette_actuelle_client: totalMontantRestant,
+        ...stats
       });
       
       setBloque(response.data.bloque ?? false);
@@ -888,7 +1335,6 @@ export default function ClientDetailDialog({ open, onClose, client }) {
         recuperer_fichiers: recupererFichiers
       });
       toast.success("✅ تم تحديث حالة الزبون بنجاح");
-      // Refresh client details
       await fetchClientDetails();
     } catch (error) {
       console.error(error);
@@ -904,7 +1350,6 @@ export default function ClientDetailDialog({ open, onClose, client }) {
       await axios.patch(`/auth/clients/${client.id}/`, { note });
       toast.success("✅ تم تحديث الملاحظة بنجاح");
       setIsEditingNote(false);
-      // Refresh client details
       await fetchClientDetails();
     } catch (error) {
       console.error(error);
@@ -914,11 +1359,20 @@ export default function ClientDetailDialog({ open, onClose, client }) {
     }
   };
 
+  const handleUpdateField = (field, value) => {
+    if (field === 'bloque') setBloque(value);
+    else if (field === 'statut') setStatut(value);
+    else if (field === 'recuperer_fichiers') setRecupererFichiers(value);
+    else if (field === 'note') setNote(value);
+    else if (field === 'editNote') setIsEditingNote(value);
+    else if (field === 'save') handleOpenConfirm("updateClient");
+    else if (field === 'saveNote') handleUpdateNote();
+  };
+
   const handleDeleteFile = async (fileId) => {
     try {
       await axios.delete(`/auth/clients/files/${fileId}/`);
       toast.success("✅ تم حذف الملف بنجاح");
-      // Refresh client details after deletion
       await fetchClientDetails();
     } catch (error) {
       console.error(error);
@@ -936,27 +1390,6 @@ export default function ClientDetailDialog({ open, onClose, client }) {
     url: file.url || "",
   })) || [];
 
-  const getStatusColor = (statusValue) => {
-    const status = statusColors[statusValue] || statusColors.non_classifie;
-    return `${status.bg} ${status.text}`;
-  };
-
-  const getStatusLabel = (statusValue) => {
-    return statusColors[statusValue]?.label || statusColors.non_classifie.label;
-  };
-
-  const formatNumber = (num) => {
-    if (num === undefined || num === null) return "0";
-    return Number(num);
-  };
-
-  const formatTelephones = (telephones) => {
-    if (!Array.isArray(telephones)) return "--";
-
-    const validTelephones = telephones.filter((phone) => phone && phone.trim() !== "");
-    return validTelephones.length > 0 ? validTelephones.join(" / ") : "--";
-  };
-
   const renderContent = () => {
     if (loadingDetails && activeTab === 0) {
       return (
@@ -969,186 +1402,17 @@ export default function ClientDetailDialog({ open, onClose, client }) {
     switch (activeTab) {
       case 0:
         return (
-          <div className="grid grid-cols-2 gap-6">
-            {/* Left Column - Personal Info */}
-            <div className="space-y-4">
-              <div className="bg-slate-700/30 rounded-lg p-4">
-                <h3 className="text-amber-400 font-semibold mb-4">المعلومات الشخصية</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">الاسم الكامل:</span>
-                    <span className="text-white">
-                      {`${currentClient.prenom_ar || ""} ${currentClient.nom_famille_ar || ""} / ${currentClient.prenom_fr || ""} ${currentClient.nom_famille_fr || ""}`}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">رقم الحساب:</span>
-                    <span className="text-white">{`${currentClient.ccp || ""} - مفتاح ${currentClient.cle || ""}`}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">الدخل:</span>
-                    <span className="text-white">{currentClient.revenu ? `${formatNumber(currentClient.revenu)} د.ج` : "--"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">العنوان:</span>
-                    <span className="text-white">{currentClient.adresse || "--"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">الهاتف:</span>
-                    <span className="text-white">{formatTelephones(currentClient.telephones)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">رقم الزبون:</span>
-                    <span className="text-white">{currentClient.id}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">المهنة:</span>
-                    <span className="text-white">{currentClient.profession || "--"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">تاريخ الدخل:</span>
-                    <span className="text-white">{currentClient.jour ? `${currentClient.jour} من كل شهر` : "--"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">التصنيف:</span>
-                    <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(statut)}`}>
-                      {getStatusLabel(statut)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Actions Card */}
-              <div className="bg-slate-700/30 rounded-lg p-4">
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-slate-400">حظر الزبون</span>
-                  <button
-                    onClick={() => setBloque(!bloque)}
-                    className={`px-3 py-1 rounded-lg transition ${
-                      bloque 
-                        ? "bg-red-500/20 text-red-400" 
-                        : "bg-green-500/20 text-green-400"
-                    }`}
-                  >
-                    {bloque ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                  </button>
-                </div>
-
-                <div className="mb-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="text-slate-400 text-sm">استرجاع الملفات</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="recupererFichiers"
-                        checked={recupererFichiers}
-                        onChange={(e) => setRecupererFichiers(e.target.checked)}
-                        className="w-4 h-4 rounded border-slate-500 bg-slate-700 text-amber-500 focus:ring-amber-500 focus:ring-offset-0"
-                      />
-                      <label htmlFor="recupererFichiers" className="text-slate-300 text-sm cursor-pointer">
-                        {recupererFichiers ? "نعم" : "لا"}
-                      </label>
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1">
-                    تفعيل هذا الخيار لاسترجاع ملفات العميل
-                  </p>
-                </div>
-
-                <div className="mb-4">
-                  <label className="block text-slate-400 text-sm mb-2">تصنيف الزبون</label>
-                  <select
-                    value={statut}
-                    onChange={(e) => setStatut(e.target.value)}
-                    className="w-full bg-slate-600 border border-slate-500 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
-                  >
-                    {statutChoices.map((choice) => (
-                      <option key={choice.value} value={choice.value}>
-                        {choice.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <button
-                  onClick={() => handleOpenConfirm("updateClient")}
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-amber-500 to-yellow-600 text-white rounded-lg px-4 py-2 hover:from-amber-600 hover:to-yellow-700 transition disabled:opacity-50"
-                >
-                  {loading ? "جاري التحديث..." : "تحديث الحالة"}
-                </button>
-              </div>
-            </div>
-
-            {/* Right Column - Stats & Notes */}
-            <div className="space-y-4">
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 gap-3">
-                <div className="bg-gradient-to-r from-red-500/20 to-rose-600/20 border border-red-500/30 rounded-lg p-4 text-center">
-                  <div className="text-red-300 text-sm">الدين الحالي</div>
-                  <div className="text-red-400 text-2xl font-bold">
-                    {formatNumber(currentClient.dette_actuelle_client || 0)} د.ج
-                  </div>
-                </div>
-                <div className="bg-gradient-to-r from-emerald-500/20 to-green-600/20 border border-emerald-500/30 rounded-lg p-4 text-center">
-                  <div className="text-emerald-300 text-sm">المدفوعات</div>
-                  <div className="text-emerald-400 text-2xl font-bold">
-                    {formatNumber(currentClient.montant_paye_effectif || 0)} د.ج
-                  </div>
-                </div>
-                <div className="bg-gradient-to-r from-blue-500/20 to-cyan-600/20 border border-blue-500/30 rounded-lg p-4 text-center">
-                  <div className="text-blue-300 text-sm">المشتريات</div>
-                  <div className="text-blue-400 text-2xl font-bold">
-                    {formatNumber(currentClient.dette_totale_client || 0)} د.ج
-                  </div>
-                </div>
-              </div>
-
-              {/* Notes */}
-              <div className="bg-slate-700/30 rounded-lg p-4">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-slate-400">ملاحظات</span>
-                  {!isEditingNote && (
-                    <button
-                      onClick={() => setIsEditingNote(true)}
-                      className="p-1 hover:bg-slate-600 rounded-lg transition"
-                    >
-                      <Edit className="w-4 h-4 text-amber-400" />
-                    </button>
-                  )}
-                </div>
-                {isEditingNote ? (
-                  <div className="space-y-2">
-                    <textarea
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                      rows={3}
-                      className="w-full bg-slate-600 border border-slate-500 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
-                      placeholder="أضف ملاحظة..."
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleUpdateNote}
-                        disabled={loading}
-                        className="flex-1 bg-green-500 text-white rounded-lg px-3 py-1 hover:bg-green-600 transition disabled:opacity-50"
-                      >
-                        <Save className="w-4 h-4 inline ml-1" />
-                        حفظ
-                      </button>
-                      <button
-                        onClick={() => setIsEditingNote(false)}
-                        className="flex-1 bg-slate-600 text-white rounded-lg px-3 py-1 hover:bg-slate-500 transition"
-                      >
-                        إلغاء
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-slate-300">{note || "لا توجد ملاحظات"}</p>
-                )}
-              </div>
-            </div>
-          </div>
+          <ClientInfoTab 
+            client={{
+              ...currentClient,
+              bloque,
+              statut,
+              note,
+              isEditingNote,
+              recuperer_fichiers: recupererFichiers
+            }}
+            onUpdate={handleUpdateField}
+          />
         );
 
       case 1:

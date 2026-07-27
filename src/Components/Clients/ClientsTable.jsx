@@ -8,6 +8,9 @@ import {
   Filter,
   X,
   FileCheck,
+  FileSpreadsheet,
+  Download,
+  Upload,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -42,6 +45,10 @@ export function ClientsTable() {
   const [totalClients, setTotalClients] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [excelDialogOpen, setExcelDialogOpen] = useState(false);
+  const [excelFile, setExcelFile] = useState(null);
+  const [exportingExcel, setExportingExcel] = useState(false);
+  const [importingExcel, setImportingExcel] = useState(false);
   
   const [filters, setFilters] = useState({
     status: "",
@@ -148,6 +155,53 @@ export function ClientsTable() {
     setSearchTerm("");
   };
 
+  const handleExportExcel = async () => {
+    setExportingExcel(true);
+    try {
+      const response = await axios.get("auth/clients/export-excel/", {
+        headers,
+        responseType: "blob",
+      });
+      const downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = "clients.xlsx";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      toast.success("Excel export downloaded");
+    } catch (err) {
+      console.error("Client Excel export failed:", err);
+      toast.error("Unable to export clients to Excel");
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
+  const handleImportExcel = async () => {
+    if (!excelFile) return;
+
+    setImportingExcel(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", excelFile);
+      await axios.post("auth/clients/import-excel/", formData, {
+        headers: { Authorization: headers.Authorization },
+      });
+      toast.success("Clients imported successfully");
+      setExcelFile(null);
+      setExcelDialogOpen(false);
+      await fetchClients();
+    } catch (err) {
+      console.error("Client Excel import failed:", err);
+      const message = err.response?.data?.detail || "Unable to import the Excel file";
+      toast.error(message);
+    } finally {
+      setImportingExcel(false);
+    }
+  };
+
   const getRowBackground = (client, index) => {
     if (client.bloque) {
       return "bg-red-900/30 border-l-4 border-l-red-500";
@@ -192,7 +246,13 @@ export function ClientsTable() {
           </div>
 
           <div className="flex gap-2">
-            <button className="bg-green-500 px-4 py-2 rounded text-white">EXCEL</button>
+            <button
+              onClick={() => setExcelDialogOpen(true)}
+              className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 px-4 py-2 rounded-lg text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              EXCEL
+            </button>
             <button
               onClick={() => {
                 setClientToEdit(null);
@@ -460,6 +520,57 @@ export function ClientsTable() {
         onSuccess={fetchClients}
         clientToEdit={clientToEdit}
       />
+
+      {excelDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+            <div className="mb-6 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-lg font-semibold text-white">
+                <FileSpreadsheet className="h-5 w-5 text-emerald-400" />
+                Excel
+              </div>
+              <button
+                onClick={() => {
+                  setExcelDialogOpen(false);
+                  setExcelFile(null);
+                }}
+                className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+                aria-label="Close Excel dialog"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <button
+              onClick={handleExportExcel}
+              disabled={exportingExcel || importingExcel}
+              className="mb-5 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Download className="h-4 w-4" />
+              {exportingExcel ? "Exporting..." : "Export clients"}
+            </button>
+
+            <div className="border-t border-slate-700 pt-5">
+              <label className="mb-2 block text-sm text-slate-300">Import clients from Excel</label>
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={(event) => setExcelFile(event.target.files?.[0] || null)}
+                className="block w-full text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-2 file:text-slate-100 hover:file:bg-slate-600"
+              />
+              {excelFile && <p className="mt-2 truncate text-xs text-emerald-400">{excelFile.name}</p>}
+              <button
+                onClick={handleImportExcel}
+                disabled={!excelFile || importingExcel || exportingExcel}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-3 font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Upload className="h-4 w-4" />
+                {importingExcel ? "Importing..." : "Import clients"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

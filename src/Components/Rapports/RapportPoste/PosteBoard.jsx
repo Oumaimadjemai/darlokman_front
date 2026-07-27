@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Search, 
@@ -38,7 +38,6 @@ export default function PosteBoard() {
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const debounceTimer = useRef(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [loadingAll, setLoadingAll] = useState(false);
@@ -139,7 +138,7 @@ export default function PosteBoard() {
     }
   }, [filters, searchTerm]);
 
-  const fetchVente = useCallback(async (url = null) => {
+  const fetchVente = useCallback(async (page = 1) => {
     setLoading(true);
     setError(null);
     try {
@@ -148,17 +147,16 @@ export default function PosteBoard() {
         "Content-Type": "application/json",
       };
       
-      const apiUrl = url || "/vente/ventes-facilite/";
       const params = {
         ...filters,
         search: searchTerm || undefined,
-        page: currentPage,
+        page,
         page_size: itemsPerPage,
       };
       
       console.log("Fetching with params:", params);
       
-      const response = await axios.get(apiUrl, { headers, params });
+      const response = await axios.get("/vente/ventes-facilite/", { headers, params });
       console.log("Response:", response.data);
       
       // Get pagination info
@@ -233,7 +231,7 @@ export default function PosteBoard() {
     } finally {
       setLoading(false);
     }
-  }, [filters, searchTerm, currentPage, itemsPerPage]);
+  }, [filters, searchTerm, itemsPerPage]);
 
   // Load all data when showAllData is toggled
   useEffect(() => {
@@ -244,35 +242,15 @@ export default function PosteBoard() {
         }
       });
     } else {
-      fetchVente();
+      fetchVente(currentPage);
     }
-  }, [showAllData, filters, searchTerm]);
+  }, [showAllData, currentPage, fetchAllData, fetchVente]);
 
-  // Fetch when filters or search term change (with debounce)
+  // Start filtered searches from the first page. Page navigation itself does not
+  // change filters, so it can never be reset back to page one.
   useEffect(() => {
-    if (debounceTimer.current) {
-      clearTimeout(debounceTimer.current);
-    }
-    
-    debounceTimer.current = setTimeout(() => {
-      setCurrentPage(1);
-      if (!showAllData) {
-        fetchVente();
-      } else {
-        fetchAllData().then(allData => {
-          if (allData) {
-            setRows(allData);
-          }
-        });
-      }
-    }, 500);
-    
-    return () => {
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-      }
-    };
-  }, [fetchVente, fetchAllData, showAllData]);
+    setCurrentPage(1);
+  }, [filters, searchTerm]);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -469,15 +447,13 @@ export default function PosteBoard() {
 
   const handleNextPage = () => {
     if (nextPageUrl && !showAllData) {
-      setCurrentPage(currentPage + 1);
-      fetchVente(nextPageUrl);
+      setCurrentPage((page) => page + 1);
     }
   };
 
   const handlePrevPage = () => {
     if (prevPageUrl && !showAllData) {
-      setCurrentPage(currentPage - 1);
-      fetchVente(prevPageUrl);
+      setCurrentPage((page) => Math.max(1, page - 1));
     }
   };
 
@@ -492,7 +468,6 @@ export default function PosteBoard() {
       // Switching back to paginated view
       setShowAllData(false);
       setCurrentPage(1);
-      fetchVente();
     }
   };
 

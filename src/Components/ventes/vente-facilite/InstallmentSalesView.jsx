@@ -54,7 +54,7 @@ export function InstallmentSalesView() {
   const userMagasinId = localStorage.getItem("magasin_id");
   const storedUserId = localStorage.getItem("user_id");
 
-  const MAX_ADVANCE_PERCENT = 0.5;
+  // REMOVED: MAX_ADVANCE_PERCENT constant - no longer needed
   const moisOptions = [3, 5, 6, 8, 9, 10, 12, 15];
 
   // Status mapping for warnings - UPDATED with recuperer_fichiers
@@ -514,7 +514,7 @@ export function InstallmentSalesView() {
   const total = cart.reduce((sum, item) => sum + item.total, 0);
   const roundedTotal = arrondir(total);
 
-  // Calculate remaining amount
+  // UPDATED: Calculate remaining amount - no maximum limit
   useEffect(() => {
     const T = roundedTotal || 0;
     const V = montantVerse || 0;
@@ -525,6 +525,9 @@ export function InstallmentSalesView() {
       const ratio = T !== 0 ? V / T : 0;
       const reste = (T - V) * (1 - 2.3863 * Math.pow(ratio, 1.855));
       setMontantRestant(arrondir(reste));
+    } else if (V > T) {
+      // If advance is greater than total, remaining is 0 (fully paid)
+      setMontantRestant(0);
     } else {
       setMontantRestant(arrondir(T));
     }
@@ -784,10 +787,7 @@ export function InstallmentSalesView() {
       return;
     }
     
-    if (montantVerse > roundedTotal * MAX_ADVANCE_PERCENT) {
-      toast.error(`المبلغ المقدم لا يمكن أن يتجاوز ${Math.floor(roundedTotal * MAX_ADVANCE_PERCENT)} دج`);
-      return;
-    }
+    // REMOVED: Maximum advance validation - no limit anymore
     
     // Check salary limit if active
     if (salaryLimitActive && selectedClient && selectedClient.revenu) {
@@ -1326,7 +1326,7 @@ export function InstallmentSalesView() {
             </div>
           </div>
 
-          {/* Payment Info Card */}
+          {/* Payment Info Card - UPDATED: No maximum limit */}
           <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm border border-red-500/20 rounded-xl p-4 shadow-lg">
             <h3 className="text-white text-lg mb-4 flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-red-400" />
@@ -1359,6 +1359,7 @@ export function InstallmentSalesView() {
                 <div className="text-2xl font-bold text-red-400">{formatMoney(roundedTotal)} دج</div>
               </div>
 
+              {/* UPDATED: No maximum limit on advance payment */}
               <div>
                 <label className="text-red-300 block mb-2 text-sm">المبلغ المسدد</label>
                 <input
@@ -1366,12 +1367,11 @@ export function InstallmentSalesView() {
                   value={montantVerse}
                   onChange={(e) => {
                     const val = parseFloat(e.target.value || 0);
-                    const maxAllowed = roundedTotal * MAX_ADVANCE_PERCENT;
-                    setMontantVerse(val > maxAllowed ? maxAllowed : val);
+                    setMontantVerse(val >= 0 ? val : 0);
                   }}
                   className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:border-red-500 focus:outline-none"
                 />
-                <p className="text-xs text-slate-500 mt-1">الحد الأقصى: {formatMoney(Math.floor(roundedTotal * MAX_ADVANCE_PERCENT))} دج</p>
+                <p className="text-xs text-slate-500 mt-1">💡 لا يوجد حد أقصى للمبلغ المسدد</p>
               </div>
 
               <div className="bg-slate-700/30 rounded-lg p-3 text-center">

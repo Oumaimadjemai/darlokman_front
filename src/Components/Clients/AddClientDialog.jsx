@@ -26,7 +26,12 @@ const calculateCle = (ccp) => {
   return z < 10 ? "0" + z : "" + z;
 };
 
-export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit = null }) {
+export default function AddClientDialog({
+  open,
+  onClose,
+  onSuccess,
+  clientToEdit = null,
+}) {
   const fileInputRef = useRef();
 
   const [loading, setLoading] = useState(false);
@@ -68,30 +73,30 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
 
   // Fonctions pour gérer les téléphones
   const addTelephoneField = () => {
-    setUserInfos(prev => ({
+    setUserInfos((prev) => ({
       ...prev,
-      telephones: [...prev.telephones, ""]
+      telephones: [...prev.telephones, ""],
     }));
   };
 
   const removeTelephoneField = (index) => {
     if (userInfos.telephones.length === 1) {
-      setUserInfos(prev => {
+      setUserInfos((prev) => {
         const newTelephones = [...prev.telephones];
         newTelephones[index] = "";
         return { ...prev, telephones: newTelephones };
       });
       return;
     }
-    
-    setUserInfos(prev => ({
+
+    setUserInfos((prev) => ({
       ...prev,
-      telephones: prev.telephones.filter((_, i) => i !== index)
+      telephones: prev.telephones.filter((_, i) => i !== index),
     }));
   };
 
   const updateTelephone = (index, value) => {
-    setUserInfos(prev => {
+    setUserInfos((prev) => {
       const newTelephones = [...prev.telephones];
       newTelephones[index] = value;
       return { ...prev, telephones: newTelephones };
@@ -104,7 +109,9 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
       setIsEditMode(true);
       setUserInfos({
         assurance_militaire: clientToEdit.assurance_militaire || "",
-        date_expedition: clientToEdit.date_expedition ? new Date(clientToEdit.date_expedition) : null,
+        date_expedition: clientToEdit.date_expedition
+          ? new Date(clientToEdit.date_expedition)
+          : null,
         nom_famille_ar: clientToEdit.nom_famille_ar || "",
         prenom_ar: clientToEdit.prenom_ar || "",
         nom_famille_fr: clientToEdit.nom_famille_fr || "",
@@ -112,18 +119,24 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
         nom_pere: clientToEdit.nom_pere || "",
         nom_mere: clientToEdit.nom_mere || "",
         numero_national: clientToEdit.numero_national || "",
-        date_naissance: clientToEdit.date_naissance ? new Date(clientToEdit.date_naissance) : null,
+        date_naissance: clientToEdit.date_naissance
+          ? new Date(clientToEdit.date_naissance)
+          : null,
         lieu_naissance: clientToEdit.lieu_naissance || "",
         adresse: clientToEdit.adresse || "",
-        telephones: clientToEdit.telephones && clientToEdit.telephones.length > 0 
-          ? clientToEdit.telephones 
-          : [""],
+        telephones:
+          clientToEdit.telephones && clientToEdit.telephones.length > 0
+            ? clientToEdit.telephones
+            : [""],
         profession: clientToEdit.profession || "",
         jour: clientToEdit.jour || "",
         revenu: clientToEdit.revenu || "",
-        type_piece_identite: clientToEdit.type_piece_identite || "بطاقة التعريف الوطنية ",
+        type_piece_identite:
+          clientToEdit.type_piece_identite || "بطاقة التعريف الوطنية ",
         numero_piece_identite: clientToEdit.numero_piece_identite || "",
-        date_emission_piece: clientToEdit.date_emission_piece ? new Date(clientToEdit.date_emission_piece) : null,
+        date_emission_piece: clientToEdit.date_emission_piece
+          ? new Date(clientToEdit.date_emission_piece)
+          : null,
         lieu_emission_piece: clientToEdit.lieu_emission_piece || "",
         ccp: clientToEdit.ccp || "",
         cle: clientToEdit.cle || "",
@@ -131,14 +144,16 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
         dette_initiale: clientToEdit.dette_initiale || 0,
         note: clientToEdit.note || "",
       });
-      
+
       if (clientToEdit.fichiers) {
-        setExistingFiles(clientToEdit.fichiers.map(file => ({
-          id: file.id,
-          name: file.name || `ملف ${file.id}`,
-          url: file.url || "",
-          type: file.url?.toLowerCase().endsWith(".pdf") ? "pdf" : "image",
-        })));
+        setExistingFiles(
+          clientToEdit.fichiers.map((file) => ({
+            id: file.id,
+            name: file.name || `ملف ${file.id}`,
+            url: file.url || "",
+            type: file.url?.toLowerCase().endsWith(".pdf") ? "pdf" : "image",
+          })),
+        );
       }
     } else {
       setIsEditMode(false);
@@ -200,7 +215,7 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
     ];
 
     const missingFields = requiredFields.filter(
-      (field) => !userInfos[field] || userInfos[field].toString().trim() === ""
+      (field) => !userInfos[field] || userInfos[field].toString().trim() === "",
     );
 
     if (missingFields.length > 0) {
@@ -217,7 +232,9 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
 
     setLoading(true);
 
-    const cleanedTelephones = userInfos.telephones.filter(phone => phone && phone.trim() !== "");
+    const cleanedTelephones = userInfos.telephones.filter(
+      (phone) => phone && phone.trim() !== "",
+    );
 
     const formattedData = {
       ...userInfos,
@@ -274,7 +291,7 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
         });
         toast.success("✅ تم إضافة العميل بنجاح");
       }
-      
+
       if (typeof onSuccess === "function") {
         onSuccess();
       }
@@ -285,7 +302,7 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
       toast.error(
         err.response?.data?.message ||
           JSON.stringify(err.response?.data) ||
-          "Erreur inconnue"
+          "Erreur inconnue",
       );
     } finally {
       setLoading(false);
@@ -720,9 +737,14 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
                     }
                     className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:border-amber-500 focus:outline-none"
                   >
-                    <option value="بطاقة التعريف الوطنية">بطاقة التعريف</option>
-                    <option value="جواز السفر">جواز السفر</option>
-                    <option value="رخصة السياقة">رخصة السياقة</option>
+                    <option value="بطاقة التعريف الوطنية ">
+                      بطاقة التعريف
+                    </option>{" "}
+                    {/* ← with space */}
+                    <option value="جواز السفر ">جواز السفر</option>{" "}
+                    {/* ← with space */}
+                    <option value="رخصة السياقة ">رخصة السياقة</option>{" "}
+                    {/* ← with space */}
                   </select>
                 </div>
                 <div>
@@ -931,7 +953,9 @@ export default function AddClientDialog({ open, onClose, onSuccess, clientToEdit
                 className="border-2 border-dashed border-amber-500/50 rounded-xl p-8 text-center cursor-pointer hover:border-amber-500 transition bg-slate-800/50"
               >
                 <Upload className="w-12 h-12 text-amber-400 mx-auto mb-3" />
-                <p className="text-slate-300">🖱 اسحب الملفات أو انقر لاختيارها</p>
+                <p className="text-slate-300">
+                  🖱 اسحب الملفات أو انقر لاختيارها
+                </p>
                 <p className="text-slate-500 text-sm mt-1">
                   الصور، PDF، DOC - يدعم الملفات المتعددة
                 </p>
